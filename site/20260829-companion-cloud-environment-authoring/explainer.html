@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-ADM-CLOUD-ENV-AUTHOR">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>Cloud Environment 的定义、缓存与版本化</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #eee9dc;
+      --paper-2: #e4dece;
+      --ink: #19211f;
+      --muted: #5a625d;
+      --rule: #9d9b8d;
+      --rule-dark: #3f4a45;
+      --oxide: #b4472f;
+      --oxide-soft: rgba(180, 71, 47, .11);
+      --green: #1e6956;
+      --green-soft: rgba(30, 105, 86, .1);
+      --blue: #315d70;
+      --white: #faf7ee;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 31px, rgba(180, 71, 47, .18) 32px, transparent 33px),
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(25, 33, 31, .045) 32px),
+        var(--paper);
+      font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: var(--green); text-underline-offset: .22em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--oxide); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--oxide);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      padding: .08em .32em;
+      border: 1px solid rgba(25, 33, 31, .2);
+      background: rgba(250, 247, 238, .55);
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      font-size: .88em;
+    }
+
+    .wrap { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
+    .masthead {
+      min-height: 92vh;
+      display: grid;
+      align-content: center;
+      padding: 38px 0 70px;
+      border-bottom: 2px solid var(--ink);
+      position: relative;
+    }
+    .masthead::before {
+      content: "ENV / REV";
+      position: absolute;
+      right: max(24px, calc((100vw - 1160px) / 2));
+      top: 8vh;
+      color: rgba(25, 33, 31, .055);
+      font: 800 clamp(4.5rem, 13vw, 12rem)/.85 ui-monospace, monospace;
+      letter-spacing: -.09em;
+      writing-mode: vertical-rl;
+      pointer-events: none;
+    }
+    .topline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      align-items: center;
+      margin-bottom: clamp(50px, 9vh, 100px);
+      font: 700 .76rem/1.4 ui-monospace, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      position: relative;
+      z-index: 1;
+    }
+    .feature-tag {
+      padding: 6px 10px;
+      color: var(--white);
+      background: var(--ink);
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .status::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      background: var(--oxide);
+      border-radius: 50%;
+      box-shadow: 0 0 0 4px var(--oxide-soft);
+    }
+    h1, h2, h3 { text-wrap: balance; }
+    h1 {
+      max-width: 930px;
+      margin: 0;
+      font: 700 clamp(3.25rem, 8vw, 7.1rem)/.96 "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      letter-spacing: -.06em;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-answer {
+      max-width: 870px;
+      margin: 38px 0 0;
+      padding-left: 24px;
+      border-left: 5px solid var(--oxide);
+      font-size: clamp(1.12rem, 2.1vw, 1.55rem);
+      position: relative;
+      z-index: 1;
+    }
+    .hero-answer strong { color: var(--oxide); }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 38px;
+      position: relative;
+      z-index: 1;
+    }
+    .legend span {
+      padding: 6px 10px;
+      border: 1px solid var(--rule-dark);
+      background: rgba(238, 233, 220, .78);
+      font-size: .77rem;
+    }
+    .legend b { color: var(--oxide); margin-right: 5px; }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--rule-dark);
+      background: rgba(238, 233, 220, .94);
+      backdrop-filter: blur(10px);
+    }
+    nav .wrap {
+      display: flex;
+      gap: 20px;
+      padding-top: 11px;
+      padding-bottom: 11px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    nav a {
+      color: var(--muted);
+      font: 700 .76rem/1.3 ui-monospace, monospace;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    nav a:hover { color: var(--oxide); }
+
+    main > section { padding: 92px 0; border-bottom: 1px solid var(--rule-dark); }
+    .section-head {
+      display: grid;
+      grid-template-columns: 170px minmax(0, 1fr);
+      gap: 30px;
+      margin-bottom: 44px;
+    }
+    .kicker {
+      color: var(--oxide);
+      font: 800 .75rem/1.5 ui-monospace, monospace;
+      letter-spacing: .1em;
+      padding-top: 8px;
+    }
+    h2 {
+      margin: 0;
+      max-width: 920px;
+      font: 700 clamp(2.2rem, 5vw, 4.8rem)/1.03 "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      letter-spacing: -.045em;
+    }
+    h3 { margin: 0 0 10px; font-size: 1.02rem; }
+    p { margin: 0 0 1em; }
+    .lead { max-width: 820px; font-size: 1.08rem; color: var(--muted); }
+    .ev {
+      display: inline-grid;
+      place-items: center;
+      min-width: 23px;
+      height: 23px;
+      padding: 0 5px;
+      margin-left: .26em;
+      border: 1px solid currentColor;
+      color: var(--oxide);
+      font: 800 .69rem/1 ui-monospace, monospace;
+      vertical-align: .12em;
+    }
+    .ev.l { color: var(--blue); }
+    .ev.i { color: var(--muted); }
+
+    .term-grid, .limit-grid, .source-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 2px solid var(--ink);
+      border-left: 1px solid var(--rule);
+    }
+    .term, .limit-card, .source-card {
+      min-height: 210px;
+      padding: 25px;
+      border-right: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      background: rgba(250, 247, 238, .48);
+    }
+    .term p, .limit-card p, .source-card p { margin: 0; color: var(--muted); }
+    .term-code {
+      margin-bottom: 34px;
+      color: var(--green);
+      font: 800 .73rem/1.3 ui-monospace, monospace;
+      letter-spacing: .08em;
+    }
+
+    .timeline {
+      counter-reset: envstep;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      border: 1px solid var(--rule-dark);
+      background: rgba(250, 247, 238, .52);
+    }
+    .step {
+      counter-increment: envstep;
+      min-height: 250px;
+      padding: 23px 19px;
+      border-right: 1px solid var(--rule);
+      position: relative;
+    }
+    .step:last-child { border-right: 0; }
+    .step::before {
+      content: "0" counter(envstep);
+      display: block;
+      margin-bottom: 58px;
+      color: var(--oxide);
+      font: 800 .75rem/1 ui-monospace, monospace;
+    }
+    .step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      right: -5px;
+      top: 33px;
+      width: 9px;
+      height: 9px;
+      background: var(--oxide);
+      transform: rotate(45deg);
+      z-index: 1;
+    }
+    .step p { color: var(--muted); font-size: .88rem; margin: 0; }
+    .sequence-note {
+      margin-top: 22px;
+      padding: 18px 20px;
+      border-left: 4px solid var(--green);
+      background: var(--green-soft);
+      color: var(--muted);
+    }
+
+    .flow-board {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+    .lane {
+      border: 1px solid var(--rule-dark);
+      background: rgba(250, 247, 238, .5);
+    }
+    .lane-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--rule-dark);
+      color: var(--white);
+      background: var(--ink);
+      font-weight: 800;
+    }
+    .lane.cache .lane-head { background: var(--green); }
+    .lane ol { list-style: none; margin: 0; padding: 0; counter-reset: lane; }
+    .lane li {
+      counter-increment: lane;
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      gap: 14px;
+      padding: 19px 20px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .lane li:last-child { border-bottom: 0; }
+    .lane li::before {
+      content: counter(lane);
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--oxide);
+      border-radius: 50%;
+      color: var(--oxide);
+      font: 800 .72rem/1 ui-monospace, monospace;
+    }
+    .lane.cache li::before { color: var(--green); border-color: var(--green); }
+    .lane b { display: block; margin-bottom: 3px; }
+    .lane small { color: var(--muted); font-size: .82rem; }
+    .flow-rule {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 2px solid var(--ink);
+      border-left: 1px solid var(--rule);
+    }
+    .flow-rule article {
+      padding: 22px;
+      border-right: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      background: rgba(250, 247, 238, .48);
+    }
+    .flow-rule p { margin: 0; color: var(--muted); }
+
+    .limit-grid { grid-template-columns: repeat(2, 1fr); }
+    .limit-card { min-height: 0; }
+    .limit-label {
+      display: inline-block;
+      margin-bottom: 24px;
+      color: var(--oxide);
+      font: 800 .72rem/1.3 ui-monospace, monospace;
+      letter-spacing: .09em;
+    }
+    .limit-card.stop { background: var(--oxide-soft); }
+
+    .experiment {
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      border: 1px solid var(--rule-dark);
+      background: rgba(250, 247, 238, .5);
+    }
+    .experiment > div { padding: 30px; }
+    .experiment > div + div { border-left: 1px solid var(--rule-dark); }
+    .result {
+      margin-bottom: 18px;
+      color: var(--oxide);
+      font: 800 clamp(2.4rem, 5vw, 4.8rem)/1 ui-monospace, monospace;
+      letter-spacing: -.06em;
+    }
+    .checks { margin: 0; padding-left: 1.2em; color: var(--muted); }
+    .checks li + li { margin-top: .7em; }
+
+    .implementation-grid {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 22px;
+    }
+    .revision-card, .boundary-card {
+      padding: 28px;
+      border: 1px solid var(--rule-dark);
+      background: rgba(250, 247, 238, .55);
+    }
+    .revision-card { border-top: 7px solid var(--oxide); }
+    .boundary-card { border-top: 7px solid var(--green); }
+    .revision-card p, .boundary-card p { color: var(--muted); }
+    .revision-card ul, .boundary-card ul { margin: 0; padding-left: 1.2em; }
+    .revision-card li + li, .boundary-card li + li { margin-top: .65em; }
+    .version-stamp {
+      display: inline-block;
+      margin-bottom: 24px;
+      padding: 7px 10px;
+      border: 1px solid var(--rule-dark);
+      font: 800 .72rem/1.2 ui-monospace, monospace;
+      letter-spacing: .06em;
+    }
+
+    details { border-top: 1px solid var(--rule-dark); }
+    details:last-child { border-bottom: 1px solid var(--rule-dark); }
+    summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 20px 48px 20px 0;
+      font-weight: 700;
+      position: relative;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after {
+      content: "+";
+      position: absolute;
+      right: 8px;
+      color: var(--oxide);
+      font-size: 1.4rem;
+    }
+    details[open] summary::after { content: "×"; }
+    details p { max-width: 860px; padding: 0 48px 22px 0; color: var(--muted); }
+
+    .source-grid { grid-template-columns: repeat(2, 1fr); }
+    .source-card { min-height: 0; }
+    .source-card a { display: inline-block; margin-top: 14px; font-weight: 800; }
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      padding: 30px 0 44px;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    @media (max-width: 920px) {
+      .term-grid { grid-template-columns: repeat(2, 1fr); }
+      .timeline { grid-template-columns: repeat(3, 1fr); }
+      .step:nth-child(3) { border-right: 0; }
+      .step:nth-child(-n+3) { border-bottom: 1px solid var(--rule); }
+      .flow-board, .implementation-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 620px) {
+      .wrap { width: min(100% - 28px, 1160px); }
+      .masthead { min-height: 0; padding: 28px 0 50px; }
+      .masthead::before { display: none; }
+      .topline { margin-bottom: 44px; }
+      h1 { font-size: clamp(3rem, 15vw, 4.6rem); }
+      .hero-answer { padding-left: 16px; font-size: 1.01rem; }
+      main > section { padding: 62px 0; }
+      .section-head { grid-template-columns: 1fr; gap: 10px; }
+      .term-grid, .limit-grid, .source-grid, .flow-rule, .experiment { grid-template-columns: 1fr; }
+      .timeline { grid-template-columns: 1fr; }
+      .step { min-height: 0; border-right: 0; border-bottom: 1px solid var(--rule); }
+      .step:last-child { border-bottom: 0; }
+      .step::before { margin-bottom: 16px; }
+      .step::after { display: none; }
+      .experiment > div + div { border-left: 0; border-top: 1px solid var(--rule-dark); }
+      footer { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Cloud Environment 的定义、缓存与版本化。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-cloud-environment-authoring/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-ADM-CLOUD-ENV-AUTHOR · Cloud Environment 的定义、缓存与版本化">
+  <meta property="og:description" content="Claude Code X-Ray：Cloud Environment 的定义、缓存与版本化。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-cloud-environment-authoring/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-ADM-CLOUD-ENV-AUTHOR · Cloud Environment 的定义、缓存与版本化">
+  <meta name="twitter:description" content="Claude Code X-Ray：Cloud Environment 的定义、缓存与版本化。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-ADM-CLOUD-ENV-AUTHOR</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <main>
+    <header class="masthead" data-xray-section="answer">
+      <div class="wrap">
+        <div class="topline">
+          <span class="feature-tag">COMP-ADM-CLOUD-ENV-AUTHOR</span>
+          <span class="status">状态 documented</span>
+          <span>Claude Code 2.1.247</span>
+          <a href="../index.html">返回总索引</a>
+        </div>
+        <h1>配置改动生效后，新会话才接手</h1>
+        <p class="hero-answer">Owner 把网络级别、环境变量和 setup script 写进共享 Cloud Environment。<strong>新会话启动时读取修改后的配置，运行中的会话继续用旧值。</strong> setup script 只有在缺少可用缓存时执行，成功后留下文件系统快照。脚本变更、允许域名变更或缓存约七天到期会触发重建。官方没有公开 revision ID、历史回滚或单独 Publish 动作，本页因此只把编辑前后称作“配置代际”。 <span class="ev">O</span><span class="ev i">I</span></p>
+        <div class="legend" aria-label="证据图例">
+          <span><b>O</b>官方契约</span>
+          <span><b>L</b>本机静态或帮助证据</span>
+          <span><b>R</b>本轮真实实验</span>
+          <span><b>I</b>研究者推断</span>
+        </div>
+      </div>
+    </header>
+
+    <nav aria-label="本页导航">
+      <div class="wrap">
+        <a href="#terms">角色与名词</a>
+        <a href="#sequence">配置顺序</a>
+        <a href="#flow">数据与缓存</a>
+        <a href="#limits">权限与失败</a>
+        <a href="#experiment">本机检查</a>
+        <a href="#implementation">版本边界</a>
+        <a href="#unknowns">未知项</a>
+        <a href="#sources">一手来源</a>
+      </div>
+    </nav>
+
+    <section id="terms" data-xray-section="terms">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">01 / TERMS</div>
+          <h2>先分清配置、会话和快照</h2>
+        </div>
+        <div class="term-grid">
+          <article class="term">
+            <div class="term-code">OWNER</div>
+            <h3>组织 Owner</h3>
+            <p>在 Team 与 Enterprise 的 Cloud environments 管理页创建、编辑和归档共享环境。其他成员在选择器里看到只读项。 <span class="ev">O</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">ENVIRONMENT</div>
+            <h3>环境定义</h3>
+            <p>一组给新云会话使用的字段，公开范围包括名称、网络级别、环境变量和 setup script。 <span class="ev">O</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">CONFIG GENERATION</div>
+            <h3>配置代际</h3>
+            <p>本页为了区分编辑前后的配置采用的研究术语。官方文档没有把它定义成可寻址的 revision。 <span class="ev i">I</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">NEW SESSION</div>
+            <h3>新会话</h3>
+            <p>启动时复制环境变量，并选择已有快照或执行 setup script。配置编辑只从这里向后生效。 <span class="ev">O</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">SETUP SCRIPT</div>
+            <h3>预置脚本</h3>
+            <p>在 Ubuntu 24.04 上以 root 身份运行的 Bash 脚本。它发生在 Claude Code 启动之前。 <span class="ev">O</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">FS SNAPSHOT</div>
+            <h3>环境缓存</h3>
+            <p>setup script 成功后生成的文件系统快照。安装包、文件与 Docker 镜像能留下，运行中的进程不能。 <span class="ev">O</span></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="sequence" data-xray-section="sequence">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">02 / SEQUENCE</div>
+          <h2>管理员改动配置，新会话走完六步</h2>
+        </div>
+        <div class="timeline" aria-label="环境配置与新会话时序">
+          <article class="step"><h3>取得编辑入口</h3><p>Owner 从管理页处理共享环境。Admin 无法打开该页，环境选择器另有 Admin 或 Owner 编辑入口。 <span class="ev">O</span></p></article>
+          <article class="step"><h3>填写四类字段</h3><p>选择网络级别，填写 `.env` 行和 Bash 脚本，再给环境命名。 <span class="ev">O</span></p></article>
+          <article class="step"><h3>让修改生效</h3><p>官方说明编辑后的值进入以后启动的会话，却没有为通用环境管理流程明确列出 Save changes 按钮，也没有发布审批或 revision ID；这里把编辑生效视为一次配置切换。 <span class="ev i">I</span></p></article>
+          <article class="step"><h3>启动新会话</h3><p>会话复制当前环境变量。运行中的旧会话不会重读这次修改。 <span class="ev">O</span></p></article>
+          <article class="step"><h3>决定是否构建</h3><p>有可用快照就直接复用。缺少快照时先运行 setup script，成功后生成快照。 <span class="ev">O</span></p></article>
+          <article class="step"><h3>进入 Claude Code</h3><p>预置阶段成功以后 Claude Code 启动，随后每次会话都会运行适用的 SessionStart hooks。 <span class="ev">O</span></p></article>
+        </div>
+        <p class="sequence-note">配置改动生效与缓存重建是两件事。环境变量的新值会进入以后启动的会话，官方触发缓存重建的清单只点名 setup script、allowed network hosts 与约七天有效期。页面没有把环境变量编辑画成无条件重建。 <span class="ev">O</span></p>
+      </div>
+    </section>
+
+    <section id="flow" data-xray-section="flow">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">03 / FLOW</div>
+          <h2>配置流和文件流各走一条线</h2>
+        </div>
+        <div class="flow-board">
+          <article class="lane">
+            <div class="lane-head">配置流 / 每个新会话读取</div>
+            <ol>
+              <li><div><b>网络策略</b><small>None、Trusted、Full 或 Custom 控制会话网络出站路径。</small></div></li>
+              <li><div><b>环境变量</b><small>启动时复制一次，随后成为命令可读的普通变量。</small></div></li>
+              <li><div><b>旧会话保持原值</b><small>编辑不会回头改动已经运行的会话。</small></div></li>
+              <li><div><b>归档切断新入口</b><small>已有会话继续，新会话不能再选择该环境。</small></div></li>
+            </ol>
+          </article>
+          <article class="lane cache">
+            <div class="lane-head">文件流 / 缓存按条件重建</div>
+            <ol>
+              <li><div><b>没有快照</b><small>setup script 先以 root 身份运行，最长约五分钟。</small></div></li>
+              <li><div><b>成功落盘</b><small>文件、工具链、安装包和 Docker 镜像进入快照。</small></div></li>
+              <li><div><b>后续复用</b><small>新会话从快照启动并跳过 setup script。</small></div></li>
+              <li><div><b>触发重建</b><small>脚本或 allowed hosts 变化，或者快照约七天到期。</small></div></li>
+            </ol>
+          </article>
+        </div>
+        <div class="flow-rule">
+          <article><h3>磁盘内容能留下</h3><p>工具、依赖、文件和拉取完成的镜像随快照进入以后会话。 <span class="ev">O</span></p></article>
+          <article><h3>进程状态会消失</h3><p>数据库服务、容器进程和后台任务需要每次会话重新启动。 <span class="ev">O</span></p></article>
+          <article><h3>恢复不会重跑脚本</h3><p>已有会话恢复时跳过 setup script，SessionStart hook 仍按会话生命周期运行。 <span class="ev">O</span></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="limits" data-xray-section="limits">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">04 / LIMITS</div>
+          <h2>权限门在编辑前，失败多在启动时</h2>
+        </div>
+        <div class="limit-grid">
+          <article class="limit-card">
+            <div class="limit-label">ACCESS + ROLE GATE</div>
+            <h3>先满足登录与席位，再检查角色</h3>
+            <p>使用 Claude Code on the web 要先登录 Anthropic 账户；研究预览适用于 Pro、Max、Team，以及拥有 premium seat 或 Chat + Claude Code seat 的 Enterprise 用户。进入组织共享环境后，管理页只给 Owner；环境选择器另有 Admin 或 Owner 编辑入口。 <span class="ev">O</span></p>
+          </article>
+          <article class="limit-card">
+            <div class="limit-label">VISIBILITY GATE</div>
+            <h3>环境变量不适合放密钥</h3>
+            <p>使用环境的人可以读取变量，Claude 运行的命令也能读。可由 agent proxy 附加的密钥应放 API credential，避免进入会话 VM。 <span class="ev">O</span></p>
+          </article>
+          <article class="limit-card stop">
+            <div class="limit-label">SCRIPT STOP</div>
+            <h3>非零退出挡住新会话</h3>
+            <p>setup script 退出非零时，会话启动失败。网络级别设为 None 后，依赖联网的安装也会失败。非关键命令可以明确处理错误。 <span class="ev">O</span></p>
+          </article>
+          <article class="limit-card stop">
+            <div class="limit-label">TIME STOP</div>
+            <h3>约五分钟是构建预算</h3>
+            <p>长下载和串行安装可能让缓存构建超时。官方建议并行独立步骤，把单个重任务移到 SessionStart hook 的后台路径。 <span class="ev">O</span></p>
+          </article>
+          <article class="limit-card">
+            <div class="limit-label">ARCHIVE STOP</div>
+            <h3>归档只拦新会话</h3>
+            <p>环境会从选择器消失，显式绑定它的 routine 也不能再启动。已经运行的会话继续使用原配置。 <span class="ev">O</span></p>
+          </article>
+          <article class="limit-card">
+            <div class="limit-label">VALIDATION UNKNOWN</div>
+            <h3>字段级拒绝规则没有公开</h3>
+            <p>文档解释了 `.env` 解析与 allowed hosts 格式，却没有列出提交修改前的全部无效状态、错误文案和部分生效规则。这里保持未知。 <span class="ev i">I</span></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="experiment" data-xray-section="experiment">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">05 / EXPERIMENT</div>
+          <h2>本轮停在只读核对</h2>
+        </div>
+        <div class="experiment">
+          <div>
+            <div class="result">documented</div>
+            <p>编辑共享环境会改变远端组织状态，启动缓存构建还会消耗账户用量。本轮没有登录、创建、保存、归档或启动会话，因此没有 R。</p>
+          </div>
+          <div>
+            <h3>本机只读结果</h3>
+            <ul class="checks">
+              <li><code>command -v claude</code> 没有返回路径。 <span class="ev l">L</span></li>
+              <li>三个常见独立安装位置也没有可执行文件。 <span class="ev l">L</span></li>
+              <li>本轮无法用本机 help 确认 2.1.247 的 CLI 入口。这个缺口不影响网页端的官方配置契约。</li>
+              <li>没有读取 token、cookie、私人会话或受限的 <code>.claude</code> 内容。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="implementation" data-xray-section="implementation">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">06 / IMPLEMENTATION</div>
+          <h2>“版本化”目前只能落到可观察行为</h2>
+        </div>
+        <div class="implementation-grid">
+          <article class="revision-card">
+            <div class="version-stamp">BASELINE / 2026-08-27 / 2.1.247</div>
+            <h3>公开契约支持两代配置并存</h3>
+            <p>编辑生效以后，旧会话保留启动时拿到的变量，新会话读取修改后的值。缓存又有自己的生命周期。这个现象足以区分配置代际，却不足以证明服务端暴露不可变 revision 对象。 <span class="ev">O</span><span class="ev i">I</span></p>
+            <ul>
+              <li>公开文档确认 Create environment 与 Archive；环境编辑会影响后续新会话</li>
+              <li>通用管理流程的 Save changes 按钮没有明确文档契约，本页不把它标成 O</li>
+              <li>官方没有列出 revision ID、历史列表和回滚按钮</li>
+            </ul>
+          </article>
+          <article class="boundary-card">
+            <div class="version-stamp">BOUNDARY / ADM-04</div>
+            <h3>本页停在环境可供选择</h3>
+            <p>环境配置生效以后，云任务怎样选它、VM 怎样取得代码、自托管 Runner 怎样领取和释放会话，属于相邻主页面。这里不重复那条状态机。</p>
+            <p><a href="../20260827-adm-04-cloud-session-runner/explainer.html">回到 ADM-04 云会话与 Runner 主页面</a></p>
+            <ul>
+              <li>本页处理作者、配置、快照和启动前失败</li>
+              <li>主页面处理选择、执行端、凭据与回收</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">07 / UNKNOWNS</div>
+          <h2>四处缺口仍需测试组织</h2>
+        </div>
+        <details open>
+          <summary>服务端有没有正式 revision</summary>
+          <p>公开文档没有 revision ID、并发更新、保留期或回滚契约。服务端可能保留内部版本，本轮没有证据把它画进状态机。</p>
+        </details>
+        <details>
+          <summary>提交前怎样拒绝无效字段</summary>
+          <p>环境名称、`.env` 行、域名通配符和脚本长度分别怎样校验，哪些错误允许部分保存，公开材料没有完整说明。</p>
+        </details>
+        <details>
+          <summary>构建失败以后旧快照怎样处理</summary>
+          <p>新快照构建失败时，旧快照会不会继续服务新会话，重试何时发生，界面有没有手动重建动作，都需要真实实验。</p>
+        </details>
+        <details>
+          <summary>哪些网络改动一定触发重建</summary>
+          <p>官方点名 allowed network hosts。只切换 None、Trusted、Full、Custom 而不改域名清单时，缓存是否重建仍没有精确契约。</p>
+        </details>
+      </div>
+    </section>
+
+    <section id="sources" data-xray-section="sources">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">08 / SOURCES</div>
+          <h2>沿着一手材料复核</h2>
+        </div>
+        <div class="source-grid">
+          <article class="source-card">
+            <h3>字段、角色与缓存</h3>
+            <p>证明共享环境的编辑入口、网络级别、变量复制、setup script、快照触发条件和归档语义。</p>
+            <a href="https://code.claude.com/docs/en/cloud-environments">官方 Configure cloud environments</a>
+          </article>
+          <article class="source-card">
+            <h3>创建与启动故障</h3>
+            <p>证明首次创建流程、脚本非零退出、网络安装失败和约五分钟超时的排查路径。</p>
+            <a href="https://code.claude.com/docs/en/web-quickstart">官方 Web quickstart</a>
+          </article>
+          <article class="source-card">
+            <h3>云会话承接边界</h3>
+            <p>证明登录与套餐、席位资格，以及 Cloud Environment 服务于 Claude Code on the web；也说明已有会话和新会话各自怎样承接环境。</p>
+            <a href="https://code.claude.com/docs/en/claude-code-on-the-web">官方 Claude Code on the web</a>
+          </article>
+          <article class="source-card">
+            <h3>SessionStart 的位置</h3>
+            <p>证明 hook 属于 Claude Code 启动后的会话生命周期，和缓存前的 setup script 分开。</p>
+            <a href="https://code.claude.com/docs/en/hooks">官方 Hooks reference</a>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <span>COMP-ADM-CLOUD-ENV-AUTHOR · 状态 documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

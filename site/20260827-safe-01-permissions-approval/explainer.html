@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="SAFE-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>SAFE-01 权限规则、权限模式与审批</title>
+  <style>
+    :root {
+      --paper: #f3f0e7;
+      --paper-deep: #e6e0d2;
+      --ink: #17201e;
+      --muted: #5c655f;
+      --line: #9ca096;
+      --panel: #faf8f1;
+      --red: #b83d2d;
+      --red-soft: #f3d7cf;
+      --amber: #cc8a1e;
+      --amber-soft: #f3e4bc;
+      --green: #24775b;
+      --green-soft: #cfe6da;
+      --blue: #326878;
+      --blue-soft: #d2e4e8;
+      --black: #111715;
+      --shadow: 0 14px 34px rgba(31, 38, 34, .10);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(23,32,30,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23,32,30,.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.72;
+    }
+    a { color: #174e5d; text-underline-offset: .2em; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      padding: .08em .35em;
+      border: 1px solid #cbc7ba;
+      border-radius: 3px;
+      background: #ebe7db;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .91em;
+    }
+    .topbar {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+      min-height: 58px;
+      padding: .7rem clamp(1rem, 4vw, 4rem);
+      color: #eef5f1;
+      background: var(--black);
+      border-bottom: 5px solid var(--amber);
+    }
+    .idline { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; }
+    .stamp {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: .12rem .65rem;
+      border: 1px solid rgba(255,255,255,.4);
+      border-radius: 99px;
+      font-size: .78rem;
+      letter-spacing: .04em;
+    }
+    .stamp.status { color: #17201e; background: var(--amber-soft); border-color: var(--amber-soft); }
+    .topbar a { color: #fff; font-size: .88rem; }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      min-height: calc(100vh - 58px);
+      padding: clamp(3rem, 7vw, 7rem) clamp(1.15rem, 7vw, 7.5rem) 4rem;
+      background:
+        radial-gradient(circle at 82% 25%, rgba(204,138,30,.18) 0 2px, transparent 3px),
+        linear-gradient(115deg, transparent 0 62%, rgba(50,104,120,.08) 62% 63%, transparent 63%),
+        var(--paper);
+      background-size: 18px 18px, auto, auto;
+      border-bottom: 1px solid var(--line);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -120px;
+      bottom: -180px;
+      width: 480px;
+      height: 480px;
+      border: 58px solid rgba(184,61,45,.09);
+      border-radius: 50%;
+    }
+    .eyebrow {
+      margin: 0 0 1rem;
+      color: var(--red);
+      font-size: .83rem;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { font-family: "Songti SC", "STSong", serif; }
+    h1 {
+      max-width: 980px;
+      margin: 0;
+      font-size: clamp(2.45rem, 6.7vw, 6.3rem);
+      line-height: .98;
+      letter-spacing: -.055em;
+      font-weight: 900;
+    }
+    .hero-answer {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: clamp(2rem, 5vw, 4.4rem) 0 0 clamp(0px, 5vw, 90px);
+      padding-left: 1.4rem;
+      border-left: 8px solid var(--red);
+      font-size: clamp(1.12rem, 2vw, 1.55rem);
+      line-height: 1.75;
+    }
+    .hero-answer strong { color: var(--red); }
+    .hero-note {
+      max-width: 760px;
+      margin: 1.35rem 0 0 clamp(0px, 5vw, 90px);
+      color: var(--muted);
+      font-size: .92rem;
+    }
+    nav.local {
+      display: flex;
+      gap: .45rem;
+      overflow-x: auto;
+      padding: .85rem clamp(1rem, 4vw, 4rem);
+      background: rgba(250,248,241,.94);
+      border-bottom: 1px solid var(--line);
+    }
+    nav.local a {
+      flex: 0 0 auto;
+      padding: .3rem .68rem;
+      color: var(--ink);
+      text-decoration: none;
+      border: 1px solid #b9b7ad;
+      border-radius: 2px;
+      font-size: .78rem;
+      background: #fffdf7;
+    }
+    main { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; }
+    section { scroll-margin-top: 1rem; }
+    .section {
+      padding: clamp(3.4rem, 7vw, 6.7rem) 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .section-head {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      gap: 1.2rem;
+      align-items: baseline;
+      margin-bottom: 2rem;
+    }
+    .section-no { color: var(--red); font: 700 .78rem/1 monospace; letter-spacing: .1em; }
+    h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.8rem); line-height: 1.08; letter-spacing: -.035em; }
+    h3 { margin: 0 0 .55rem; font-size: 1.35rem; line-height: 1.25; }
+    p { margin: .55rem 0 1rem; }
+    .lead { max-width: 850px; font-size: 1.13rem; color: #303936; }
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; margin-top: 1.8rem; }
+    .legend div { min-height: 108px; padding: 1rem; border-top: 5px solid; background: var(--panel); box-shadow: 0 6px 20px rgba(31,38,34,.06); }
+    .legend b { display: block; font: 800 1.35rem/1 monospace; margin-bottom: .5rem; }
+    .legend .o { border-color: var(--green); }
+    .legend .l { border-color: var(--blue); }
+    .legend .r { border-color: var(--amber); }
+    .legend .i { border-color: var(--red); }
+    .terms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .term {
+      padding: 1.2rem;
+      background: var(--panel);
+      border: 1px solid #bbb7aa;
+      border-top-width: 6px;
+    }
+    .term:nth-child(3n+1) { border-top-color: var(--blue); }
+    .term:nth-child(3n+2) { border-top-color: var(--amber); }
+    .term:nth-child(3n) { border-top-color: var(--red); }
+    .term p { margin-bottom: 0; color: var(--muted); font-size: .92rem; }
+    .board-wrap { margin: 2rem 0; padding: clamp(1rem, 3vw, 2rem); background: #18201e; color: #edf3ef; box-shadow: var(--shadow); }
+    .board-label { color: #cfdbd5; font-size: .78rem; letter-spacing: .13em; }
+    .board {
+      display: grid;
+      grid-template-columns: minmax(170px, .8fr) minmax(210px, 1fr) minmax(170px, .8fr);
+      grid-template-areas:
+        "entry hook stop"
+        "rules hub execute"
+        "defer request auto";
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .node {
+      position: relative;
+      min-height: 142px;
+      padding: 1rem;
+      border: 1px solid #63716c;
+      background: #222c29;
+    }
+    .node::before { content: ""; position: absolute; top: -1px; left: -1px; width: 34%; height: 5px; background: var(--node-color, #77908a); }
+    .node b { display: block; margin-bottom: .5rem; color: #fff; font-size: 1rem; }
+    .node small { display: block; color: #b9c6c0; line-height: 1.55; }
+    .node .route { margin-top: .75rem; color: #f3d28b; font: 700 .76rem/1.45 monospace; }
+    .entry { grid-area: entry; --node-color: var(--blue); }
+    .hook { grid-area: hook; --node-color: var(--amber); }
+    .stop { grid-area: stop; --node-color: var(--red); }
+    .rules { grid-area: rules; --node-color: var(--red); }
+    .hub { grid-area: hub; --node-color: #fff; border-width: 2px; background: #303b37; }
+    .execute { grid-area: execute; --node-color: var(--green); }
+    .defer { grid-area: defer; --node-color: var(--blue); }
+    .request { grid-area: request; --node-color: var(--amber); }
+    .auto { grid-area: auto; --node-color: var(--amber); }
+    .loop-note {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .8rem;
+      margin-top: 1rem;
+    }
+    .loop-note div { padding: .7rem .85rem; border-left: 4px solid var(--amber); background: rgba(255,255,255,.07); color: #dce5e0; font-size: .84rem; }
+    .sequence-list { counter-reset: seq; display: grid; gap: .8rem; margin-top: 2rem; }
+    .seq {
+      counter-increment: seq;
+      display: grid;
+      grid-template-columns: 62px 1fr;
+      gap: 1rem;
+      padding: 1rem 1.1rem;
+      border: 1px solid #bab6a9;
+      background: rgba(250,248,241,.8);
+    }
+    .seq::before { content: counter(seq, decimal-leading-zero); color: var(--red); font: 800 1.1rem/1.2 monospace; }
+    .seq p { margin: 0; }
+    .matrix { width: 100%; border-collapse: collapse; margin: 1.4rem 0; background: var(--panel); font-size: .9rem; }
+    .matrix th, .matrix td { padding: .8rem .75rem; border: 1px solid #b9b5aa; text-align: left; vertical-align: top; }
+    .matrix th { color: #fff; background: #27312e; }
+    .matrix tr td:first-child { font-weight: 700; white-space: nowrap; }
+    .stop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1.7rem; }
+    .stop-card { padding: 1.25rem; background: var(--panel); border-left: 7px solid var(--red); }
+    .stop-card.go { border-left-color: var(--green); }
+    .stop-card.wait { border-left-color: var(--blue); }
+    .stop-card.auto-stop { border-left-color: var(--amber); }
+    .stop-card p { margin-bottom: 0; color: var(--muted); font-size: .92rem; }
+    .observation {
+      display: grid;
+      grid-template-columns: .75fr 1.25fr;
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .meter { padding: 1.4rem; color: #eef5f1; background: #26322e; }
+    .meter .big { display: block; margin: .4rem 0; font: 800 clamp(2rem, 5vw, 4.3rem)/1 monospace; color: #f2c764; }
+    .finding { padding: 1.3rem; background: var(--panel); border: 1px solid #bdb9ac; }
+    .callout { margin: 1.5rem 0; padding: 1.1rem 1.3rem; border: 1px solid var(--red); background: var(--red-soft); }
+    .callout p { margin: 0; }
+    .version-rail { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 2rem 0; }
+    .version { position: relative; padding: 2.2rem 1rem 1rem; border-top: 4px solid var(--ink); }
+    .version::before { content: ""; position: absolute; top: -9px; left: 1rem; width: 14px; height: 14px; border-radius: 50%; background: var(--red); }
+    .version b { display: block; font-family: monospace; color: var(--red); }
+    .version small { color: var(--muted); }
+    details { margin: .8rem 0; border: 1px solid #b8b4a7; background: var(--panel); }
+    summary { cursor: pointer; padding: 1rem 1.1rem; font-weight: 700; }
+    details > div { padding: 0 1.1rem 1rem; color: var(--muted); }
+    .unknown-list { display: grid; gap: .8rem; padding: 0; list-style: none; counter-reset: unk; }
+    .unknown-list li { counter-increment: unk; display: grid; grid-template-columns: 48px 1fr; gap: .8rem; padding: 1rem; background: var(--panel); border: 1px dashed #96968d; }
+    .unknown-list li::before { content: "?" counter(unk); color: var(--red); font: 800 1rem/1.5 monospace; }
+    .sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: .9rem; }
+    .source { display: block; min-height: 120px; padding: 1rem 1.1rem; text-decoration: none; color: var(--ink); background: var(--panel); border: 1px solid #b8b4a7; border-bottom: 6px solid var(--blue); }
+    .source:hover { color: var(--ink); border-bottom-color: var(--red); transform: translateY(-2px); }
+    .source b { display: block; margin-bottom: .4rem; }
+    .source span { color: var(--muted); font-size: .88rem; }
+    .repro { margin-top: 1.8rem; padding: 1.2rem; background: #1c2522; color: #e8eeeb; }
+    .repro ol { margin: .7rem 0 0; padding-left: 1.4rem; }
+    .repro li { margin: .55rem 0; }
+    footer { padding: 2rem 1rem 3rem; text-align: center; color: var(--muted); font-size: .86rem; }
+    @media (max-width: 780px) {
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .hero { min-height: auto; padding-top: 3.5rem; }
+      h1 { font-size: clamp(2.6rem, 13vw, 4.2rem); }
+      .section-head { grid-template-columns: 1fr; gap: .5rem; }
+      .legend, .terms, .stop-grid, .sources, .observation { grid-template-columns: 1fr; }
+      .board { grid-template-columns: 1fr; grid-template-areas: "entry" "hook" "rules" "hub" "request" "auto" "defer" "stop" "execute"; }
+      .loop-note { grid-template-columns: 1fr; }
+      .version-rail { grid-template-columns: 1fr; }
+      .version { border-top: 0; border-left: 4px solid var(--ink); padding: .4rem 1rem 1.4rem 1.8rem; }
+      .version::before { top: .35rem; left: -9px; }
+      .matrix { display: block; overflow-x: auto; }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .source { transition: transform .18s ease, border-color .18s ease; }
+    }
+    @media print {
+      .topbar, nav.local { position: static; }
+      body { background: #fff; }
+      .hero { min-height: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：权限规则、权限模式与审批。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-safe-01-permissions-approval/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="SAFE-01 · 权限规则、权限模式与审批">
+  <meta property="og:description" content="Claude Code X-Ray：权限规则、权限模式与审批。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-safe-01-permissions-approval/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="SAFE-01 · 权限规则、权限模式与审批">
+  <meta name="twitter:description" content="Claude Code X-Ray：权限规则、权限模式与审批。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>SAFE-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="idline">
+      <span class="stamp">SAFE-01</span>
+      <span class="stamp status">documented</span>
+      <span class="stamp">Claude Code 2.1.247</span>
+    </div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <section class="hero" id="answer" data-xray-section="answer">
+    <p class="eyebrow">权限规则、权限模式与审批</p>
+    <h1>一次工具调用，可能绕回来好几次</h1>
+    <p class="hero-answer">工具还没执行时，Claude Code 会先收集拦截意见，再核对拒绝、询问与允许规则，随后让当前权限模式接手。钩子要求询问时，Auto 分类器仍可能先拒绝。审批给出允许或换了输入，deny 与 ask 还要再查。<strong>允许只是候选结论，拒绝会截断当前路径，defer 则把调用留到 resume 后重进。</strong></p>
+    <p class="hero-note">这张图研究的是待执行调用怎样取得权限结论。沙箱能否真正放行、工具执行后的失败分类、Plan Mode 的方案审批，各有相邻页面承接。</p>
+  </section>
+
+  <nav class="local" aria-label="本页导航">
+    <a href="#terms">名词</a><a href="#sequence">一次调用</a><a href="#flow">仲裁图</a><a href="#limits">停止位置</a><a href="#experiment">本机观察</a><a href="#implementation">实现与版本</a><a href="#unknowns">未知项</a><a href="#sources">来源</a>
+  </nav>
+
+  <main>
+    <section class="section" id="terms" data-xray-section="terms">
+      <div class="section-head"><span class="section-no">01 / TERMS</span><h2>先认清六个参与者</h2></div>
+      <p class="lead">用户给任务，Claude 形成工具名和参数。后面的决定来自 Claude Code 权限层、钩子、规则、模式、分类器或审批界面。模型的文字指令不会自己改掉权限规则。<span title="官方契约">O</span></p>
+      <div class="terms">
+        <article class="term"><h3>待执行调用</h3><p>工具名、输入参数和工具调用标识已经形成，副作用还没有发生。</p></article>
+        <article class="term"><h3>PreToolUse</h3><p>每个适用调用执行前的拦截点。它能允许、拒绝、要求询问、暂存，或整体换掉输入。</p></article>
+        <article class="term"><h3>权限规则</h3><p>deny、ask、allow 按这个顺序匹配。更具体的 allow 也盖不过较宽的 deny。</p></article>
+        <article class="term"><h3>权限模式</h3><p>模式规定未被规则提前解决的调用怎样走。Manual、Auto、Plan、dontAsk 等模式各有基线。</p></article>
+        <article class="term"><h3>PermissionRequest</h3><p>调用即将进入审批或无界面自动拒绝时出现。钩子或 SDK 宿主可以代表用户答复。</p></article>
+        <article class="term"><h3>PermissionDenied</h3><p>Auto 分类器已经拒绝后出现。它能告诉模型可以重试，却不能撤回已经发生的拒绝。</p></article>
+      </div>
+      <div class="legend" aria-label="证据图例">
+        <div class="o"><b>O</b>官方契约<br>公开承诺与接口</div>
+        <div class="l"><b>L</b>本机证据<br>版本、help 与哈希</div>
+        <div class="r"><b>R</b>真实实验<br>本页没有运行</div>
+        <div class="i"><b>I</b>研究推断<br>用来拼合状态图</div>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence">
+      <div class="section-head"><span class="section-no">02 / SEQUENCE</span><h2>一轮仲裁怎样开始</h2></div>
+      <p class="lead">下面按时间讲一次常见调用。它只是进入仲裁的顺序。任何改写、暂存恢复和规则更新都会让路径回到较早的检查点。<span title="官方契约与研究组织">O I</span></p>
+      <div class="sequence-list">
+        <article class="seq"><p><strong>Claude 形成调用。</strong>调用带着工具名和输入来到执行前边界。裸工具名 deny 可能早已让 Claude 看不见该工具，因此这种调用根本不会形成。</p></article>
+        <article class="seq"><p><strong>PreToolUse 收集意见。</strong>多个钩子冲突时，deny 优先于 defer，defer 优先于 ask，allow 排在最后。allow 仍要接受 deny 和 ask 规则回查。ask 进入 Auto 后不能被静默批准，分类器仍可拒绝。</p></article>
+        <article class="seq"><p><strong>规则和模式接手。</strong>deny 先截断，ask 要求审批，权限模式处理尚未解决的调用。allow 规则随后可以预批，SDK 的 canUseTool 接住最后仍需决定的请求。ask 在 Auto 中还可能先走到分类器拒绝。</p></article>
+        <article class="seq"><p><strong>审批可能改写未来。</strong>一次 allow 可以附带新输入，也可以写入规则或切换会话模式。修改后的输入重新检查 deny 与 ask，新增规则从后续调用起改变答案。</p></article>
+        <article class="seq"><p><strong>终点不止一个。</strong>允许进入执行，普通拒绝把错误交回 Claude，interrupt 停止当前执行，Auto 拒绝触发 PermissionDenied，defer 退出进程并等待 resume。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="flow" data-xray-section="flow">
+      <div class="section-head"><span class="section-no">03 / FLOW</span><h2>这是一块继电器板</h2></div>
+      <p class="lead">图的中心是“仍待裁决”。四周节点会把调用送回中心、改写后重查、暂停后重进，或把当前路径截断。官方没有公开一个跨所有界面的统一内部状态机，因此布局本身标为 I；节点和回环条件来自 O。</p>
+      <div class="board-wrap" role="img" aria-label="工具权限仲裁的非单向状态图">
+        <div class="board-label">PENDING TOOL CALL / ARBITRATION BOARD</div>
+        <div class="board">
+          <article class="node entry"><b>调用成形</b><small>工具名、输入、tool use 标识进入执行前边界。裸名 deny 可能更早移除工具。</small><div class="route">进入 → PRE TOOL</div></article>
+          <article class="node hook"><b>PreToolUse</b><small>allow、deny、ask、defer 和 updatedInput。多钩子取最强意见。</small><div class="route">DENY ＞ DEFER ＞ ASK ＞ ALLOW</div></article>
+          <article class="node stop"><b>截断</b><small>规则 deny、钩子 deny、用户拒绝或 PermissionRequest deny。interrupt 可让 Claude 停止。</small><div class="route">当前调用不执行</div></article>
+          <article class="node rules"><b>规则回查</b><small>deny → ask → allow。ask 和 deny 仍约束钩子 allow。新输入会重查前两类规则。</small><div class="route">匹配 ASK → 审批</div></article>
+          <article class="node hub"><b>仍待裁决</b><small>这里代表研究者拼出的逻辑状态。调用尚未执行，也没有最终停止。模式、规则和答复都可能改变它的下一跳。</small><div class="route">输入或权限变化后回到这里</div></article>
+          <article class="node execute"><b>执行获准</b><small>工具进入执行层。之后的沙箱裁决与工具结果属于 SAFE-02 和 CORE-02。</small><div class="route">ALLOW → EXECUTION</div></article>
+          <article class="node defer"><b>defer 暂存</b><small>仅单工具、非交互 -p。进程以 tool_deferred 退出；会话仍受 cleanupPeriodDays 清理。</small><div class="route">RESUME → 重入或缺工具报错</div></article>
+          <article class="node request"><b>PermissionRequest</b><small>审批界面、钩子或 SDK 宿主答复。allow 可携带 updatedInput 和 updatedPermissions。</small><div class="route">改输入 → 规则回查</div></article>
+          <article class="node auto"><b>模式与分类器</b><small>Manual 询问，dontAsk 自动拒绝。Auto 先检查账户、组织、模型与 Provider 条件，再由分类器批准或阻止。</small><div class="route">不可用 → MANUAL</div></article>
+        </div>
+        <div class="loop-note">
+          <div>回环 A　PermissionRequest 改写输入，deny 与 ask 再查。</div>
+          <div>回环 B　updatedPermissions 改变后续调用，也可能改变当前会话模式。</div>
+          <div>回环 C　defer 经 resume 回到同一调用的 PreToolUse；工具已不可用时在重入前报错。</div>
+        </div>
+      </div>
+      <table class="matrix">
+        <thead><tr><th>来路</th><th>给出的结论</th><th>仍会发生什么</th><th>会停在哪里</th></tr></thead>
+        <tbody>
+          <tr><td>PreToolUse allow</td><td>跳过常规提示的候选允许</td><td>deny 和 ask 规则仍检查，交互型工具还有额外限制</td><td>规则可阻止，最终允许才执行</td></tr>
+          <tr><td>规则 deny</td><td>拒绝</td><td>宽 deny 不给窄 allow 留例外</td><td>当前工具不执行</td></tr>
+          <tr><td>规则 ask</td><td>必须审批</td><td>进入 PermissionRequest 或 SDK 回调</td><td>等待答复或无界面自动拒绝</td></tr>
+          <tr><td>Auto 分类器</td><td>批准或拒绝</td><td>显式 ask 不能被静默批准；分类器仍可先拒绝并触发 PermissionDenied</td><td>ask 路径获准后仍等用户，普通路径获准则执行；拒绝时不执行</td></tr>
+          <tr><td>PermissionRequest allow</td><td>一次允许，可附修改</td><td>新输入重查 deny 和 ask；权限更新改变规则或模式</td><td>回查通过才执行</td></tr>
+          <tr><td>defer</td><td>当前进程暂停</td><td>resume 后相同调用再次进入 PreToolUse；工具缺失时不重入</td><td>先停在 tool_deferred；缺失工具以 tool_deferred_unavailable 和 is_error true 结束</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits">
+      <div class="section-head"><span class="section-no">04 / LIMITS</span><h2>停下来以后，还会继续分叉</h2></div>
+      <div class="stop-grid">
+        <article class="stop-card"><h3>拒绝当前调用</h3><p>钩子 deny、规则 deny 或审批 deny 都会让工具不执行。理由通常交给 Claude，它可能换一个办法继续。CLI 主会话中，用户直接选 No 且不附评论会停止当前 turn。<span title="官方契约">O</span></p></article>
+        <article class="stop-card"><h3>拒绝并中断</h3><p>PermissionRequest 或 SDK deny 带 <code>interrupt</code> 时会停止当前执行。普通 deny 的默认值为 false，因此两者不能混写。<span title="官方契约">O</span></p></article>
+        <article class="stop-card auto-stop"><h3>自动拒绝</h3><p><code>dontAsk</code> 会拒绝本来需要询问的调用。无提示界面也可能在 PermissionRequest 没有给出决定时自动拒绝。Auto 分类器拒绝另有 PermissionDenied 事件。<span title="官方契约">O</span></p></article>
+        <article class="stop-card wait"><h3>暂存待续</h3><p>defer 没有执行工具，也没有宣告永久拒绝。它本身没有超时或重试上限，会话文件仍受 <code>cleanupPeriodDays</code> 保留清理约束，默认三十天。<span title="官方契约">O</span></p></article>
+        <article class="stop-card go"><h3>允许执行</h3><p>规则、模式和审批都没有留下阻断时，工具才进入执行层。权限允许仍不等于沙箱、网络和工具自身一定成功。<span title="官方契约与边界推断">O I</span></p></article>
+        <article class="stop-card auto-stop"><h3>Auto 拒绝后的重试</h3><p>PermissionDenied 的 <code>retry: true</code> 只给模型一条“可以再试”的消息。旧调用仍然被拒绝，模型需要另发调用，无 verdict 时重试提示还会被忽略。<span title="官方契约">O</span></p></article>
+        <article class="stop-card"><h3>恢复时工具已经不在</h3><p>resume 找不到原工具时，进程以 <code>tool_deferred_unavailable</code> 和 <code>is_error: true</code> 结束。这个分支发生在 hook 触发前，不会重进 PreToolUse。<span title="官方契约">O</span></p></article>
+      </div>
+      <div class="callout"><p><strong>批量调用例外</strong>　defer 只接得住该 turn 中一个工具调用。若同时有多个调用，defer 会被忽略，调用回到普通权限路径。交互会话也会忽略 defer 并给出警告。<span title="官方契约">O</span></p></div>
+    </section>
+
+    <section class="section" id="experiment" data-xray-section="experiment">
+      <div class="section-head"><span class="section-no">05 / EXPERIMENT</span><h2>本轮只做了静态核对</h2></div>
+      <div class="observation">
+        <div class="meter"><span>固定研究基线</span><span class="big">2.1.247</span><span>页面状态　documented</span></div>
+        <div class="finding"><h3>本机已经升级</h3><p><code>claude --version</code> 返回 2.1.248。本机二进制哈希和在线 <code>llms.txt</code> 哈希也都不同于任务给定快照。当前 help 仍暴露六个权限模式值、允许和拒绝工具参数、<code>-p</code>、<code>--resume</code> 与跳过权限开关。<span title="本机证据">L</span></p><p>这些 help 结果只能证明当前安装的命令面。它们不能替 2.1.247 证明真实审批路径。</p></div>
+      </div>
+      <div class="callout"><p><strong>为什么没有 R</strong>　真实触发 PreToolUse、PermissionRequest、Auto 分类器或 defer 重入，需要启动一次 Claude/SDK 模型调用，或改写 hooks 与权限配置。任务禁止新增付费会话、改全局配置和影响现有会话，所以本页没有冒充运行验证。</p></div>
+      <details><summary>实际运行的只读命令</summary><div><p><code>claude --version</code>、<code>claude --help</code>、<code>claude auto-mode --help</code>、<code>claude doctor --help</code>、本机二进制 SHA-256、在线官方索引 SHA-256。没有运行 auto-mode config 或 defaults，没有读取用户设置。</p></div></details>
+      <details><summary>它们不能证明什么</summary><div><p>只读 help 没有触发具体调用，当前账户能否用 Auto 也未核验。托管规则、用户规则与各界面提示同样不在这次观察里。</p></div></details>
+    </section>
+
+    <section class="section" id="implementation" data-xray-section="implementation">
+      <div class="section-head"><span class="section-no">06 / IMPLEMENTATION</span><h2>公开契约给出的版本钉子</h2></div>
+      <p class="lead">这套权限契约在 2.1 系列里持续补齐。页面只把与本页因果链直接相关的变化放上时间轨。<span title="官方 changelog">O</span></p>
+      <div class="version-rail">
+        <div class="version"><b>2.1.89</b><small>加入 PreToolUse defer 与 PermissionDenied。resume 会重新评估待调用。</small></div>
+        <div class="version"><b>2.1.110</b><small>修复 PermissionRequest 的 updatedInput 没有重新检查 deny。</small></div>
+        <div class="version"><b>2.1.199</b><small>交互型 MCP 工具不能被 PreToolUse allow 静默越过。</small></div>
+        <div class="version"><b>2.1.211</b><small>PreToolUse ask 在 Auto 中强制出现人工提示，分类器仍可拒绝。</small></div>
+      </div>
+      <h3>模式是基线，规则继续叠加</h3>
+      <table class="matrix">
+        <thead><tr><th>模式</th><th>未被前置规则解决时</th><th>会改变结论的边界</th></tr></thead>
+        <tbody>
+          <tr><td>default / Manual</td><td>只读范围内常见操作直接走，其余按需询问</td><td>allow 可预批，ask 强制询问，deny 阻止</td></tr>
+          <tr><td>acceptEdits</td><td>范围内编辑和部分文件命令自动批准</td><td>受工作目录、受保护路径和危险动作限制</td></tr>
+          <tr><td>plan</td><td>读与调研为主，写操作不能按普通 allow 自动通过</td><td>完整计划审批属于 PLAN-01</td></tr>
+          <tr><td>auto</td><td>符合账户、组织、模型与 Provider 条件后，分类器在后台批准或拒绝</td><td>显式 ask 仍提示；条件不满足时落回 Manual，分类器请求失败则阻止当前动作</td></tr>
+          <tr><td>dontAsk</td><td>本来要询问的调用自动拒绝</td><td>只有预批范围和内建只读集合继续</td></tr>
+          <tr><td>bypassPermissions</td><td>跳过常规权限提示</td><td>仍有无模式可自动批准的动作及启动条件</td></tr>
+        </tbody>
+      </table>
+      <div class="callout"><p><strong>Auto 的使用门槛</strong>　2.1.247 基线已高于内建 Auto 起始模式的版本门槛。官方条件表写的是 All plans，Auto 本身不限定付费套餐；Pro、Max 与 Team 只是会把它作为内建起始模式。Team 和 Enterprise 管理员可以用托管设置关闭它。Anthropic API 与 Claude Platform on AWS 支持 Opus 4.6 以上、Sonnet 4.6 以上和 Fable 5；Bedrock、Google Cloud Agent Platform、Microsoft Foundry 与已登录的 Claude apps gateway 只支持 Sonnet 5、Opus 4.7 以上和 Fable 5。后一类 gateway 明确要求登录，API Provider 走各自的凭据。任何一项不满足，原本选择 Auto 的会话会以 Manual 启动。<span title="官方契约">O</span></p></div>
+      <details><summary>输入和权限分别流向哪里</summary><div><p><code>updatedInput</code> 替换完整工具输入对象。PermissionRequest 产生的新输入回到 deny 与 ask 检查。<code>updatedPermissions</code> 可写入仅本会话的内存，也可写入 local、project 或 user settings；具体作用域合并留给 ADM-01。</p></div></details>
+      <details><summary>本页没有展开的实现面</summary><div><p>Hook 配置、匹配器和全部生命周期留给 EXT-03。Bash 命令解析、文件边界与网络沙箱留给 SAFE-02。执行以后产生的成功、工具错误与输出整形留给 CORE-02。</p></div></details>
+    </section>
+
+    <section class="section" id="unknowns" data-xray-section="unknowns">
+      <div class="section-head"><span class="section-no">07 / UNKNOWNS</span><h2>仍然缺的证据</h2></div>
+      <ol class="unknown-list">
+        <li>2.1.247 二进制怎样编码多来源钩子、规则匹配与界面状态。本页没有对应版本的本机静态样本或官方源码。</li>
+        <li>CLI 原生用户审批改写输入时，是否调用与 PermissionRequest.updatedInput 完全相同的内部回查路径。公开契约只明确写了 hook 与 SDK。</li>
+        <li>多个 PermissionRequest hook 同时给出冲突决定时，更细的合并与显示顺序。deny 不能被 allow 越过已经确定，其余没有在引用契约中写明。</li>
+        <li>满足公开可用条件以后，Auto 分类器实际看到哪些上下文字段，又会怎样解释一个具体调用。</li>
+        <li>dontAsk、无界面自动拒绝和 Auto 分类器拒绝，在 CLI、IDE、Desktop 与云端的可见提示及后续重试差异。</li>
+      </ol>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources">
+      <div class="section-head"><span class="section-no">08 / SOURCES</span><h2>一手来源与复现入口</h2></div>
+      <div class="sources">
+        <a class="source" href="https://code.claude.com/docs/en/permissions"><b>权限规则与设置</b><span>证明 deny、ask、allow 的顺序、规则语法、用户审批和权限模式入口</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/permission-modes"><b>权限模式与 Auto 分类器</b><span>证明各模式基线、分类器职责、可用条件和版本差异</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/hooks"><b>Hooks 参考</b><span>证明 PreToolUse、PermissionRequest、PermissionDenied、updatedInput 与 defer 重入</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/agent-sdk/permissions"><b>Agent SDK 权限评估</b><span>证明 hooks、deny、ask、mode、allow 与 canUseTool 的公开检查顺序</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/agent-sdk/user-input"><b>Agent SDK 审批与输入</b><span>证明回调暂停、允许、拒绝、修改输入、记住规则和 interrupt</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/changelog"><b>官方 changelog</b><span>证明 defer、PermissionDenied、输入回查修复和 2.1.247 附近版本边界</span></a>
+      </div>
+      <div class="repro">
+        <h3>获得单独授权后怎样复现</h3>
+        <ol>
+          <li>固定 2.1.247，在全新临时目录通过命令参数传入临时 settings。</li>
+          <li>用无害固定调用交叉测试 PreToolUse 的四种结果和 deny、ask、allow 规则。</li>
+          <li>让 PermissionRequest 把输入改成会匹配临时 deny 的另一条无害调用，确认回查阻止执行。</li>
+          <li>在 dontAsk 与可用的 Auto 中区分规则拒绝、自动拒绝和 PermissionDenied。</li>
+          <li>在单工具 <code>-p</code> 调用上先 defer，再 resume 并用 updatedInput 允许，确认 PreToolUse 重入；另断开提供原工具的临时 MCP server，确认恢复在 hook 前以 tool_deferred_unavailable 结束。</li>
+          <li>分别测试 deny 的 interrupt false 与 true，只记录匿名事件、裁决和是否执行。</li>
+        </ol>
+      </div>
+      <p><a href="../index.html">返回总索引</a>　查看 PLAN-01、SAFE-02、CORE-02、EXT-03 与 ADM-01 的相邻机制。</p>
+    </section>
+  </main>
+  <footer>SAFE-01　documented　研究基线 2026-08-27　Claude Code 2.1.247</footer>
+</body>
+</html>

@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="UI-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>UI-01 · CLI 输入调度 XRY</title>
+  <style>
+    :root {
+      --ink: #10191b;
+      --panel: #162326;
+      --panel-2: #1c2c30;
+      --paper: #e8e2d3;
+      --muted: #a9b6b3;
+      --amber: #ffbd55;
+      --cyan: #68d9d0;
+      --red: #ff725c;
+      --green: #a6d96a;
+      --line: #385156;
+      --shadow: rgba(0, 0, 0, .34);
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--ink); }
+    body {
+      margin: 0;
+      color: var(--paper);
+      background:
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(104, 217, 208, .028) 31px 32px),
+        var(--ink);
+      font-family: var(--serif);
+      line-height: 1.72;
+    }
+
+    a { color: var(--cyan); text-underline-offset: .22em; }
+    a:hover { color: #b5fff8; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: .9em;
+      color: #fff2d0;
+      background: rgba(255, 189, 85, .1);
+      border: 1px solid rgba(255, 189, 85, .24);
+      padding: .08em .35em;
+      border-radius: 3px;
+    }
+
+    .topbar {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .65rem max(1rem, calc((100vw - 1220px) / 2));
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .74rem;
+      letter-spacing: .06em;
+      border-bottom: 1px solid var(--line);
+      background: rgba(16, 25, 27, .96);
+    }
+
+    .topbar strong { color: var(--paper); }
+    .topbar .status { color: var(--amber); }
+
+    .jump {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      gap: .35rem;
+      overflow-x: auto;
+      padding: .55rem max(1rem, calc((100vw - 1220px) / 2));
+      border-bottom: 1px solid var(--line);
+      background: rgba(16, 25, 27, .94);
+      backdrop-filter: blur(12px);
+      scrollbar-width: thin;
+    }
+
+    .jump a {
+      flex: 0 0 auto;
+      padding: .3rem .65rem;
+      color: var(--muted);
+      font: .72rem/1.2 var(--mono);
+      text-decoration: none;
+      border: 1px solid transparent;
+    }
+
+    .jump a:hover { color: var(--paper); border-color: var(--line); }
+
+    main { width: min(1220px, calc(100% - 2rem)); margin: 0 auto; }
+
+    .hero {
+      min-height: calc(100vh - 102px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.04fr) minmax(380px, .96fr);
+      gap: clamp(2rem, 6vw, 6rem);
+      align-items: center;
+      padding: clamp(3rem, 8vh, 7rem) 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      margin: 0 0 1.2rem;
+      color: var(--amber);
+      font: 700 .78rem/1 var(--mono);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 2rem;
+      height: 2px;
+      background: var(--amber);
+      box-shadow: 0 0 14px rgba(255, 189, 85, .55);
+    }
+
+    h1, h2, h3 { font-family: var(--serif); font-weight: 700; }
+    h1 {
+      max-width: 12ch;
+      margin: 0;
+      font-size: clamp(3rem, 7vw, 6.6rem);
+      line-height: .98;
+      letter-spacing: -.055em;
+    }
+
+    .lede {
+      max-width: 38rem;
+      margin: 1.8rem 0 0;
+      color: #d7d2c7;
+      font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+      line-height: 1.75;
+    }
+
+    .answer-line {
+      margin-top: 2rem;
+      padding-left: 1rem;
+      border-left: 4px solid var(--cyan);
+      color: #fff8e9;
+      font-size: 1.02rem;
+    }
+
+    .mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.65rem;
+      height: 1.65rem;
+      margin-right: .35rem;
+      padding: 0 .4rem;
+      color: var(--ink);
+      background: var(--cyan);
+      border-radius: 50%;
+      font: 800 .72rem/1 var(--mono);
+      vertical-align: middle;
+    }
+
+    .mark.l { background: var(--amber); }
+    .mark.r { background: var(--green); }
+    .mark.i { background: var(--red); }
+
+    .switchboard {
+      position: relative;
+      padding: 1.2rem;
+      border: 1px solid #527077;
+      background: var(--panel);
+      box-shadow: 18px 18px 0 #0b1113, 18px 18px 0 1px #2d4348;
+    }
+
+    .switchboard::before {
+      content: "INPUT ROUTER · TURN 35";
+      display: block;
+      margin: -.25rem 0 1rem;
+      color: var(--muted);
+      font: .68rem/1 var(--mono);
+      letter-spacing: .12em;
+    }
+
+    .route {
+      display: grid;
+      grid-template-columns: 1.2rem minmax(7.2rem, .8fr) 1.3rem 1.2fr;
+      align-items: center;
+      gap: .65rem;
+      min-height: 4.55rem;
+      padding: .55rem 0;
+      border-top: 1px solid var(--line);
+      font-family: var(--mono);
+    }
+
+    .lamp {
+      width: .72rem;
+      height: .72rem;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 18px rgba(104, 217, 208, .7);
+    }
+
+    .route:nth-child(3) .lamp { background: var(--amber); box-shadow: 0 0 18px rgba(255, 189, 85, .6); }
+    .route:nth-child(4) .lamp { background: var(--red); box-shadow: 0 0 18px rgba(255, 114, 92, .55); }
+    .route:nth-child(5) .lamp { background: var(--green); box-shadow: 0 0 18px rgba(166, 217, 106, .55); }
+    .route:nth-child(6) .lamp { background: #f4efe3; box-shadow: 0 0 18px rgba(244, 239, 227, .4); }
+    .route b { color: var(--paper); font-size: .78rem; }
+    .wire { height: 1px; background: var(--line); position: relative; }
+    .wire::after { content: "›"; position: absolute; right: -.15rem; top: -.72rem; color: var(--muted); }
+    .dest { color: var(--muted); font-size: .72rem; line-height: 1.45; }
+
+    .section {
+      padding: clamp(4rem, 9vw, 7.5rem) 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(12rem, .55fr) 1.45fr;
+      gap: 2rem;
+      align-items: start;
+      margin-bottom: 2.4rem;
+    }
+
+    .kicker {
+      margin: 0 0 .5rem;
+      color: var(--amber);
+      font: .72rem/1 var(--mono);
+      letter-spacing: .12em;
+    }
+
+    h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.7rem); line-height: 1.06; letter-spacing: -.035em; }
+    .section-intro { margin: 0; color: #c9c9c1; font-size: 1.05rem; }
+
+    .terms {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+    }
+
+    .term { min-height: 12rem; padding: 1.35rem; border-right: 1px solid var(--line); }
+    .term:last-child { border-right: 0; }
+    .term .no { color: var(--muted); font: .68rem/1 var(--mono); }
+    .term h3 { margin: 2rem 0 .55rem; font-size: 1.25rem; }
+    .term p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+    .timeline { display: grid; gap: 0; }
+    .moment {
+      display: grid;
+      grid-template-columns: 8rem 2.4rem 1fr;
+      gap: 1.2rem;
+      position: relative;
+      min-height: 8rem;
+    }
+
+    .moment .time { padding-top: .05rem; color: var(--muted); font: .72rem/1.4 var(--mono); text-align: right; }
+    .moment .axis { position: relative; }
+    .moment .axis::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line); }
+    .moment .axis::after { content: ""; position: absolute; left: calc(50% - .4rem); top: 0; width: .8rem; height: .8rem; border: 2px solid var(--cyan); background: var(--ink); border-radius: 50%; }
+    .moment:last-child .axis::before { bottom: calc(100% - .8rem); }
+    .moment h3 { margin: 0 0 .4rem; font-size: 1.22rem; }
+    .moment p { max-width: 50rem; margin: 0; color: var(--muted); }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .75rem;
+      align-items: stretch;
+    }
+
+    .flow-card {
+      min-height: 17rem;
+      padding: 1.15rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      position: relative;
+    }
+
+    .flow-card::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: -.75rem;
+      z-index: 2;
+      width: 1.5rem;
+      color: var(--amber);
+      background: var(--ink);
+      text-align: center;
+      font: 1.1rem/1 var(--mono);
+    }
+    .flow-card:last-child::after { content: none; }
+    .flow-card .type { color: var(--cyan); font: .68rem/1 var(--mono); letter-spacing: .08em; }
+    .flow-card h3 { margin: 2.2rem 0 .65rem; font-size: 1.16rem; }
+    .flow-card p { margin: 0; color: var(--muted); font-size: .88rem; }
+
+    .forks { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+    .fork {
+      padding: 1.3rem;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+    .fork h3 { margin: 0 0 .55rem; color: var(--amber); }
+    .fork p { margin: 0; color: var(--muted); }
+
+    .matrix { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    .matrix th, .matrix td { padding: 1rem; border: 1px solid var(--line); vertical-align: top; text-align: left; }
+    .matrix th { color: var(--amber); background: var(--panel); font-family: var(--mono); font-size: .72rem; letter-spacing: .05em; }
+    .matrix td { color: #d1d1c8; }
+
+    .notice {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1rem;
+      margin-top: 1.2rem;
+      padding: 1.2rem;
+      color: #ffd8cf;
+      border: 1px solid rgba(255, 114, 92, .55);
+      background: rgba(255, 114, 92, .07);
+    }
+    .notice strong { font-family: var(--mono); color: var(--red); }
+
+    .experiment {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .ledger { padding: 1.4rem; border: 1px solid var(--line); background: var(--panel); }
+    .ledger h3 { margin: 0 0 1rem; }
+    .ledger ul { margin: 0; padding-left: 1.1rem; color: var(--muted); }
+    .ledger li + li { margin-top: .65rem; }
+
+    .version-band {
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      gap: 1.5rem;
+      align-items: start;
+      padding: 1.6rem;
+      color: #172123;
+      background: var(--amber);
+    }
+    .version-band .big { font: 800 clamp(2.3rem, 5vw, 4.8rem)/.9 var(--mono); letter-spacing: -.06em; }
+    .version-band p { margin: 0; font-family: var(--mono); font-size: .82rem; }
+
+    .unknown-list { counter-reset: unknown; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .unknown {
+      counter-increment: unknown;
+      min-height: 11rem;
+      padding: 1.35rem;
+      color: var(--muted);
+      background: var(--ink);
+    }
+    .unknown::before { content: "U-0" counter(unknown); display: block; margin-bottom: 1.8rem; color: var(--red); font: .7rem/1 var(--mono); }
+    .unknown h3 { margin: 0 0 .5rem; color: var(--paper); font-size: 1.08rem; }
+    .unknown p { margin: 0; }
+
+    details { border: 1px solid var(--line); background: var(--panel); }
+    summary { cursor: pointer; padding: 1rem 1.2rem; color: var(--amber); font-family: var(--mono); }
+    details ol { margin: 0; padding: 0 2.5rem 1.4rem 3.2rem; color: var(--muted); }
+    details li + li { margin-top: .6rem; }
+
+    .sources { display: grid; gap: .7rem; }
+    .source {
+      display: grid;
+      grid-template-columns: 3rem 1fr auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 1rem;
+      color: var(--paper);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .source:hover { border-color: var(--cyan); }
+    .source .id { color: var(--cyan); font: 700 .75rem/1 var(--mono); }
+    .source .desc { color: var(--muted); font-size: .86rem; }
+    .source .go { color: var(--amber); font: 1rem/1 var(--mono); }
+
+    footer {
+      width: min(1220px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 2rem 0 4rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      color: var(--muted);
+      font: .72rem/1.5 var(--mono);
+    }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .switchboard { max-width: 42rem; }
+      .section-head { grid-template-columns: 1fr; }
+      .terms { grid-template-columns: 1fr 1fr; }
+      .term:nth-child(2) { border-right: 0; }
+      .term:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .flow-grid { grid-template-columns: 1fr 1fr; }
+      .flow-card { min-height: 12rem; }
+      .flow-card::after { content: none; }
+      .version-band { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .topbar { align-items: flex-start; flex-direction: column; }
+      main { width: min(100% - 1.25rem, 1220px); }
+      h1 { font-size: clamp(2.8rem, 16vw, 4.8rem); }
+      .hero { padding-top: 3.2rem; gap: 2.5rem; }
+      .switchboard { box-shadow: 8px 8px 0 #0b1113, 8px 8px 0 1px #2d4348; }
+      .route { grid-template-columns: .7rem 6.6rem .8rem 1fr; gap: .4rem; }
+      .route b { font-size: .68rem; }
+      .dest { font-size: .63rem; }
+      .terms, .flow-grid, .forks, .experiment, .unknown-list { grid-template-columns: 1fr; }
+      .term { min-height: 9rem; border-right: 0; border-bottom: 1px solid var(--line); }
+      .term:last-child { border-bottom: 0; }
+      .moment { grid-template-columns: 4.3rem 1.6rem 1fr; gap: .6rem; min-height: 10rem; }
+      .matrix { display: block; overflow-x: auto; white-space: normal; }
+      .source { grid-template-columns: 2.2rem 1fr; }
+      .source .go { display: none; }
+      footer { flex-direction: column; width: calc(100% - 1.25rem); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：CLI 输入调度、Queued Prompt、立即命令、/btw、中断与语音输入。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ui-01-cli-input-scheduling/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="UI-01 · CLI 输入调度、Queued Prompt、立即命令、/btw、中断与语音输入">
+  <meta property="og:description" content="Claude Code X-Ray：CLI 输入调度、Queued Prompt、立即命令、/btw、中断与语音输入。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ui-01-cli-input-scheduling/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="UI-01 · CLI 输入调度、Queued Prompt、立即命令、/btw、中断与语音输入">
+  <meta name="twitter:description" content="Claude Code X-Ray：CLI 输入调度、Queued Prompt、立即命令、/btw、中断与语音输入。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>UI-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <span><strong>CLAUDE CODE XRY</strong> · UI-01 · 编号 35</span>
+    <span>页面状态 <span class="status">documented</span> · Claude Code 2.1.247</span>
+  </header>
+
+  <nav class="jump" aria-label="页内导航">
+    <a href="#answer">最短答案</a>
+    <a href="#terms">名词</a>
+    <a href="#sequence">时序</a>
+    <a href="#flow">流向</a>
+    <a href="#limits">边界</a>
+    <a href="#experiment">观察</a>
+    <a href="#implementation">版本</a>
+    <a href="#unknowns">未知</a>
+    <a href="#sources">来源</a>
+  </nav>
+
+  <main>
+    <section class="hero" id="answer" data-xray-section="answer">
+      <div>
+        <p class="eyebrow">输入仍会送达，只是走不同的线</p>
+        <h1>Claude 忙着时，你的话去了哪里</h1>
+        <p class="lede">普通消息先排队，可能在工具结束后插入当前回合，也可能成为后续回合。命令通常等当前回合收尾，少数命令立即执行。<code>/btw</code> 走旁路，interrupt 则提前截断当前路径。</p>
+        <p class="answer-line"><span class="mark">O</span>决定去向的关键有两个。你送进来的是哪类输入，以及 Claude 当时正处在哪个边界。</p>
+      </div>
+
+      <div class="switchboard" aria-label="输入调度总览">
+        <div class="route"><span class="lamp"></span><b>普通消息</b><span class="wire"></span><span class="dest">工具结束后进当前 turn<br>或最旧一条开启下个 turn</span></div>
+        <div class="route"><span class="lamp"></span><b>排队命令</b><span class="wire"></span><span class="dest">当前 turn 结束后<br>逐条运行</span></div>
+        <div class="route"><span class="lamp"></span><b>立即命令</b><span class="wire"></span><span class="dest">提交后马上执行<br><code>/status</code> 是官方示例</span></div>
+        <div class="route"><span class="lamp"></span><b>/btw</b><span class="wire"></span><span class="dest">独立旁路回答<br>主 history 不收录</span></div>
+        <div class="route"><span class="lamp"></span><b>Esc / Ctrl+C</b><span class="wire"></span><span class="dest">两者都能中断<br>只有 Esc 明确保证释放队列</span></div>
+      </div>
+    </section>
+
+    <section class="section" id="terms" data-xray-section="terms">
+      <div class="section-head">
+        <div><p class="kicker">01 · TERMS</p><h2>四个词就够用</h2></div>
+        <p class="section-intro">这里的 turn 是一次用户消息带起的一轮 Claude 工作。排队并不等于一律等到下一轮。官方把工具调用结束也当作普通消息可以进入的时点。</p>
+      </div>
+      <div class="terms">
+        <article class="term"><span class="no">T-01</span><h3>当前 turn</h3><p>Claude 仍在生成文字、调用工具或等待这一轮工作收尾。</p></article>
+        <article class="term"><span class="no">T-02</span><h3>工具边界</h3><p>当前一组工具调用结束。排队的普通消息可以在这里交给 Claude。</p></article>
+        <article class="term"><span class="no">T-03</span><h3>后续 turn</h3><p>当前轮已经结束，队列里最旧的普通消息成为下一轮输入。</p></article>
+        <article class="term"><span class="no">T-04</span><h3>旁路</h3><p><code>/btw</code> 读取已有上下文并单独回答，不进入主会话历史。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence">
+      <div class="section-head">
+        <div><p class="kicker">02 · SEQUENCE</p><h2>一条消息的两次机会</h2></div>
+        <p class="section-intro"><span class="mark">O</span>普通消息先等当前工具。工具回来时，它有机会进入仍在运行的 turn。若这一轮已经结束，CLI 才把最旧一条拿来开启下一轮。</p>
+      </div>
+      <div class="timeline">
+        <article class="moment"><div class="time">T+00<br>running</div><div class="axis"></div><div><h3>Claude 发起工具调用</h3><p>用户还能继续在输入框打字。输入框与正在流动的回应是两条独立的界面路径。</p></div></article>
+        <article class="moment"><div class="time">T+01<br>queued</div><div class="axis"></div><div><h3>用户按 Enter</h3><p>消息列在输入框上方。这个 Enter 本身不会打断当前 turn。用 <code>Ctrl+X Enter</code> 可明确标记为只排队。</p></div></article>
+        <article class="moment"><div class="time">T+02<br>boundary</div><div class="axis"></div><div><h3>工具调用结束</h3><p>若 turn 还活着，CLI 把普通消息交给 Claude，Claude 可在同一轮调整方向。命令与 shell 命令继续等。</p></div></article>
+        <article class="moment"><div class="time">T+03<br>next</div><div class="axis"></div><div><h3>当前 turn 收尾</h3><p>仍在队列里的普通消息只取最旧一条开启后续 turn。命令和 shell 命令也从这时开始逐条运行。两类输入混排时谁先走，官方没有说明。</p></div></article>
+      </div>
+    </section>
+
+    <section class="section" id="flow" data-xray-section="flow">
+      <div class="section-head">
+        <div><p class="kicker">03 · FLOW</p><h2>输入先分类，再谈时间</h2></div>
+        <p class="section-intro">这张图把官方可见契约连成一条因果链。内部队列对象和远端取消协议没有公开，连接部分保留 I 身份。</p>
+      </div>
+      <div class="flow-grid" aria-label="CLI 输入数据流">
+        <article class="flow-card"><span class="type">USER</span><h3>文字或语音转写</h3><p>语音先在 Anthropic 服务转成文字，再插入光标处。hold 默认等待 Enter，tap 可自动提交。</p></article>
+        <article class="flow-card"><span class="type">CLI INPUT</span><h3>提交动作</h3><p>Enter 采用普通调度。<code>Ctrl+X Enter</code> 明确只排队。立即命令可绕过等待。</p></article>
+        <article class="flow-card"><span class="type">ROUTER · I</span><h3>输入分类</h3><p>普通消息、命令、shell、<code>/btw</code> 与 interrupt 进入各自路径。内部函数名未知。</p></article>
+        <article class="flow-card"><span class="type">BOUNDARY</span><h3>工具或 turn 收尾</h3><p>普通消息可在工具结束后注入。命令等 turn 结束。interrupt 提前制造停止点。</p></article>
+        <article class="flow-card"><span class="type">DESTINATION</span><h3>当前轮、下轮或旁路</h3><p>主消息进入对话链，<code>!</code> shell 命令及输出也进入 conversation context。<code>/btw</code> 留在终端内存线程，退出后消失。</p></article>
+      </div>
+      <div class="forks">
+        <article class="fork"><h3>Queued Prompt</h3><p>它保存用户的转向意图，等工具边界或后续 turn 再交给 Claude。队列可用 Up 取回编辑。</p></article>
+        <article class="fork"><h3>Voice Prompt</h3><p>它先多走一段音频上传与转写，落到输入框以后仍受同一提交与排队规则约束。复用调度器这一句是 I。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits">
+      <div class="section-head">
+        <div><p class="kicker">04 · LIMITS</p><h2>停止有代价，旁路有边界</h2></div>
+        <p class="section-intro"><code>Esc</code> 会保留已经做完的工作并立即发送队列。<code>Ctrl+C</code> 也能中断运行操作，官方没有交代它随后怎样处理队列。两者都没有自动撤销既有副作用的保证。</p>
+      </div>
+      <table class="matrix">
+        <thead><tr><th>动作</th><th>主 turn</th><th>历史与上下文</th><th>权限或失败门</th></tr></thead>
+        <tbody>
+          <tr><td>运行中按 Enter</td><td>继续运行</td><td>普通消息在工具边界或后续 turn 进入</td><td>工具不结束时仍需等待，或由用户 interrupt</td></tr>
+          <tr><td><code>Ctrl+X Enter</code></td><td>继续运行</td><td>明确标为等待轮次，从不打断</td><td>需要 Claude Code 2.1.247 或更高版本</td></tr>
+          <tr><td><code>Esc</code></td><td>当前回应或工具停止</td><td>已完成工作保留，既有队列随即发送</td><td>已发生的外部副作用没有自动回滚保证</td></tr>
+          <tr><td>运行中的 <code>Ctrl+C</code></td><td>中断运行操作</td><td>队列之后怎样处理没有公开</td><td>无运行操作时，它先清空输入，再按一次退出</td></tr>
+          <tr><td><code>!</code> shell</td><td>排队时等 turn 结束</td><td>命令及输出进入 conversation context</td><td>默认自动回答，回答成本与普通 prompt 相同</td></tr>
+          <tr><td><code>/btw</code></td><td>继续运行</td><td>主 history 不收录，终端线程退出即失效</td><td>无工具，看不到未完成回复；缓存温热时仍有回答成本</td></tr>
+          <tr><td>语音输入</td><td>取决于最终提交动作</td><td>转写文字进入输入框</td><td>Claude.ai 账户、本地麦克风与远端转写服务，组织策略可禁用</td></tr>
+        </tbody>
+      </table>
+      <div class="notice"><strong>VOICE</strong><div>音频不会在本地完成转写。API key、Bedrock、Vertex AI、Foundry、Web 和 SSH 远端环境没有这条 CLI 录音能力。官方要求没有另列套餐门槛，组织策略仍可关闭它。转写本身不消耗 Claude 消息或 token；文字提交以后，官方没有给后续 prompt 与回答提供同样的用量豁免。</div></div>
+    </section>
+
+    <section class="section" id="experiment" data-xray-section="experiment">
+      <div class="section-head">
+        <div><p class="kicker">05 · EXPERIMENT</p><h2>本轮只做了静态核对</h2></div>
+        <p class="section-intro"><span class="mark l">L</span>保留的 2.1.247 安装文件哈希与基线一致，五个关键动作名都在。<span class="mark r">R</span>本轮没有真实交互路径，页面因此保持 documented。</p>
+      </div>
+      <div class="experiment">
+        <article class="ledger"><h3>已经核过</h3><ul><li>2.1.247 安装文件的 SHA-256 完全匹配基线</li><li><code>chat:queueSubmit</code> 与 <code>chat:submit</code> 均存在</li><li><code>voice:pushToTalk</code>、<code>app:interrupt</code> 与 <code>chat:cancel</code> 均存在</li><li>当前默认命令入口已经升级到 2.1.248</li></ul></article>
+        <article class="ledger"><h3>刻意没有做</h3><ul><li>没有启动新的付费 Claude 会话</li><li>没有读取私人 transcript 或会话结构</li><li>没有请求麦克风权限或上传音频</li><li>没有改设置、keybindings 或正在运行的会话</li></ul></article>
+      </div>
+    </section>
+
+    <section class="section" id="implementation" data-xray-section="implementation">
+      <div class="section-head">
+        <div><p class="kicker">06 · IMPLEMENTATION</p><h2>静态动作名能证明多少</h2></div>
+        <p class="section-intro"><span class="mark i">I</span>动作名支持“界面动作分流”这一解释。它们没有公开队列数据结构、持久化位置或取消协议，所以因果图停在官方可观察边界。</p>
+      </div>
+      <div class="version-band">
+        <div class="big">2.1.247</div>
+        <p>官方 keybindings 文档把 <code>chat:queueSubmit</code> 的最低版本钉在这里。Queued Prompt 本身更早，官方 changelog 在 0.2.75 已记录工作中按 Enter 排队。基线安装物含 <code>voice:pushToTalk</code>，当前官方文档说明 hold 与 tap 的行为；所列证据没有钉住 Voice 或 tap 的首次发布版本。研究时活动入口为 2.1.248，本页仍固定在 2026-08-27 基线。</p>
+      </div>
+      <p class="answer-line">页面不声明队列写进某个文件。官方没有给出这个落点，本机也没有读取私人会话数据来猜。</p>
+    </section>
+
+    <section class="section" id="unknowns" data-xray-section="unknowns">
+      <div class="section-head">
+        <div><p class="kicker">07 · UNKNOWNS</p><h2>七项尚无答案</h2></div>
+        <p class="section-intro">这些未知项会改变调试结论。它们留在页面上，避免把产品界面行为扩写成未经公开的实现事实。</p>
+      </div>
+      <div class="unknown-list">
+        <article class="unknown"><h3>队列落点</h3><p>内存结构、崩溃恢复与确切文件位置没有公开。</p></article>
+        <article class="unknown"><h3>并行工具栅栏</h3><p>多个工具并行时，消息等待哪一个内部完成信号没有公开。</p></article>
+        <article class="unknown"><h3>立即命令名单</h3><p>官方调度段只举 <code>/status</code>，没有固定完整名单。</p></article>
+        <article class="unknown"><h3>跨类型顺序</h3><p>普通消息与命令混在同一队列时，turn 结束后的相对先后没有公开。</p></article>
+        <article class="unknown"><h3>取消传播</h3><p>终端按键到模型流、工具进程与外部副作用的逐层时序没有公开。</p></article>
+        <article class="unknown"><h3>Voice 首发版本</h3><p>当前证据能证明基线安装物有语音动作，不能钉住 Voice 与 tap 最早出现在哪个版本。</p></article>
+        <article class="unknown"><h3>语音竞态</h3><p>部分转写、网络重试与 queued prompt 同时出现时怎样去重排序没有公开。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="reproduce">
+      <div class="section-head">
+        <div><p class="kicker">08 · REPRODUCE</p><h2>获准以后怎样复现</h2></div>
+        <p class="section-intro">实验只需要匿名序号与时间点。无需保存真实 prompt、音频、路径或 transcript 文件名。</p>
+      </div>
+      <details>
+        <summary>展开六步隔离实验</summary>
+        <ol>
+          <li>在无私人内容的临时目录启动明确版本 2.1.247。</li>
+          <li>让 Claude 运行一个持续数秒、无网络、可安全停止的只读工具。</li>
+          <li>运行中提交两条带序号消息，观察工具边界和最旧优先顺序。</li>
+          <li>分别用 <code>Ctrl+X Enter</code> 与 <code>Esc</code> 重做，比较只排队和中断释放。</li>
+          <li>用 <code>/btw</code> 问已有上下文，确认主 turn、工具访问和 history 边界。</li>
+          <li>另获麦克风授权后测试 hold 与 tap，让无敏感转写汇入同一队列。</li>
+        </ol>
+      </details>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources">
+      <div class="section-head">
+        <div><p class="kicker">09 · SOURCES</p><h2>一手资料直达</h2></div>
+        <p class="section-intro"><span class="mark">O</span>技术事实只取 Anthropic 官方文档、官方 changelog 与本机指定版本安装物。没有用二手文章填事实表。</p>
+      </div>
+      <div class="sources">
+        <a class="source" href="https://code.claude.com/docs/en/interactive-mode"><span class="id">O-01</span><span><strong>Interactive mode</strong><br><span class="desc">证明 queued message、命令、interrupt 与 /btw 的时间顺序</span></span><span class="go">↗</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/keybindings"><span class="id">O-02</span><span><strong>Customize keyboard shortcuts</strong><br><span class="desc">证明 queueSubmit、interrupt 动作与 2.1.247 门槛</span></span><span class="go">↗</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/voice-dictation"><span class="id">O-03</span><span><strong>Voice dictation</strong><br><span class="desc">证明音频流、认证、麦克风、转写与提交规则</span></span><span class="go">↗</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/changelog"><span class="id">O-04</span><span><strong>Claude Code changelog</strong><br><span class="desc">证明版本历史与早期 queued prompt 契约</span></span><span class="go">↗</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>证据图例 · O 官方契约 · L 本机静态证据 · R 真实实验 · I 研究者推断</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

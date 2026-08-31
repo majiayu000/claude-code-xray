@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="SAFE-02">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>SAFE-02 Bash 沙箱、网络隔离与文件系统边界</title>
+  <style>
+    :root {
+      --ink: #11181a;
+      --ink-2: #172326;
+      --paper: #f1ead8;
+      --paper-2: #ddd3bd;
+      --muted: #9eaa9d;
+      --line: #445154;
+      --amber: #f4aa24;
+      --mint: #67d7bd;
+      --red: #ff715b;
+      --blue: #88c7f2;
+      --max: 1240px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--ink); }
+    body {
+      margin: 0;
+      color: var(--paper);
+      background:
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px),
+        radial-gradient(circle at 77% 8%, rgba(103,215,189,.10), transparent 28rem),
+        var(--ink);
+      background-size: 32px 32px, 32px 32px, auto, auto;
+      font-family: "Hiragino Sans GB", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: inherit; text-underline-offset: .25em; }
+    a:hover { color: var(--amber); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      color: var(--mint);
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .92em;
+    }
+
+    .topbar {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      width: min(calc(100% - 36px), var(--max));
+      margin: 0 auto;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--line);
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .78rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .identity { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; }
+    .identity b { color: var(--amber); font-size: 1rem; }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .18rem .55rem;
+      border: 1px solid var(--amber);
+      color: var(--amber);
+    }
+    .status::before { content: ""; width: .45rem; height: .45rem; background: currentColor; border-radius: 50%; }
+
+    .jump {
+      width: min(calc(100% - 36px), var(--max));
+      margin: .75rem auto 0;
+      display: flex;
+      gap: .45rem;
+      overflow-x: auto;
+      padding: .25rem 0 .6rem;
+      scrollbar-width: thin;
+    }
+    .jump a {
+      flex: 0 0 auto;
+      padding: .32rem .6rem;
+      color: var(--muted);
+      border: 1px solid #364245;
+      text-decoration: none;
+      font-size: .72rem;
+      letter-spacing: .04em;
+    }
+
+    main { overflow: hidden; }
+    .hero {
+      min-height: 79vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(270px, .65fr);
+      gap: clamp(2rem, 7vw, 7rem);
+      align-items: center;
+      width: min(calc(100% - 36px), var(--max));
+      margin: 0 auto;
+      padding: clamp(4rem, 10vw, 8rem) 0 5rem;
+      position: relative;
+    }
+    .hero::before {
+      content: "BOUNDARY  /  013";
+      position: absolute;
+      top: 2rem;
+      right: 0;
+      color: #536164;
+      font: .72rem/1 "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .16em;
+    }
+    .kicker {
+      margin: 0 0 1.2rem;
+      color: var(--mint);
+      font: .78rem/1.3 "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .12em;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 11ch;
+      margin-bottom: 1.6rem;
+      font-family: "Songti SC", STSong, "Noto Serif CJK SC", serif;
+      font-size: clamp(3.25rem, 8vw, 7.5rem);
+      line-height: .96;
+      letter-spacing: -.055em;
+      font-weight: 900;
+    }
+    .answer {
+      max-width: 760px;
+      margin-bottom: 1.2rem;
+      color: #faf2df;
+      font-family: "Songti SC", STSong, "Noto Serif CJK SC", serif;
+      font-size: clamp(1.2rem, 2vw, 1.62rem);
+      line-height: 1.62;
+    }
+    .answer strong { color: var(--amber); font-weight: 700; }
+    .hero-note { max-width: 70ch; color: var(--muted); font-size: .93rem; }
+
+    .boundary-gauge {
+      position: relative;
+      min-height: 430px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      background: rgba(12,18,20,.58);
+    }
+    .boundary-gauge::before, .boundary-gauge::after {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border: 1px dashed #657477;
+    }
+    .boundary-gauge::after { inset: 25%; border-style: solid; border-color: var(--mint); }
+    .gauge-label {
+      position: absolute;
+      z-index: 1;
+      padding: .25rem .45rem;
+      background: var(--ink);
+      font: .66rem/1.2 "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .08em;
+    }
+    .g1 { top: 5%; left: 8%; color: var(--muted); }
+    .g2 { top: 21%; left: 25%; color: var(--mint); }
+    .g3 { bottom: 28%; right: 25%; color: var(--amber); }
+    .process {
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      width: 96px;
+      aspect-ratio: 1;
+      color: var(--ink);
+      background: var(--amber);
+      font: 800 .74rem/1.25 "SFMono-Regular", Menlo, monospace;
+      text-align: center;
+      transform: rotate(45deg);
+    }
+    .process span { transform: rotate(-45deg); }
+
+    .legend {
+      width: min(calc(100% - 36px), var(--max));
+      margin: 0 auto 5rem;
+      padding: 1.2rem 0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .legend div { padding: .25rem 1rem; border-right: 1px solid var(--line); }
+    .legend div:first-child { padding-left: 0; }
+    .legend div:last-child { border-right: 0; }
+    .legend b {
+      display: block;
+      margin-bottom: .15rem;
+      color: var(--amber);
+      font: 1.1rem/1 "SFMono-Regular", Menlo, monospace;
+    }
+    .legend span { color: var(--muted); font-size: .8rem; }
+
+    .section {
+      width: min(calc(100% - 36px), var(--max));
+      margin: 0 auto;
+      padding: 5.5rem 0;
+      border-top: 1px solid var(--line);
+      position: relative;
+    }
+    .section-head {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .section-no {
+      color: var(--amber);
+      font: .78rem/1.4 "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .12em;
+    }
+    h2 {
+      margin-bottom: .65rem;
+      font-family: "Songti SC", STSong, "Noto Serif CJK SC", serif;
+      font-size: clamp(2rem, 4.4vw, 4.3rem);
+      line-height: 1.05;
+      letter-spacing: -.035em;
+    }
+    .lead { max-width: 760px; color: var(--muted); font-size: 1.02rem; }
+    .ev {
+      display: inline-block;
+      margin-left: .28rem;
+      color: var(--ink);
+      background: var(--amber);
+      padding: .05rem .3rem;
+      font: 700 .66rem/1.35 "SFMono-Regular", Menlo, monospace;
+      vertical-align: .12em;
+    }
+    .ev.i { background: var(--blue); }
+    .ev.l { background: var(--mint); }
+    .ev.r { background: var(--red); }
+
+    .terms {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--line);
+    }
+    .term { min-height: 220px; padding: 1.6rem; border-right: 1px solid var(--line); }
+    .term:last-child { border-right: 0; }
+    .term h3 { color: var(--mint); font: 700 .88rem/1.35 "SFMono-Regular", Menlo, monospace; letter-spacing: .04em; }
+    .term p { margin-bottom: 0; color: #d6d6c7; }
+
+    .sequence { counter-reset: step; display: grid; gap: 0; }
+    .step {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 80px 170px minmax(0, 1fr);
+      gap: 1.2rem;
+      padding: 1.35rem 0;
+      border-top: 1px solid var(--line);
+      align-items: start;
+    }
+    .step:last-child { border-bottom: 1px solid var(--line); }
+    .step::before {
+      content: "0" counter(step);
+      color: var(--amber);
+      font: 1.1rem/1.4 "SFMono-Regular", Menlo, monospace;
+    }
+    .step h3 { margin: 0; font-size: 1rem; color: var(--paper); }
+    .step p { margin: 0; color: #bcc4bc; }
+
+    .flow-board {
+      padding: clamp(1rem, 3vw, 2.5rem);
+      border: 1px solid #5d6a6d;
+      background:
+        linear-gradient(90deg, transparent 49.85%, rgba(244,170,36,.22) 50%, transparent 50.15%),
+        #0c1214;
+    }
+    .lane-labels { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 1.3rem; }
+    .lane-labels span { color: var(--muted); font: .7rem/1 "SFMono-Regular", Menlo, monospace; letter-spacing: .12em; }
+    .lane-labels span:last-child { text-align: right; }
+    .flow-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr);
+      align-items: stretch;
+      gap: .8rem;
+    }
+    .node {
+      min-height: 122px;
+      padding: 1.15rem;
+      border: 1px solid var(--line);
+      background: #141d20;
+    }
+    .node b { display: block; margin-bottom: .38rem; color: var(--paper); }
+    .node small { display: block; color: var(--muted); font-size: .8rem; line-height: 1.55; }
+    .node.good { border-color: var(--mint); }
+    .node.stop { border-color: var(--red); }
+    .node.warn { border-color: var(--amber); }
+    .arrow { display: grid; place-items: center; color: var(--amber); font: 1.4rem/1 "SFMono-Regular", Menlo, monospace; }
+    .full { grid-column: 1 / -1; min-height: 90px; }
+    .route-note { grid-column: 1 / -1; margin: .5rem 0 0; color: #9baba7; font-size: .84rem; }
+
+    .matrix { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .matrix th, .matrix td { padding: .9rem .75rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .matrix th { color: var(--amber); font: .72rem/1.35 "SFMono-Regular", Menlo, monospace; letter-spacing: .05em; }
+    .matrix td:first-child { width: 24%; color: #faf2df; }
+    .matrix td { color: #bcc4bc; }
+
+    .findings { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .finding { padding: 1.4rem; border: 1px solid var(--line); background: rgba(20,29,32,.7); }
+    .finding h3 { color: var(--mint); font-size: 1rem; }
+    .finding p:last-child { margin-bottom: 0; }
+    .finding.access { grid-column: 1 / -1; }
+    .no-r { border-color: var(--red); }
+    .no-r h3 { color: var(--red); }
+
+    .impl-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 2rem; }
+    .os-stack { display: grid; gap: .65rem; }
+    .os {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+    }
+    .os b { color: var(--amber); font-family: "SFMono-Regular", Menlo, monospace; }
+    .os span { color: var(--muted); }
+    .versions { border-left: 2px solid var(--amber); padding-left: 1.3rem; }
+    .version { position: relative; padding: 0 0 1.4rem 1rem; }
+    .version::before { content: ""; position: absolute; left: -1.67rem; top: .4rem; width: .62rem; height: .62rem; background: var(--amber); }
+    .version b { color: var(--mint); font-family: "SFMono-Regular", Menlo, monospace; }
+    .version p { margin: .3rem 0 0; color: #bcc4bc; }
+
+    details { border-top: 1px solid var(--line); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 1rem 2.2rem 1rem 0; color: #f2ead6; position: relative; }
+    summary::after { content: "+"; position: absolute; right: .5rem; color: var(--amber); font: 1.2rem/1 monospace; }
+    details[open] summary::after { content: "×"; }
+    details > div { max-width: 820px; padding: 0 0 1.2rem; color: var(--muted); }
+
+    .sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: .7rem; }
+    .source {
+      display: block;
+      min-height: 120px;
+      padding: 1.1rem;
+      color: inherit;
+      border: 1px solid var(--line);
+      text-decoration: none;
+    }
+    .source:hover { border-color: var(--amber); background: rgba(244,170,36,.06); }
+    .source b { display: block; margin-bottom: .45rem; color: var(--paper); }
+    .source span { color: var(--muted); font-size: .84rem; }
+
+    footer {
+      width: min(calc(100% - 36px), var(--max));
+      margin: 0 auto;
+      padding: 2rem 0 3rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: .8rem;
+    }
+
+    @media (max-width: 820px) {
+      .hero { min-height: auto; grid-template-columns: 1fr; gap: 2rem; padding-top: 4.5rem; }
+      .boundary-gauge { min-height: 320px; }
+      .legend { grid-template-columns: 1fr 1fr; }
+      .legend div { border-bottom: 1px solid var(--line); }
+      .legend div:nth-child(2) { border-right: 0; }
+      .legend div:nth-child(3), .legend div:nth-child(4) { border-bottom: 0; }
+      .terms { grid-template-columns: 1fr; }
+      .term { min-height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .term:last-child { border-bottom: 0; }
+      .impl-grid, .findings { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .topbar { align-items: flex-start; }
+      .topbar > a { text-align: right; }
+      h1 { font-size: clamp(3rem, 16vw, 4.5rem); }
+      .section { padding: 4rem 0; }
+      .section-head { grid-template-columns: 1fr; gap: .45rem; }
+      .step { grid-template-columns: 48px minmax(0, 1fr); }
+      .step p { grid-column: 2; }
+      .flow-grid { grid-template-columns: 1fr; }
+      .arrow { min-height: 30px; transform: rotate(90deg); }
+      .full, .route-note { grid-column: 1; }
+      .lane-labels { display: none; }
+      .matrix { display: block; overflow-x: auto; }
+      .matrix th, .matrix td { min-width: 150px; }
+      .sources { grid-template-columns: 1fr; }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Bash 沙箱、网络隔离与文件系统边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-safe-02-sandbox-network-filesystem/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="SAFE-02 · Bash 沙箱、网络隔离与文件系统边界">
+  <meta property="og:description" content="Claude Code X-Ray：Bash 沙箱、网络隔离与文件系统边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-safe-02-sandbox-network-filesystem/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="SAFE-02 · Bash 沙箱、网络隔离与文件系统边界">
+  <meta name="twitter:description" content="Claude Code X-Ray：Bash 沙箱、网络隔离与文件系统边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>SAFE-02</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="identity"><b>SAFE-02</b><span>Claude Code 2.1.247</span><span class="status">当前状态 documented</span></div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <nav class="jump" aria-label="页内导航">
+    <a href="#terms">名词</a><a href="#sequence">顺序</a><a href="#flow">流向</a><a href="#limits">停止位置</a><a href="#experiment">本机观察</a><a href="#implementation">实现</a><a href="#unknowns">未知项</a><a href="#sources">来源</a>
+  </nav>
+
+  <main>
+    <section class="hero" data-xray-section="answer">
+      <div>
+        <p class="kicker">BASH SANDBOX / FILE / NETWORK / PROCESS</p>
+        <h1>命令能走多远</h1>
+        <p class="answer">用户启用沙箱且沙箱成功启动后，Bash 命令先过权限检查，随后在操作系统边界中运行。默认可以读机器上的大部分文件，只能写当前工作目录与会话临时目录。新网络主机第一次出现时，代理先把请求交给 Manual 审批或 Auto 分类，获准后在本会话内继续。<strong>文件越界或严格域名策略拒绝会让 Bash 失败；失败结果回来以后，Claude 才能调整允许范围，或申请一次无沙箱重试。</strong><span class="ev">O</span><span class="ev i">I</span></p>
+        <p class="hero-note">这页把权限已经允许的命令作为起点。沙箱是各模型提供方都可用的本地能力，没有单独的付费档位；实际让 Claude 发起 Bash 命令仍要先建立已认证会话。页面固定在 2026-08-27 的 2.1.247 契约。<span class="ev">O</span><span class="ev i">I</span></p>
+      </div>
+      <div class="boundary-gauge" aria-label="沙箱边界示意，命令进程位于允许写区域，网络代理位于边界之外">
+        <span class="gauge-label g1">HOST / 默认可读范围</span>
+        <span class="gauge-label g2">SANDBOX / 操作系统约束</span>
+        <span class="gauge-label g3">WRITE / 工作目录与临时目录</span>
+        <div class="process"><span>BASH<br>PROCESS</span></div>
+      </div>
+    </section>
+
+    <aside class="legend" aria-label="证据图例">
+      <div><b>O</b><span>官方契约</span></div>
+      <div><b>L</b><span>本机静态证据</span></div>
+      <div><b>R</b><span>本轮真实实验</span></div>
+      <div><b>I</b><span>研究者推断</span></div>
+    </aside>
+
+    <section class="section" id="terms" data-xray-section="terms">
+      <header class="section-head"><span class="section-no">01 / TERMS</span><div><h2>先分清三道边界</h2><p class="lead">读懂本页只需要三个对象。它们出现的时间不同，失败也落在不同位置。</p></div></header>
+      <div class="terms">
+        <article class="term"><h3>权限层</h3><p>命令运行前，规则与模式决定 Bash 工具能否开始。它管调用资格。<span class="ev">O</span></p></article>
+        <article class="term"><h3>操作系统沙箱</h3><p>命令开始后，macOS Seatbelt 或 Linux bubblewrap 约束文件和网络。子进程继承同一边界。<span class="ev">O</span></p></article>
+        <article class="term"><h3>沙箱外代理</h3><p>进程的网络流量经过代理。代理按主机名核对允许表，默认不检查加密连接里的内容。<span class="ev">O</span></p></article>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence">
+      <header class="section-head"><span class="section-no">02 / SEQUENCE</span><div><h2>一条命令怎样走完</h2><p class="lead">用户已经启用沙箱并允许 Bash 工具。文件越界会先形成失败，新网络主机则先走会话准入。两条路在这里分开。</p></div></header>
+      <div class="sequence">
+        <article class="step"><h3>权限先放行</h3><p>权限规则与当前模式先处理工具调用。沙箱不会替一个已被 deny 的命令取得执行资格。<span class="ev">O</span></p></article>
+        <article class="step"><h3>运行时组装边界</h3><p>Claude Code 合并沙箱文件设置、Read 与 Edit 规则、域名规则，再用当前平台的操作系统原语启动命令。<span class="ev">O</span></p></article>
+        <article class="step"><h3>进程开始访问</h3><p>文件访问由系统边界裁决。网络流量送往外部代理。命令随后启动的子进程仍受相同限制。<span class="ev">O</span></p></article>
+        <article class="step"><h3>新主机先请求准入</h3><p>默认没有预先允许的域名。第一次访问新主机时，Manual 模式询问用户，Auto 模式交给分类器；获准的主机加入本会话允许项。严格允许表会跳过询问，直接拒绝表外主机。<span class="ev">O</span></p></article>
+        <article class="step"><h3>允许范围内继续</h3><p>默认写入当前工作目录和会话临时目录。已有规则或刚获准的主机可以继续连接，命令把普通退出结果交回 Bash 工具。<span class="ev">O</span></p></article>
+        <article class="step"><h3>违规拒绝形成失败</h3><p>文件边界或严格网络策略拒绝访问后，违规详情附进 Bash 失败结果。普通新域名获准时不会经过这个节点。<span class="ev">O</span></p></article>
+        <article class="step"><h3>重试回到权限流</h3><p>无沙箱重试使用 <code>dangerouslyDisableSandbox</code>。Manual 模式询问用户，Auto 模式交给分类器；严格设置可直接忽略该参数。<span class="ev">O</span></p></article>
+      </div>
+    </section>
+
+    <section class="section" id="flow" data-xray-section="flow">
+      <header class="section-head"><span class="section-no">03 / FLOW</span><div><h2>新域名停一下，违规才回流</h2><p class="lead">新域名准入是命令继续前的一道会话门。文件拒绝与严格域名拒绝会形成失败，只有这条失败路径才可能接到无沙箱重试。<span class="ev">O</span><span class="ev i">I</span></p></div></header>
+      <div class="flow-board" role="img" aria-label="Bash 命令进入沙箱后，文件访问由系统裁决，新网络主机先经过会话审批或分类；文件越界与严格域名拒绝形成失败，随后才可能申请无沙箱重试">
+        <div class="lane-labels"><span>沙箱与网络代理 / ENFORCED</span><span>准入或重试 / USER OR CLASSIFIER</span></div>
+        <div class="flow-grid">
+          <article class="node good"><b>沙箱已启用，权限已允许</b><small>SAFE-01 的终点，也是本页起点。显式 deny 仍在沙箱 Auto-allow 中生效。</small></article><div class="arrow">→</div><article class="node"><b>启动 Bash 进程</b><small>Seatbelt 或 bubblewrap 施加文件与网络边界，限制跟随子进程。</small></article>
+          <article class="node"><b>文件访问</b><small>操作系统按读写边界裁决。范围内继续，越界则形成带违规详情的 Bash 失败结果。</small></article><div class="arrow">→</div><article class="node good"><b>范围内继续</b><small>命令继续运行并产生常规退出结果。沙箱不保证工具自身一定成功。</small></article>
+          <article class="node"><b>网络遇到新主机</b><small>代理发现主机不在本会话允许项中。严格允许表开启时，表外主机直接拒绝。</small></article><div class="arrow">→</div><article class="node warn"><b>Manual 审批或 Auto 分类</b><small>获准后加入当前会话，命令继续。用户或分类器拒绝时，这次访问停下。</small></article>
+          <article class="node stop"><b>违规拒绝形成失败</b><small>文件越界与严格域名拒绝进入违规详情，随后作为 Bash 失败结果交给 Claude。</small></article><div class="arrow">→</div><article class="node warn"><b>申请无沙箱重试</b><small>只有模型看见失败后再次提出关闭沙箱参数，才进入 Manual 提示或 Auto 分类。</small></article>
+          <article class="node full"><b>两个停止阀</b><small><code>allowUnsandboxedCommands: false</code> 会忽略关闭沙箱参数。用户或分类器拒绝，也会让这次路径停下。预先列入 <code>excludedCommands</code> 的命令从开始就走沙箱外例外，不经过这条失败回流。</small></article>
+          <p class="route-note">图中间一行是新域名的会话准入，下一行才是违规失败与重试。两条路径来自官方执行顺序的拼接，没有声称本机 2.1.247 已跑过这些节点。<span class="ev i">I</span></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits">
+      <header class="section-head"><span class="section-no">04 / LIMITS</span><div><h2>允许范围与停止位置</h2><p class="lead">默认可读范围很宽。只打开沙箱并不等于凭据已经隐藏，文件读拒绝和凭据设置需要另行配置。<span class="ev">O</span></p></div></header>
+      <table class="matrix">
+        <thead><tr><th>动作</th><th>默认或明确规则</th><th>越界后的结果</th></tr></thead>
+        <tbody>
+          <tr><td>读普通文件</td><td>大部分机器可读。<code>denyRead</code> 与凭据规则可以收窄，更具体的读路径决定重叠区域。</td><td>系统拒绝读取，违规详情进入 Bash 失败结果。</td></tr>
+          <tr><td>写工作目录</td><td>当前工作目录、子目录与会话临时目录可写。Claude 自己加载的受保护路径仍拒绝写入。</td><td>写入失败。<code>allowWrite</code> 也不能豁免受保护路径。</td></tr>
+          <tr><td>写目录外路径</td><td>需要 <code>allowWrite</code> 或合并后的 Edit allow。多个设置来源的路径数组会合并。</td><td>先失败，随后才可能申请沙箱外重试。</td></tr>
+          <tr><td>访问新主机</td><td>默认没有预先允许的域名。Manual 询问，Auto 分类；严格允许表跳过询问并直接拒绝。</td><td>获准后加入当前会话，命令继续。普通准入拒绝会停下这次访问，严格策略拒绝会形成违规失败。</td></tr>
+          <tr><td>启动子进程</td><td>子进程继承同一文件与网络边界。Unix socket 与本地监听另受平台设置约束。</td><td>子进程不能靠换程序名脱离边界。</td></tr>
+          <tr><td>沙箱无法启动</td><td>默认警告后用无沙箱方式运行。<code>failIfUnavailable: true</code> 才要求启动失败。</td><td>默认会降低隔离强度。严格部署会直接停止启动。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" id="experiment" data-xray-section="experiment">
+      <header class="section-head"><span class="section-no">05 / OBSERVATION</span><div><h2>本机只能证明版本漂移</h2><p class="lead">研究过程只读了 CLI 帮助、安装入口和公开索引，没有读取设置、会话或私人内容。</p></div></header>
+      <div class="findings">
+        <article class="finding"><h3>本机已经是 2.1.248</h3><p><code>claude --version</code> 返回 2.1.248，原生 arm64 二进制的哈希也不同于任务给定的 2.1.247 快照。当前安装不能充当 2.1.247 的静态实现证据。<span class="ev l">L</span></p></article>
+        <article class="finding"><h3>官方索引仍有 202 项</h3><p>2026-08-28 在线索引仍计得 202 个入口，SHA-256 已不同于 2026-08-27 固定值。官方页面是活文档，版本标注不能省。<span class="ev">O</span><span class="ev l">L</span></p></article>
+        <article class="finding no-r"><h3>本页没有 R</h3><p>真实验证要启动 Claude 会话，让 Bash 访问专门准备的边界目标。任务禁止启动任何会消耗模型额度或产生用量的新会话，也禁止读取或改动现有设置，因此没有执行。页面保持 documented。</p></article>
+        <article class="finding"><h3>没有拿 Seatbelt 冒充 Claude</h3><p>系统带有 <code>sandbox-exec</code>，独立的 <code>srt</code> 没有安装。自写 Seatbelt profile 只能证明自写规则，不能证明 Claude Code 2.1.247 生成过什么。<span class="ev l">L</span></p></article>
+        <article class="finding access"><h3>登录与费用跟着模型提供方走</h3><p>沙箱本身没有额外付费档位。认证入口包括 Claude.ai 的 Pro、Max、Team 或 Enterprise 账户、Claude Console、Amazon Bedrock、Google Cloud 与 Microsoft Foundry。订阅账户按套餐额度与已开启的额外用量结算，Console 和云提供方按各自的模型用量与账单结算。<span class="ev">O</span><span class="ev i">I</span></p></article>
+      </div>
+    </section>
+
+    <section class="section" id="implementation" data-xray-section="implementation">
+      <header class="section-head"><span class="section-no">06 / IMPLEMENTATION</span><div><h2>操作系统负责执行边界</h2><p class="lead">Claude Code 负责合并策略并启动命令。实际文件拒绝与进程继承交给平台原语，网络则通过沙箱外代理收口。<span class="ev">O</span></p></div></header>
+      <div class="impl-grid">
+        <div class="os-stack">
+          <div class="os"><b>macOS</b><span>Seatbelt。无需另装 sandbox 依赖。</span></div>
+          <div class="os"><b>Linux</b><span>bubblewrap 负责文件隔离，socat 接力代理流量。</span></div>
+          <div class="os"><b>WSL2</b><span>沿用 Linux 路径。WSL1 缺少所需内核能力。</span></div>
+          <div class="os"><b>Windows</b><span>2.1.247 不支持原生运行这套 Bash 沙箱。</span></div>
+        </div>
+        <div class="versions" aria-label="相关版本变化">
+          <article class="version"><b>2.1.212</b><p>修复 Plan mode 在 Auto-allow 下自动运行改文件 Bash 命令的问题。</p></article>
+          <article class="version"><b>2.1.219</b><p>加入 <code>strictAllowlist</code>，未允许主机可以直接拒绝。</p></article>
+          <article class="version"><b>2.1.224</b><p>修复沙箱违规详情没有进入 Bash 结果的问题。</p></article>
+          <article class="version"><b>2.1.246</b><p>修复文件边界没有遵守 <code>--setting-sources</code> 的问题。</p></article>
+          <article class="version"><b>2.1.247</b><p>修复命令后清理误删被重新指向边界外的设置符号链接。</p></article>
+        </div>
+      </div>
+      <details><summary>默认读取为什么仍需单独收紧</summary><div><p>官方文档明确写着，默认读范围包含整台机器的大部分位置，常见凭据目录也不会自动全部挡住。需要用 <code>denyRead</code> 或 <code>sandbox.credentials</code> 指定文件与环境变量。网络隔离无法替这一步补上文件读限制。</p></div></details>
+      <details><summary>代理能看见什么</summary><div><p>内置代理通常按客户端给出的主机名放行，不解密 TLS 内容。广泛允许一个域名会扩大外传机会。要求内容检查时，官方建议接入会终止 TLS 的自定义代理，并处理对应证书。</p></div></details>
+      <details><summary>沙箱覆盖不到哪里</summary><div><p>Read、Edit 与 Write 直接走权限系统。Computer use 操作真实桌面。环境变量默认由父进程传给 Bash，除非用凭据设置或全局子进程清理开关收窄。<span class="ev">O</span></p></div></details>
+    </section>
+
+    <section class="section" id="unknowns" data-xray-section="unknowns">
+      <header class="section-head"><span class="section-no">07 / UNKNOWNS</span><div><h2>还没有看到的运行细节</h2><p class="lead">这些问题会改变复现结果，现有官方契约和本机只读证据还不足以替它们下结论。</p></div></header>
+      <details><summary>本机实际生成的 Seatbelt profile</summary><div><p>没有观察 2.1.247 为具体命令生成的规则、临时目录和代理端口。页面只写官方公开边界。</p></div></details>
+      <details><summary>Manual 与 Auto 的网络提示</summary><div><p>没有记录两种模式的实际提示文案、允许一次的内存状态和分类器拒绝结果。</p></div></details>
+      <details><summary>进程与本地通信的组合边界</summary><div><p>孙进程、Unix socket、本地监听和 Apple Events 同时出现时，本机 2.1.247 的系统调用结果未知。</p></div></details>
+      <details><summary>设置来源同时变化时的最终解析</summary><div><p>多个作用域、符号链接、Worktree 共享 Git 目录与动态改路径同时存在时，没有真实会话复核。</p></div></details>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources">
+      <header class="section-head"><span class="section-no">08 / SOURCES</span><div><h2>一手资料与复现入口</h2><p class="lead">技术结论只取 Anthropic 官方文档、官方仓库与官方 changelog。完整命令、限制和未知项见同目录 evidence.md。</p></div></header>
+      <div class="sources">
+        <a class="source" href="https://code.claude.com/docs/en/sandboxing"><b>沙箱配置与运行边界</b><span>证明新域名准入、严格拒绝、失败回流、进程继承和平台支持</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/settings"><b>沙箱设置字段</b><span>证明允许与拒绝路径、域名、严格启动和沙箱外例外</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/permissions"><b>权限与沙箱的先后关系</b><span>证明工具运行前的权限检查和运行中的操作系统约束</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/agent-sdk/typescript"><b>Agent SDK 沙箱类型</b><span>证明程序化配置与无沙箱重试参数</span></a>
+        <a class="source" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><b>Claude Code 官方 changelog</b><span>证明 2.1.212 至 2.1.247 的相关修复</span></a>
+        <a class="source" href="https://github.com/anthropics/claude-code/blob/main/examples/settings/settings-bash-sandbox.json"><b>严格沙箱设置示例</b><span>证明管理员如何关闭重试出口并清空例外命令</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/feature-availability"><b>功能可用性</b><span>证明沙箱在各模型提供方均可用，没有单独的沙箱套餐</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/authentication"><b>登录与认证</b><span>证明 Claude.ai、Console 与三家云提供方的认证入口</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/costs"><b>Claude Code 费用</b><span>证明订阅额度、Console API 与云提供方的计费归属</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer><span>SAFE-02 · status documented · Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></footer>
+</body>
+</html>

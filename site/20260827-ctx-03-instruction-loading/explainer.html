@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CTX-03">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CTX-03 · CLAUDE.md、Rules 与指令加载顺序</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f3eddf;
+      --paper-deep: #e4dac6;
+      --ink: #17201d;
+      --muted: #5d625b;
+      --rule: #9d3f2b;
+      --green: #214f42;
+      --blue: #2c5269;
+      --line: #b8ad98;
+      --soft: rgba(255, 252, 244, .68);
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+      --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 0 46px, rgba(157,63,43,.12) 46px 47px, transparent 47px),
+        repeating-linear-gradient(0deg, rgba(57,51,42,.035) 0 1px, transparent 1px 5px),
+        var(--paper);
+      font-family: var(--sans);
+      line-height: 1.72;
+    }
+    a { color: var(--blue); text-underline-offset: .22em; }
+    a:hover { color: var(--rule); }
+    a:focus-visible, summary:focus-visible { outline: 3px solid #cf8f35; outline-offset: 4px; border-radius: 2px; }
+    code { font-family: var(--mono); font-size: .92em; background: rgba(33,79,66,.09); padding: .12em .34em; border-radius: 3px; }
+    .masthead {
+      width: min(1180px, calc(100% - 42px));
+      margin: 0 auto;
+      padding: 22px 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      letter-spacing: .04em;
+    }
+    .issue { font-family: var(--mono); color: var(--rule); font-weight: 800; }
+    .statusline { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .chip { border: 1px solid var(--line); background: var(--soft); padding: 3px 9px; }
+    .chip strong { color: var(--green); }
+    .jump {
+      width: min(1180px, calc(100% - 42px));
+      margin: 13px auto 0;
+      display: flex;
+      gap: 8px 17px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+    .jump a { text-decoration: none; border-bottom: 1px dotted currentColor; }
+    main { width: min(1180px, calc(100% - 42px)); margin: 0 auto; padding: 22px 0 76px; }
+    section { scroll-margin-top: 18px; }
+    .hero {
+      min-height: 590px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.24fr) minmax(330px, .76fr);
+      align-items: center;
+      gap: clamp(36px, 7vw, 108px);
+      padding: 52px 0 68px;
+      border-bottom: 2px solid var(--ink);
+    }
+    .eyebrow { color: var(--rule); font-family: var(--mono); font-weight: 800; letter-spacing: .11em; font-size: 12px; }
+    h1, h2, h3 { font-family: var(--serif); font-weight: 700; }
+    h1 { font-size: clamp(43px, 7vw, 92px); line-height: .98; letter-spacing: -.045em; margin: 18px 0 26px; max-width: 9.2em; }
+    h1 span { color: var(--rule); }
+    .dek { font-family: var(--serif); font-size: clamp(19px, 2.2vw, 27px); line-height: 1.55; max-width: 31em; margin: 0; }
+    .answer-note { margin-top: 24px; color: var(--muted); max-width: 58ch; }
+    .stack {
+      position: relative;
+      padding: 30px 25px 27px 49px;
+      border: 1px solid var(--ink);
+      background: rgba(255,252,244,.76);
+      box-shadow: 12px 12px 0 var(--paper-deep), 13px 13px 0 var(--ink);
+      transform: rotate(.55deg);
+    }
+    .stack::before { content: "装入上下文"; position: absolute; left: -31px; top: 35px; writing-mode: vertical-rl; color: var(--rule); font-family: var(--mono); font-size: 11px; letter-spacing: .2em; }
+    .layer { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .layer:last-child { border-bottom: 0; }
+    .layer b { font-family: var(--mono); color: var(--green); font-size: 11px; }
+    .layer span { font-size: 14px; }
+    .layer.lazy { color: var(--muted); border-style: dashed; }
+    .chapter { padding: 82px 0; border-bottom: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 28px; margin-bottom: 38px; }
+    .section-no { font-family: var(--mono); color: var(--rule); font-size: 12px; letter-spacing: .08em; padding-top: 9px; }
+    h2 { margin: 0; font-size: clamp(31px, 4.8vw, 58px); line-height: 1.12; letter-spacing: -.025em; }
+    h3 { font-size: 21px; margin: 0 0 10px; }
+    p { margin: 0 0 1em; }
+    .lead { font-family: var(--serif); font-size: 21px; max-width: 44em; }
+    .term-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--ink); border-bottom: 1px solid var(--ink); }
+    .term { padding: 24px 18px 26px; border-right: 1px solid var(--line); }
+    .term:last-child { border-right: 0; }
+    .term small { display: block; color: var(--rule); font-family: var(--mono); margin-bottom: 14px; }
+    .term p { font-size: 14px; color: var(--muted); margin: 0; }
+    .timeline { counter-reset: steps; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border-top: 1px solid var(--ink); }
+    .step { counter-increment: steps; padding: 24px 18px 20px; border-right: 1px solid var(--line); position: relative; }
+    .step:last-child { border-right: 0; }
+    .step::before { content: "0" counter(steps); display: block; font: 800 12px var(--mono); color: var(--rule); margin-bottom: 31px; }
+    .step::after { content: ""; position: absolute; top: 54px; left: 19px; right: -1px; border-top: 1px solid var(--green); }
+    .step:last-child::after { right: calc(100% - 28px); }
+    .step h3 { font-size: 18px; }
+    .step p { font-size: 13px; color: var(--muted); }
+    .flow-board { display: grid; grid-template-columns: 1fr 65px 1fr 65px 1fr; align-items: stretch; }
+    .node { padding: 25px; border: 1px solid var(--ink); background: var(--soft); }
+    .node h3 { color: var(--green); }
+    .node ul { margin: 14px 0 0; padding-left: 1.15em; font-size: 14px; color: var(--muted); }
+    .arrow { display: grid; place-items: center; color: var(--rule); font: 28px var(--serif); }
+    .flow-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 25px; }
+    .callout { border-left: 5px solid var(--rule); padding: 18px 21px; background: rgba(157,63,43,.06); }
+    .callout.green { border-color: var(--green); background: rgba(33,79,66,.06); }
+    .limits-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; }
+    .limit-list { border-top: 2px solid var(--ink); }
+    .limit-row { display: grid; grid-template-columns: 110px 1fr; gap: 20px; padding: 19px 0; border-bottom: 1px solid var(--line); }
+    .limit-row b { color: var(--rule); font: 700 12px var(--mono); }
+    .limit-row p { margin: 0; }
+    .conflict { padding: 30px; background: var(--ink); color: var(--paper); }
+    .conflict h3 { color: #f0b45d; font-size: 29px; }
+    .conflict p { color: #ded7c8; }
+    .conflict strong { color: #fff; }
+    .access-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 34px; }
+    .access-card { padding: 23px 25px 21px; border-top: 4px solid var(--blue); background: var(--soft); }
+    .access-card:last-child { border-color: var(--rule); }
+    .access-card small { display: block; color: var(--rule); font: 800 11px var(--mono); letter-spacing: .08em; margin-bottom: 9px; }
+    .access-card p { color: var(--muted); font-size: 14px; }
+    .access-card p:last-child { margin-bottom: 0; }
+    .ledger { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .ledger th, .ledger td { text-align: left; vertical-align: top; padding: 15px 12px; border-bottom: 1px solid var(--line); }
+    .ledger th { font: 700 11px var(--mono); color: var(--rule); border-top: 2px solid var(--ink); }
+    .proof { display: inline-block; min-width: 2em; color: #fff; background: var(--green); font: 800 11px var(--mono); text-align: center; padding: 2px 5px; }
+    .proof.l { background: var(--blue); }
+    .proof.r { background: #7b6b62; }
+    .proof.i { background: var(--rule); }
+    .legend { display: flex; flex-wrap: wrap; gap: 9px 18px; margin: -8px 0 24px; font-size: 13px; color: var(--muted); }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; }
+    .implementation-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+    .spec { padding: 22px; border-top: 4px solid var(--green); background: var(--soft); min-height: 230px; }
+    .spec p, .spec li { font-size: 14px; color: var(--muted); }
+    .spec ul { padding-left: 1.2em; }
+    details { border-top: 1px solid var(--ink); }
+    details:last-child { border-bottom: 1px solid var(--ink); }
+    summary { cursor: pointer; padding: 18px 4px; font-family: var(--serif); font-size: 18px; }
+    details p { margin: 0 0 20px; max-width: 76ch; color: var(--muted); }
+    .source-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 28px; margin-top: 28px; }
+    .source-link { display: block; padding: 17px 0; border-top: 1px solid var(--line); text-decoration: none; }
+    .source-link small { display: block; color: var(--muted); margin-top: 5px; }
+    footer { background: var(--ink); color: var(--paper); }
+    .footer-inner { width: min(1180px, calc(100% - 42px)); margin: 0 auto; padding: 28px 0; display: flex; justify-content: space-between; gap: 20px; font-size: 13px; }
+    footer a { color: #f0b45d; }
+    @media (prefers-reduced-motion: no-preference) {
+      .stack { animation: settle .7s ease-out both; }
+      @keyframes settle { from { opacity: 0; transform: translateY(16px) rotate(1.4deg); } to { opacity: 1; transform: translateY(0) rotate(.55deg); } }
+    }
+    @media (max-width: 850px) {
+      body { background-position: -20px 0; }
+      .hero { min-height: auto; grid-template-columns: 1fr; padding-top: 47px; }
+      .stack { max-width: 560px; }
+      .term-grid { grid-template-columns: 1fr 1fr; }
+      .term:nth-child(2) { border-right: 0; }
+      .term:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .timeline { grid-template-columns: 1fr; }
+      .step { display: grid; grid-template-columns: 54px 1fr; column-gap: 12px; border-right: 0; border-bottom: 1px solid var(--line); padding-left: 0; }
+      .step::before { margin: 0; }
+      .step::after { top: 48px; bottom: -1px; left: 22px; right: auto; height: auto; border-top: 0; border-left: 1px solid var(--green); }
+      .flow-board { grid-template-columns: 1fr; }
+      .arrow { min-height: 55px; transform: rotate(90deg); }
+      .limits-grid, .access-grid, .implementation-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .masthead { align-items: flex-start; }
+      .statusline { display: grid; justify-items: end; }
+      .jump { gap: 5px 13px; }
+      main { padding-top: 8px; }
+      .hero { gap: 39px; padding-bottom: 54px; }
+      h1 { font-size: 46px; }
+      .dek { font-size: 19px; }
+      .stack { padding: 23px 17px 21px 39px; box-shadow: 7px 7px 0 var(--paper-deep), 8px 8px 0 var(--ink); }
+      .section-head { grid-template-columns: 1fr; gap: 8px; }
+      .chapter { padding: 58px 0; }
+      .term-grid { grid-template-columns: 1fr; }
+      .term { border-right: 0; border-bottom: 1px solid var(--line); }
+      .term:last-child { border-bottom: 0; }
+      .flow-foot, .source-list { grid-template-columns: 1fr; }
+      .limit-row { grid-template-columns: 82px 1fr; gap: 12px; }
+      .ledger { font-size: 12px; }
+      .ledger th:nth-child(3), .ledger td:nth-child(3) { display: none; }
+      .footer-inner { flex-direction: column; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：CLAUDE.md、Rules 与指令加载顺序。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ctx-03-instruction-loading/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CTX-03 · CLAUDE.md、Rules 与指令加载顺序">
+  <meta property="og:description" content="Claude Code X-Ray：CLAUDE.md、Rules 与指令加载顺序。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ctx-03-instruction-loading/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CTX-03 · CLAUDE.md、Rules 与指令加载顺序">
+  <meta name="twitter:description" content="Claude Code X-Ray：CLAUDE.md、Rules 与指令加载顺序。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CTX-03</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="masthead">
+    <div><span class="issue">CTX-03</span> / 指令装订册</div>
+    <div class="statusline">
+      <span class="chip">状态 <strong>documented</strong></span>
+      <span class="chip">Claude Code <strong>2.1.247</strong></span>
+    </div>
+  </header>
+  <nav class="jump" aria-label="页内导航">
+    <a href="#answer">最短答案</a><a href="#terms">名词</a><a href="#sequence">时序</a><a href="#flow">文件流</a><a href="#limits">边界</a><a href="#experiment">证据</a><a href="#implementation">版本</a><a href="#unknowns">未知</a><a href="#sources">来源</a>
+  </nav>
+
+  <main>
+    <section id="answer" class="hero" data-xray-section="answer">
+      <div>
+        <div class="eyebrow">一次启动，形成一套当下可见的指令</div>
+        <h1>目录决定先读<span>哪几页</span></h1>
+        <p class="dek">用户从一个目录启动 Claude Code。它先收集宽范围指令，再沿这个目录的祖先链向下拼接。等用户或 Claude 要读取具体文件时，子目录 CLAUDE.md 和带路径条件的 Rules 才会按需加入。</p>
+        <p class="answer-note">多份文件都会留下。后读到的内容没有客户端强制覆盖前文，冲突时模型可能任选一种解释。需要客户端强制的边界应交给权限，或能阻断目标工具调用的 PreToolUse Hook。</p>
+      </div>
+      <div class="stack" aria-label="指令加载层次">
+        <div class="layer"><b>01</b><span>组织托管指令</span></div>
+        <div class="layer"><b>02</b><span>用户 CLAUDE.md 与用户 Rules</span></div>
+        <div class="layer"><b>03</b><span>祖先目录到启动目录的项目指令</span></div>
+        <div class="layer"><b>04</b><span>同层 CLAUDE.local.md 排在后面</span></div>
+        <div class="layer lazy"><b>稍后</b><span>嵌套指令与路径匹配 Rules</span></div>
+      </div>
+    </section>
+
+    <section id="terms" class="chapter" data-xray-section="terms">
+      <div class="section-head"><div class="section-no">01 / TERMS</div><h2>四张会混在一起的纸</h2></div>
+      <div class="term-grid">
+        <article class="term"><small>CLAUDE.md</small><h3>共享说明</h3><p>放在项目根或 <code>.claude/</code> 中，适合团队共同遵守的架构、命令和约定。</p></article>
+        <article class="term"><small>CLAUDE.local.md</small><h3>个人补充</h3><p>项目内的私人偏好，通常加入 gitignore。同一目录里排在共享说明之后。</p></article>
+        <article class="term"><small>rules/*.md</small><h3>拆分规则</h3><p>可递归组织。没有路径条件就随会话装入，有路径条件就等匹配文件被读取。</p></article>
+        <article class="term"><small>@path</small><h3>内容导入</h3><p>把另一份文件展开进上下文。相对路径按发起导入的文件计算，最多递归四跳。</p></article>
+      </div>
+    </section>
+
+    <section id="sequence" class="chapter" data-xray-section="sequence">
+      <div class="section-head"><div class="section-no">02 / SEQUENCE</div><div><h2>一次启动里的五步</h2><p class="lead">关键时间点只有两个。启动决定基础集合，读文件动作再补上局部集合。</p></div></div>
+      <p>扫描从哪里开始，会改变基础集合。从仓库根目录启动时，根目录以下的 CLAUDE.md 暂不出现；从更深目录启动时，Claude Code 会向上追溯，把途中每层的 CLAUDE.md 和 local 文件按由远到近的次序拼接。用户层先进入，项目里更靠近启动目录的内容随后出现。</p>
+      <div class="timeline">
+        <article class="step"><div><h3>确定启动目录</h3><p>Claude Code 以进程启动时的工作目录为扫描落点。</p></div></article>
+        <article class="step"><div><h3>装入宽范围层</h3><p>托管与用户指令先进入上下文，项目层随后出现。</p></div></article>
+        <article class="step"><div><h3>沿祖先链拼接</h3><p>从文件系统根方向走到启动目录，越近的目录越晚出现。</p></div></article>
+        <article class="step"><div><h3>展开导入</h3><p>遇到外部项目导入时，首次会经过用户批准门。</p></div></article>
+        <article class="step"><div><h3>读文件再补页</h3><p>嵌套 CLAUDE.md 与路径 Rules 在目标文件被读取时加入。</p></div></article>
+      </div>
+    </section>
+
+    <section id="flow" class="chapter" data-xray-section="flow">
+      <div class="section-head"><div class="section-no">03 / FLOW</div><div><h2>文件怎样变成模型上下文</h2><p class="lead">发现、筛选、拼接属于客户端流程。最后的遵循仍由模型解释。</p></div></div>
+      <div class="flow-board">
+        <article class="node"><h3>文件系统</h3><ul><li>托管、用户、项目与 local 文件</li><li>递归 Rules</li><li>被导入文件</li></ul></article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="node"><h3>Claude Code</h3><ul><li>按 scope 与启动目录发现</li><li>按 paths 与目标文件筛选</li><li>处理排除项和导入批准</li></ul></article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="node"><h3>当前上下文</h3><ul><li>多份内容共同保留</li><li>延迟规则随读取追加</li><li>压缩后按契约重注入</li></ul></article>
+      </div>
+      <div class="flow-foot">
+        <div class="callout green"><strong>已写进官方契约</strong><p>启动扫描、嵌套延迟加载、路径匹配和压缩重载都有对应事件原因。</p></div>
+        <div class="callout"><strong>仍缺运行证据</strong><p>仅执行 <code>cd</code> 是否重建新目录的整条祖先指令链，官方没有承诺。本页不把它画成必然步骤。</p></div>
+      </div>
+      <p>压缩后的恢复也分两种。项目根 CLAUDE.md 会从磁盘重新读取，嵌套文件仍要等 Claude 再次读取对应子树。带 <code>paths</code> 的 Rule 也靠重新匹配目标文件触发。因此，会话先前见过某份局部指令，不代表压缩后它会立刻回到上下文。</p>
+    </section>
+
+    <section id="limits" class="chapter" data-xray-section="limits">
+      <div class="section-head"><div class="section-no">04 / LIMITS</div><h2>权限门、冲突和停止位置</h2></div>
+      <div class="limits-grid">
+        <div class="limit-list">
+          <div class="limit-row"><b>外部导入</b><p>项目指令首次导入工作目录外文件时会列出目标并请求批准。拒绝后导入保持禁用。</p></div>
+          <div class="limit-row"><b>排除来源</b><p><code>--setting-sources</code> 可跳过 user、project 或 local。项目 Rules 随 project source 一起受控。</p></div>
+          <div class="limit-row"><b>附加目录</b><p><code>--add-dir</code> 默认只扩大工具访问。额外环境开关打开后，才加载那里的指令文件。</p></div>
+          <div class="limit-row"><b>诊断停机</b><p>safe mode 关掉自定义内容但保留管理员策略。bare 跳过 CLAUDE.md 自动发现。</p></div>
+        </div>
+        <aside class="conflict">
+          <h3>冲突没有硬裁判</h3>
+          <p>目录越近、项目规则越具体，内容会在上下文里出现得更晚。官方 SDK 仍明确说明，各层是 additive，层级间没有硬覆盖规则。</p>
+          <p>顺序可以帮助人定位来源，不能当作覆盖表。同一条要求在用户文件和项目文件里互相冲突时，两段文字仍同时留在模型上下文中。后出现的项目内容较具体，也没有客户端规则负责删掉前一段。排查时可以先用 <code>InstructionsLoaded</code> 确认哪些文件已经进入。需要阻断某项工具动作时，再使用权限或对应的 PreToolUse Hook。InstructionsLoaded 与 CwdChanged 只负责观测。</p>
+          <p><strong>结果</strong> 模型可能选择其中一条。把“严禁执行”只写进 CLAUDE.md，无法得到客户端级保证。</p>
+          <p><strong>停止条件</strong> 找不到文件、source 被排除、路径不匹配、导入未批准或 safe mode 生效时，相应指令不会进入普通加载链。</p>
+        </aside>
+      </div>
+      <div class="access-grid" aria-label="登录和计费边界">
+        <article class="access-card">
+          <small>ACCESS</small>
+          <h3>未登录证据止于本地检查</h3>
+          <p>安装后的版本命令和帮助可以在本机检查程序与参数。启动交互会话前，官方要求先有可用账户或云提供商凭据。可选入口包括 Claude Pro、Max、Team、Enterprise、Claude Console，以及组织配置的 Bedrock、Vertex AI 或 Foundry。</p>
+          <p>本页只把 <code>claude --version</code> 与 <code>claude --help</code> 算作 L。官方没有承诺登录界面出现前已经完成指令扫描，因此未认证状态不能证明 CLAUDE.md 已进入模型上下文。</p>
+        </article>
+        <article class="access-card">
+          <small>COST</small>
+          <h3>实验会占额度或产生账单</h3>
+          <p>订阅 OAuth 会占用相应套餐的使用量。Pro 与 Max 的使用已含在订阅中，Console 或 API key 路径按 API token 计费，Bedrock、Vertex AI 与 Foundry 则记到云提供商账户。</p>
+          <p>环境里若有 <code>ANTHROPIC_API_KEY</code>，用户批准后它会排在订阅登录之前。一次加载顺序实验要启动会话、读取文件并发送模型请求，因而会消耗套餐额度或计费 token。版本、帮助和哈希检查不创建模型会话。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="experiment" class="chapter" data-xray-section="experiment">
+      <div class="section-head"><div class="section-no">05 / EVIDENCE</div><div><h2>这页证据到哪里为止</h2><p class="lead">O 与 L 已相互核过。R 需要认证并会消耗套餐额度或产生 API、云账单，本次没有获准运行，所以状态保持 documented。</p></div></div>
+      <div class="legend" aria-label="O L R I 证据图例">
+        <span><b class="proof">O</b> 官方契约</span>
+        <span><b class="proof l">L</b> 本机静态证据</span>
+        <span><b class="proof r">R</b> 真实运行</span>
+        <span><b class="proof i">I</b> 研究者推断</span>
+      </div>
+      <table class="ledger">
+        <thead><tr><th>身份</th><th>本页拿到的证据</th><th>能证明</th><th>不能证明</th></tr></thead>
+        <tbody>
+          <tr><td><span class="proof">O</span></td><td>Memory、Hooks、CLI、认证、成本、Agent SDK、changelog</td><td>公开加载契约、访问计费边界与版本修复</td><td>2.1.247 本机的一次真实事件序列</td></tr>
+          <tr><td><span class="proof l">L</span></td><td>版本、帮助、二进制哈希、官方索引哈希</td><td>本机版本和公开参数确实存在</td><td>模型是否遵循某条指令</td></tr>
+          <tr><td><span class="proof r">R</span></td><td>未运行</td><td>没有新增运行结论</td><td>启动、读文件、压缩时的实测先后</td></tr>
+          <tr><td><span class="proof i">I</span></td><td>对官方未承诺处的限定</td><td>指出契约缺口</td><td>不能代替真实行为</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="implementation" class="chapter" data-xray-section="implementation">
+      <div class="section-head"><div class="section-no">06 / IMPLEMENTATION</div><h2>2.1.247 的可见实现边界</h2></div>
+      <div class="implementation-grid">
+        <article class="spec"><h3>可观测事件</h3><p><code>InstructionsLoaded</code> 会报告文件、scope 与装入原因。</p><ul><li>session_start</li><li>nested_traversal</li><li>path_glob_match</li><li>include 与 compact</li></ul></article>
+        <article class="spec"><h3>事件没有裁决权</h3><p>这个 Hook 异步运行，只用于审计和观测。它不能阻止或修改指令装入。<code>CwdChanged</code> 同样不能拦截目录变化。</p></article>
+        <article class="spec"><h3>近期修复</h3><p>2.1.211 修正 project source 排除对嵌套 Rules 的作用。2.1.198 修正符号链接路径触发规则。2.1.247 没有声明改动这条主链。</p></article>
+      </div>
+    </section>
+
+    <section id="unknowns" class="chapter" data-xray-section="unknowns">
+      <div class="section-head"><div class="section-no">07 / UNKNOWNS</div><div><h2>还不能写死的五件事</h2><p class="lead">这些问题需要一次隔离、匿名、获批预算的会话实验。</p></div></div>
+      <details open><summary>仅改变工作目录会不会重算祖先指令</summary><p>官方只保证 CwdChanged 事件，并把嵌套指令装入绑定到读文件动作。单独一次 <code>cd</code> 的效果仍未知。</p></details>
+      <p>用户在会话中 <code>cd</code> 到另一个目录，能够确定的只有 <code>CwdChanged</code> 会记录旧目录与新目录。官方文档没有承诺此刻重新执行启动扫描。随后读取新目录下的文件，才有文档支持的 <code>nested_traversal</code> 或 <code>path_glob_match</code> 装入路径。</p>
+      <details><summary>同一 Rules 目录里的精确文件顺序</summary><p>官方说明会递归发现 Markdown 文件，没有公布同一层多份规则的完整排序算法。</p></details>
+      <details><summary>编辑已装入文件以后何时生效</summary><p>官方资料没有在本页主契约中给出通用即时热重载保证，需要结合 prompt caching 文档与运行事件核对。</p></details>
+      <details><summary>冲突在不同模型上的实际遵循率</summary><p>官方已经说明没有硬覆盖。具体模型、上下文长度和压缩会怎样改变遵循率，仍需测量。</p></details>
+      <details><summary>本机所有装入原因的真实事件序列</summary><p>没有运行新 Claude 会话，因此没有收集 2.1.247 的 InstructionsLoaded 事件。</p></details>
+    </section>
+
+    <section id="sources" class="chapter" data-xray-section="sources">
+      <div class="section-head"><div class="section-no">08 / SOURCES</div><div><h2>一手来源与复现入口</h2><p class="lead">事实表与完整复现步骤见本目录的 <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>。</p></div></div>
+      <div class="source-list">
+        <a class="source-link" href="https://code.claude.com/docs/en/memory">官方 Memory 文档<small>证明 CLAUDE.md、Rules、导入、目录层级与压缩行为</small></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/hooks">官方 Hooks reference<small>证明 InstructionsLoaded 与 CwdChanged 的时点和控制边界</small></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/cli-usage">官方 CLI reference<small>证明 add-dir、setting-sources 与系统提示参数</small></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/agent-sdk/claude-code-features">官方 Agent SDK 功能页<small>证明 settingSources、按需装入与无硬冲突覆盖</small></a>
+        <a class="source-link" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md">官方仓库 changelog<small>证明 2.1.198、2.1.211 与 2.1.247 的版本边界</small></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/quickstart">官方 Quickstart<small>证明版本检查、首次登录与可用账户入口</small></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/authentication">官方 Authentication 文档<small>证明认证方式与凭据选择顺序</small></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/costs">官方 Cost 文档<small>证明订阅额度、API token 与云提供商计费边界</small></a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner"><span>CTX-03 · documented · Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></div>
+  </footer>
+</body>
+</html>

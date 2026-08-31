@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="SAFE-03">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>SAFE-03 | Safe Mode、Clean 诊断与错误恢复</title>
+  <style>
+    :root {
+      --ink: #161a1d;
+      --paper: #f1eadc;
+      --paper-2: #e7dcc7;
+      --panel: #20282c;
+      --panel-2: #29343a;
+      --line: #667178;
+      --cream: #fff8e9;
+      --signal: #ff6b35;
+      --signal-ink: #963812;
+      --signal-2: #ffd166;
+      --safe: #71c7a5;
+      --muted: #b6b9b5;
+      --mono: "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      --sans: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--ink); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(22,26,29,.045) 1px, transparent 1px) 0 0 / 24px 24px,
+        var(--paper);
+      font-family: var(--sans);
+      line-height: 1.72;
+    }
+    a { color: inherit; text-underline-offset: .22em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--signal-ink); }
+    .topbar a:hover, footer a:hover { color: var(--signal-2); }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--signal-2); outline-offset: 4px; border-radius: 2px; }
+    code, .mono { font-family: var(--mono); }
+    code { background: rgba(22,26,29,.09); padding: .12em .32em; border-radius: 2px; overflow-wrap: anywhere; }
+    pre {
+      margin: 0;
+      padding: 1rem 1.1rem;
+      color: var(--cream);
+      background: #121719;
+      border: 1px solid #3c484d;
+      overflow-x: auto;
+      font: .86rem/1.65 var(--mono);
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 54px;
+      padding: .65rem clamp(1rem, 4vw, 4rem);
+      color: var(--cream);
+      background: rgba(22,26,29,.96);
+      border-bottom: 1px solid #434b4f;
+      backdrop-filter: blur(10px);
+    }
+    .topbar .id { color: var(--signal-2); font: 700 .78rem/1 var(--mono); letter-spacing: .16em; }
+    .topbar nav { display: flex; gap: 1rem; font-size: .82rem; }
+    .topbar a { text-decoration: none; }
+    main { overflow: hidden; }
+    .hero {
+      min-height: calc(100vh - 54px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(300px, .88fr);
+      align-items: stretch;
+      background: var(--ink);
+      color: var(--cream);
+    }
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(3rem, 8vw, 8rem) clamp(1.25rem, 6vw, 7rem);
+      border-right: 1px solid #455056;
+    }
+    .eyebrow { margin: 0 0 1.2rem; color: var(--signal-2); font: 700 .78rem/1.4 var(--mono); letter-spacing: .13em; text-transform: uppercase; }
+    h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.15; }
+    h1 { max-width: 12ch; margin: 0; font-size: clamp(3rem, 7vw, 7.2rem); letter-spacing: -.07em; }
+    .lede { max-width: 44rem; margin: 2rem 0 0; color: #e8e0d2; font-size: clamp(1.08rem, 1.7vw, 1.42rem); }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 2rem; }
+    .chip { padding: .36rem .62rem; border: 1px solid #627077; color: #d8ddd9; font: .74rem/1 var(--mono); letter-spacing: .04em; }
+    .chip.status { color: var(--signal-2); border-color: #8e7640; }
+    .decision-board {
+      display: grid;
+      align-content: center;
+      gap: 1px;
+      padding: clamp(1.25rem, 4vw, 4rem);
+      background: #111719;
+    }
+    .decision {
+      display: grid;
+      grid-template-columns: 3.2rem 1fr;
+      gap: 1rem;
+      padding: 1.2rem;
+      background: var(--panel);
+      border-left: 3px solid var(--line);
+    }
+    .decision b { color: var(--signal-2); font: 700 .75rem/1.5 var(--mono); }
+    .decision p { margin: 0; color: #e8e0d2; }
+    .decision.hot { border-left-color: var(--signal); }
+    .decision.stop { border-left-color: var(--safe); }
+    .decision-arrow { padding: .35rem 0 .35rem 1.25rem; color: #7d898d; font: 700 .8rem/1 var(--mono); letter-spacing: .12em; }
+    .section {
+      width: min(1180px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: clamp(4.2rem, 9vw, 8rem) 0;
+      border-bottom: 1px solid rgba(22,26,29,.22);
+    }
+    .section-head { display: grid; grid-template-columns: 9rem 1fr; gap: 2rem; align-items: start; margin-bottom: 2.5rem; }
+    .section-no { color: #5f6668; font: 700 .76rem/1.5 var(--mono); letter-spacing: .12em; }
+    h2 { max-width: 18ch; margin: 0; font-size: clamp(2.1rem, 4.4vw, 4.6rem); letter-spacing: -.045em; }
+    .intro { max-width: 48rem; margin: 1rem 0 0; font-size: 1.08rem; }
+    .term-grid, .limit-grid, .source-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1px; background: rgba(22,26,29,.22); border: 1px solid rgba(22,26,29,.22); }
+    .term, .limit, .source-card { padding: 1.35rem; background: var(--paper); }
+    .term h3, .limit h3 { margin: 0 0 .55rem; font-size: 1.18rem; }
+    .term p, .limit p, .source-card p { margin: 0; }
+    .term .mark { display: inline-block; margin-bottom: 1.2rem; color: var(--signal-ink); font: 700 .72rem/1 var(--mono); }
+    .timeline { position: relative; display: grid; gap: 0; }
+    .timeline::before { content: ""; position: absolute; left: 1.45rem; top: 1.5rem; bottom: 1.5rem; width: 1px; background: #7f898b; }
+    .step { position: relative; display: grid; grid-template-columns: 3rem 8rem 1fr; gap: 1.2rem; padding: 1rem 0 2rem; }
+    .step:last-child { padding-bottom: 0; }
+    .dot { z-index: 1; width: 2.9rem; height: 2.9rem; display: grid; place-items: center; color: var(--cream); background: var(--ink); border: 3px solid var(--paper); border-radius: 50%; font: 700 .75rem/1 var(--mono); }
+    .step-time { padding-top: .55rem; color: #5f6668; font: 700 .75rem/1.4 var(--mono); }
+    .step-body { padding: .15rem 0 0; }
+    .step-body h3 { margin: 0 0 .4rem; font-size: 1.35rem; }
+    .step-body p { max-width: 48rem; margin: 0; }
+    .flow-panel { color: var(--cream); background: var(--panel); border: 1px solid #414d52; }
+    .state-row { display: grid; grid-template-columns: 8rem 1fr 1fr; border-bottom: 1px solid #414d52; }
+    .state-row:last-child { border-bottom: 0; }
+    .state-row > div { padding: 1.1rem; border-right: 1px solid #414d52; }
+    .state-row > div:last-child { border-right: 0; }
+    .state-name { color: var(--signal-2); font: 700 .82rem/1.5 var(--mono); }
+    .state-label { color: #aeb8b8; font: 700 .68rem/1.3 var(--mono); letter-spacing: .08em; }
+    .state-row p { margin: .4rem 0 0; color: #e9e3d7; }
+    .branch { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; margin-top: 1rem; }
+    .branch article { padding: 1.2rem; border: 1px solid rgba(22,26,29,.28); background: rgba(255,248,233,.45); }
+    .branch h3 { margin: 0 0 .5rem; font-size: 1.22rem; }
+    .branch p { margin: 0; }
+    .stop-rule { margin-top: 1.5rem; padding: 1.4rem; color: var(--cream); background: var(--ink); border-left: 6px solid var(--signal); }
+    .stop-rule strong { color: var(--signal-2); }
+    .stop-rule p { margin: .35rem 0 0; }
+    .command-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .command-pair figure { margin: 0; }
+    figcaption { margin-bottom: .55rem; color: #586164; font-size: .88rem; }
+    .evidence-legend { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1px; margin-top: 2rem; background: rgba(22,26,29,.22); border: 1px solid rgba(22,26,29,.22); }
+    .evidence-legend div { padding: 1rem; background: var(--paper); }
+    .evidence-legend b { display: block; color: var(--signal-ink); font: 800 1.05rem/1 var(--mono); }
+    .evidence-legend span { display: block; margin-top: .45rem; font-size: .86rem; }
+    .observation { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .meter { padding: 1.25rem; border: 1px solid #8b918e; background: var(--paper-2); }
+    .meter .reading { margin: .4rem 0; font: 700 clamp(1rem,2vw,1.3rem)/1.45 var(--mono); overflow-wrap: anywhere; }
+    .meter .caption { margin: 0; color: #50585a; font-size: .9rem; }
+    .callout { margin-top: 1rem; padding: 1.2rem; border: 1px dashed #727b7b; }
+    .callout p { margin: 0; }
+    details { border-top: 1px solid rgba(22,26,29,.28); }
+    details:last-child { border-bottom: 1px solid rgba(22,26,29,.28); }
+    summary { cursor: pointer; padding: 1.05rem .2rem; font-family: var(--serif); font-weight: 700; }
+    details p { max-width: 52rem; margin: 0 0 1.2rem; }
+    .source-card { min-height: 10rem; }
+    .source-card a { font-family: var(--serif); font-size: 1.1rem; font-weight: 700; }
+    .source-card small { display: block; margin-top: .8rem; color: #566063; }
+    footer { padding: 2rem 1rem 3rem; color: #c4cbc7; background: var(--ink); text-align: center; font-size: .86rem; }
+    footer a { color: var(--signal-2); }
+    @media (max-width: 780px) {
+      .topbar nav a:not(:last-child) { display: none; }
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .hero-copy { min-height: 70vh; border-right: 0; border-bottom: 1px solid #455056; }
+      h1 { font-size: clamp(3.2rem, 16vw, 5.2rem); }
+      .section { width: min(100% - 1.5rem, 1180px); }
+      .section-head { grid-template-columns: 1fr; gap: .7rem; }
+      .term-grid, .limit-grid, .source-grid, .branch, .command-pair, .observation { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 3rem 1fr; gap: .8rem; }
+      .step-time { grid-column: 2; padding-top: 0; }
+      .step-body { grid-column: 2; }
+      .state-row { grid-template-columns: 1fr; }
+      .state-row > div { border-right: 0; border-bottom: 1px solid #414d52; }
+      .state-row > div:last-child { border-bottom: 0; }
+      .evidence-legend { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 430px) {
+      .topbar { padding-inline: .85rem; }
+      .hero-copy, .decision-board { padding-inline: 1rem; }
+      .decision { grid-template-columns: 2.6rem 1fr; padding: 1rem .8rem; }
+      .evidence-legend { grid-template-columns: 1fr; }
+      h2 { font-size: 2.25rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Safe Mode、Clean 诊断与错误恢复。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-safe-03-safe-clean-diagnostics/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="SAFE-03 · Safe Mode、Clean 诊断与错误恢复">
+  <meta property="og:description" content="Claude Code X-Ray：Safe Mode、Clean 诊断与错误恢复。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-safe-03-safe-clean-diagnostics/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="SAFE-03 · Safe Mode、Clean 诊断与错误恢复">
+  <meta name="twitter:description" content="Claude Code X-Ray：Safe Mode、Clean 诊断与错误恢复。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>SAFE-03</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <span class="id">CLAUDE CODE XRY / SAFE-03</span>
+    <nav aria-label="页内导航">
+      <a href="#path">诊断路径</a>
+      <a href="#evidence">证据</a>
+      <a href="../index.html">返回总索引</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">SAFE-03 · documented · Claude Code 2.1.247</p>
+        <h1 id="hero-title">先减载，再一件件装回去</h1>
+        <p class="lede">交互式 Claude Code 启动异常时，先用 safe mode 关闭本次会话的自定义项，故障仍在，再用空配置目录和无项目配置的启动目录做 clean 比较，随后每次只恢复一件，重复同一个触发动作，故障第一次回来就停。</p>
+        <div class="hero-meta" aria-label="页面状态">
+          <span class="chip status">状态 documented</span>
+          <span class="chip">冻结版本 2.1.247</span>
+          <span class="chip">真实运行证据 R 缺席</span>
+        </div>
+      </div>
+      <div class="decision-board" aria-label="诊断分支摘要">
+        <div class="decision hot"><b>01</b><p>正常启动失败，先记住最短复现动作。</p></div>
+        <div class="decision-arrow">NEXT ↓</div>
+        <div class="decision"><b>02</b><p>safe 中消失，嫌疑落在被关闭的自定义面。</p></div>
+        <div class="decision-arrow">OR ↓</div>
+        <div class="decision"><b>03</b><p>safe 中仍在，进入 clean 排除惯用用户与项目配置。</p></div>
+        <div class="decision-arrow">THEN ↓</div>
+        <div class="decision stop"><b>STOP</b><p>逐项恢复。首次复现时停止增加变量。</p></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head">
+        <span class="section-no">01 / TERMS</span>
+        <div><h2 id="terms-title">三种启动面，各回答一个问题</h2><p class="intro">我先对照官方 debug 指南、CLI reference 和冻结版 help，safe 与 clean 的隔离层次并不相同。</p></div>
+      </div>
+      <div class="term-grid">
+        <article class="term"><span class="mark">NORMAL</span><h3>正常启动</h3><p>用户、项目、本地与组织配置按作用域参加加载。它能复现故障，却很难直接说明是哪一层造成的。</p></article>
+        <article class="term"><span class="mark">SAFE</span><h3>Safe Mode</h3><p>本次会话关闭个人和项目自定义项。组织 policy 仍在，按 policy 配置的 hooks、status line 与 file-suggestion commands 仍会生效。认证、模型、内置工具和权限机制继续工作。</p></article>
+        <article class="term"><span class="mark">CLEAN</span><h3>Clean 比较</h3><p>把配置根目录指向新的空目录，并从没有项目配置的目录启动。惯用用户与项目配置都不参加，临时目录会保存自己的 onboarding 状态。</p></article>
+        <article class="term"><span class="mark">BOUNDARY</span><h3>边界状态</h3><p>clean 仍受配置目录之外的组织管理设置影响。macOS Keychain 凭据也可能延续，Linux 与 Windows 通常会重新要求登录。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="path" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head">
+        <span class="section-no">02 / SEQUENCE</span>
+        <div><h2 id="sequence-title">一次诊断按比较结果往下走</h2><p class="intro">每轮都用同一个启动目录、同一版本和同一触发动作。否则差异来自哪里，马上又会说不清。</p></div>
+      </div>
+      <div class="timeline">
+        <article class="step"><div class="dot">00</div><div class="step-time">先固定</div><div class="step-body"><h3>写下最短症状</h3><p>记录版本、启动目录类别、出现时机和最短触发动作。不要先改真实配置。</p></div></article>
+        <article class="step"><div class="dot">01</div><div class="step-time">第一轮</div><div class="step-body"><h3>运行 safe mode</h3><p>故障消失，只能说明原因位于被关闭的自定义面。回到正常会话，用 context、hooks、mcp、status 等观察命令确认实际加载项。</p></div></article>
+        <article class="step"><div class="dot">02</div><div class="step-time">条件进入</div><div class="step-body"><h3>运行 clean 比较</h3><p>safe 中仍有故障，或 settings 本身也可疑，再换空配置根目录和无项目配置的启动目录。看到首次设置界面，说明新的临时配置目录已经生效。</p></div></article>
+        <article class="step"><div class="dot">03</div><div class="step-time">逐项恢复</div><div class="step-body"><h3>每轮只放回一件</h3><p>使用配置副本，一次恢复一个文件或一类扩展。重启后重复第 00 步的动作。</p></div></article>
+        <article class="step"><div class="dot">04</div><div class="step-time">停止位置</div><div class="step-body"><h3>第一次复现就停</h3><p>刚恢复的单元成为当前嫌疑项。先修它或继续拆小，别让后续项目把比较结果搅在一起。</p></div></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head">
+        <span class="section-no">03 / FLOW</span>
+        <div><h2 id="flow-title">被读入的东西怎样变化</h2><p class="intro">这张表只写官方公开的可观察边界。它没有猜测二进制内部先读哪个函数。</p></div>
+      </div>
+      <div class="flow-panel" role="table" aria-label="三种启动状态的加载差异">
+        <div class="state-row" role="row"><div class="state-name" role="cell">NORMAL</div><div role="cell"><span class="state-label">惯用配置</span><p>用户、项目、本地配置及其自定义项参加加载。</p></div><div role="cell"><span class="state-label">外部边界</span><p>组织策略与环境变量也可能影响启动。</p></div></div>
+        <div class="state-row" role="row"><div class="state-name" role="cell">SAFE</div><div role="cell"><span class="state-label">本次关闭</span><p>个人和项目的指令、skills、plugins、hooks、MCP、commands、agents、styles、workflows、themes、keybindings 等。managed plugins、managed skills、managed CLAUDE.md 和 policy MCP 也不加载。</p></div><div role="cell"><span class="state-label">仍然存在</span><p>认证、模型选择、内置工具和权限机制。policy 配置的 hooks、status line 与 file-suggestion commands 继续生效。</p></div></div>
+        <div class="state-row" role="row"><div class="state-name" role="cell">CLEAN</div><div role="cell"><span class="state-label">换根目录</span><p>用户配置、hooks、MCP、plugins、memory 与 onboarding 状态进入新的临时配置目录。</p></div><div role="cell"><span class="state-label">换启动目录</span><p>避开项目的 .claude、.mcp.json 与 CLAUDE.md。配置目录外的组织策略仍可进入。</p></div></div>
+      </div>
+      <div class="branch">
+        <article><h3>clean 中消失</h3><p>原因仍在真实用户配置或项目配置范围内。开始逐项恢复。</p></article>
+        <article><h3>clean 中仍在</h3><p>停止搬动用户与项目文件。检查组织设置、环境变量，再转向安装或运行故障。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head">
+        <span class="section-no">04 / LIMITS</span>
+        <div><h2 id="limits-title">权限门和停止条件</h2><p class="intro">诊断的价值来自少改东西。safe 与 clean 都是比较面，不能替用户决定删除配置，也不能绕过组织策略。</p></div>
+      </div>
+      <div class="limit-grid">
+        <article class="limit"><h3>不要删真实配置</h3><p>官方 clean 路径使用新的配置根目录。恢复阶段优先复制到临时目录，保留原件和回退点。</p></article>
+        <article class="limit"><h3>policy 仍是权限门</h3><p>safe 中，policy 配置的 hooks、status line 与 file-suggestion commands 仍会生效。clean 也会读取配置目录之外的 managed settings，并可能重新获取 server-managed settings。</p></article>
+        <article class="limit"><h3>doctor 分成两个入口</h3><p>shell 的 claude doctor 是只读诊断，不启动会话。交互式 /doctor 能提出修复，实际修改前仍要确认。</p></article>
+        <article class="limit"><h3>Bare Mode 留在页外</h3><p>2.1.247 help 显示 Bare 面向脚本快速启动，另有 keychain、认证和显式上下文规则。它不参加本页的交互恢复链。</p></article>
+        <article class="limit"><h3>用量沿用登录方式</h3><p>safe 与 clean 只改变加载面。发送模型请求后，订阅登录计入原有套餐用量，API key 或云提供商按相应账户计费。官方资料没有列出这两个诊断入口的额外套餐门槛。</p></article>
+        <article class="limit"><h3>本轮没有验证账单</h3><p>本轮没有启动交互会话，也没有覆盖每种套餐和企业身份。具体账户选中了哪种凭据，可在正常会话用 /status 核对；safe 不会替用户切换计费账户。</p></article>
+      </div>
+      <div class="stop-rule"><strong>停止规则</strong><p>故障第一次随某个恢复单元回来，就停在这一轮。继续放回其他配置只会扩大嫌疑面。</p></div>
+    </section>
+
+    <section class="section" id="evidence" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head">
+        <span class="section-no">05 / EVIDENCE</span>
+        <div><h2 id="experiment-title">本机只核了静态入口</h2><p class="intro">冻结版安装文件仍在。本轮没有启动交互会话，没有发送模型请求，也没有制造坏配置。</p></div>
+      </div>
+      <div class="observation">
+        <article class="meter"><span class="section-no">FROZEN BINARY</span><p class="reading">2.1.247</p><p class="caption">冻结文件的版本输出与指定基线吻合。</p></article>
+        <article class="meter"><span class="section-no">SHA-256</span><p class="reading">5086b9b64d…cca8f7</p><p class="caption">完整哈希记录在 evidence.md，页面不放二进制长输出。</p></article>
+        <article class="meter"><span class="section-no">LOCAL HELP</span><p class="reading">safe-mode present</p><p class="caption">help 给出禁用面、保留面、policy 例外和环境变量。</p></article>
+        <article class="meter"><span class="section-no">VERSION DRIFT</span><p class="reading">default → 2.1.248</p><p class="caption">研究日默认命令已经更新，所以 L 结论直接取冻结文件。</p></article>
+      </div>
+      <div class="evidence-legend" aria-label="证据身份图例">
+        <div><b>O</b><span>官方契约</span></div><div><b>L</b><span>本机静态或帮助证据</span></div><div><b>R</b><span>真实运行证据，本页缺席</span></div><div><b>I</b><span>研究者推断</span></div>
+      </div>
+      <div class="callout"><p>help 路径在会话加载前退出，它能证明开关存在及公开措辞，却不能证明某次坏 hook 或插件确实被隔离，页面状态因此保持 documented。</p></div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head">
+        <span class="section-no">06 / CONTRACT</span>
+        <div><h2 id="implementation-title">公开契约到这里为止</h2><p class="intro">本机 help 说明 safe mode 会设置环境变量，官方配置文档说明 clean 使用另一条配置根目录，内部加载函数和先后顺序没有公开。</p></div>
+      </div>
+      <div class="command-pair">
+        <figure><figcaption>先缩小自定义加载面</figcaption><pre><code>claude --safe-mode</code></pre></figure>
+        <figure><figcaption>再换掉惯用用户与项目配置</figcaption><pre><code>cd /tmp
+CLAUDE_CONFIG_DIR=/tmp/claude-clean claude</code></pre></figure>
+      </div>
+      <div class="branch">
+        <article><h3>Safe 的公开数据流</h3><p>CLI flag 令本次启动进入 safe 状态，并公开等价环境变量。产品继续走认证、模型、内置工具和权限路径。</p></article>
+        <article><h3>Clean 的公开文件流</h3><p>用户配置根改到临时目录，项目配置由启动目录避开。临时目录随后接收自己的首次设置状态。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head">
+        <span class="section-no">07 / UNKNOWNS</span>
+        <div><h2 id="unknowns-title">仍然不知道的几件事</h2><p class="intro">这些缺口会改变根因判断，所以保留在页面上。</p></div>
+      </div>
+      <details open><summary>2.1.247 内部怎样依次跳过自定义项</summary><p>官方只给可观察范围，没有发布精确调用顺序。本轮也没有动态 trace。</p></details>
+      <details><summary>help 中 and more 的封闭清单</summary><p>在线 CLI reference 列得更长，在线页会滚动更新。冻结二进制没有给出一份机器可读的 2.1.247 完整清单。</p></details>
+      <details><summary>崩溃前是否已有扩展副作用</summary><p>这取决于故障发生在启动链的哪个时刻。需要隔离的坏配置样本和真实运行证据。</p></details>
+      <details><summary>企业管理组合的保留行为</summary><p>MDM、文件 policy 与 server-managed settings 的具体组合需要在相应组织环境验证。</p></details>
+      <details><summary>每种套餐下的诊断入口</summary><p>官方资料没有给 safe 或 clean 单列套餐门槛。本轮没有登录，也没有逐一验证 Pro、Max、Team、Enterprise、Console API 与云提供商账户。</p></details>
+      <details><summary>CLI 之外的宿主入口</summary><p>IDE 与 Desktop 是否呈现完全相同的 safe 和 clean 入口，本页没有验证。</p></details>
+    </section>
+
+    <section class="section" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head">
+        <span class="section-no">08 / SOURCES</span>
+        <div><h2 id="sources-title">一手来源与复现入口</h2><p class="intro">技术结论只取 Anthropic 官方文档、官方 CLI 帮助和官方仓库发布记录。更细的逐条证据见本目录 evidence.md。</p></div>
+      </div>
+      <div class="source-grid">
+        <article class="source-card"><a href="https://code.claude.com/docs/en/debug-your-config">官方配置调试指南</a><p>证明 safe、clean、平台认证差异、managed settings 例外和逐项恢复。</p><small>Anthropic · Debug your configuration</small></article>
+        <article class="source-card"><a href="https://code.claude.com/docs/en/cli-reference">官方 CLI 参考</a><p>证明 safe mode 的禁用面、保留面和环境变量入口。</p><small>Anthropic · CLI reference</small></article>
+        <article class="source-card"><a href="https://code.claude.com/docs/en/troubleshooting">官方故障排查页</a><p>证明配置故障、安装登录和运行稳定性的分流，以及 shell doctor 入口。</p><small>Anthropic · Troubleshooting</small></article>
+        <article class="source-card"><a href="https://code.claude.com/docs/en/settings">官方设置参考</a><p>证明配置作用域、managed 优先级和公开 JSON schema 的版本提醒。</p><small>Anthropic · Settings</small></article>
+        <article class="source-card"><a href="https://code.claude.com/docs/en/authentication">官方认证参考</a><p>证明订阅、Console API 与云提供商的登录路径，以及凭据选择顺序。</p><small>Anthropic · Authentication</small></article>
+        <article class="source-card"><a href="https://code.claude.com/docs/en/costs">官方用量与费用参考</a><p>证明订阅用量计入套餐限制，API 与云提供商按所选账户计量。</p><small>Anthropic · Costs</small></article>
+        <article class="source-card"><a href="https://github.com/anthropics/claude-code/releases/tag/v2.1.169">官方 2.1.169 发布记录</a><p>证明 safe-mode 与对应环境变量的引入版本。</p><small>Anthropic GitHub · Release v2.1.169</small></article>
+        <article class="source-card"><a href="../index.html">返回总索引</a><p>查看 CTX-03、EXT-03、EXT-05、ADM-08 与 Bare companion 的机制边界。</p><small>Claude Code XRY · 50 页索引</small></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>SAFE-03 · documented · Claude Code 2.1.247 · <a href="../index.html">返回总索引</a></footer>
+</body>
+</html>

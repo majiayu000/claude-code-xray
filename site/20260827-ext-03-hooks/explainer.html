@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="EXT-03">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>EXT-03 Hooks 事件、决策与生命周期</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #eef3df;
+      --muted: #a8b39e;
+      --ground: #0c110d;
+      --panel: #131a14;
+      --panel-2: #192219;
+      --line: #344036;
+      --signal: #d6ff4b;
+      --amber: #ffbf47;
+      --red: #ff6b57;
+      --blue: #69c6d9;
+      --paper: #d9decb;
+      --black: #101410;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+      --serif: "Iowan Old Style", "Songti SC", "STSong", Georgia, serif;
+      --sans: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--ground);
+      font-family: var(--sans);
+      line-height: 1.72;
+      letter-spacing: .012em;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .18;
+      background-size: 44px 44px;
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      mask-image: linear-gradient(to bottom, black, transparent 72%);
+    }
+    a { color: var(--signal); text-underline-offset: .22em; }
+    a:hover { color: #ffffff; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      font-family: var(--mono);
+      font-size: .91em;
+      color: var(--signal);
+      overflow-wrap: anywhere;
+    }
+    pre {
+      margin: 0;
+      padding: 1.15rem;
+      overflow: auto;
+      color: #f1f4e8;
+      background: #080b09;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--signal);
+      font: .84rem/1.68 var(--mono);
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 52px;
+      padding: .6rem clamp(1rem, 4vw, 4rem);
+      background: rgba(12, 17, 13, .94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      font: 700 .78rem/1 var(--mono);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .lamp {
+      width: 11px;
+      height: 11px;
+      background: var(--amber);
+      border-radius: 50%;
+      box-shadow: 0 0 0 5px rgba(255, 191, 71, .11), 0 0 20px rgba(255, 191, 71, .45);
+    }
+    .topbar nav { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: flex-end; }
+    .topbar nav a { font: .72rem/1.3 var(--mono); color: var(--muted); }
+
+    main { position: relative; }
+    .hero {
+      min-height: calc(100vh - 52px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+      gap: clamp(2rem, 7vw, 7rem);
+      align-items: center;
+      padding: clamp(3.5rem, 9vw, 8rem) clamp(1rem, 6vw, 7rem);
+      border-bottom: 1px solid var(--line);
+    }
+    .kicker {
+      display: inline-flex;
+      gap: .7rem;
+      align-items: center;
+      padding: .42rem .72rem;
+      color: var(--black);
+      background: var(--signal);
+      font: 800 .73rem/1 var(--mono);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 13ch;
+      margin: 1.3rem 0 1.25rem;
+      font: 700 clamp(2.75rem, 6.8vw, 7.2rem)/.95 var(--serif);
+      letter-spacing: -.055em;
+    }
+    .lead {
+      max-width: 41rem;
+      margin-bottom: 1.35rem;
+      font-size: clamp(1.08rem, 1.7vw, 1.42rem);
+      line-height: 1.7;
+      color: var(--paper);
+    }
+    .hero-note { max-width: 42rem; color: var(--muted); }
+    .evidence-chip {
+      display: inline-block;
+      margin-right: .35em;
+      padding: .18rem .42rem;
+      color: var(--black);
+      background: var(--blue);
+      font: 800 .7rem/1 var(--mono);
+      vertical-align: .16em;
+    }
+    .signal-box {
+      position: relative;
+      padding: 1.3rem;
+      background: var(--panel);
+      border: 1px solid #4a574b;
+      box-shadow: 14px 14px 0 #070a08;
+    }
+    .signal-box::before {
+      content: "EVENT / DECISION";
+      display: block;
+      margin-bottom: 1.2rem;
+      color: var(--muted);
+      font: .72rem/1 var(--mono);
+      letter-spacing: .12em;
+    }
+    .signal-step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 22px 1fr auto;
+      gap: .75rem;
+      align-items: center;
+      min-height: 56px;
+      border-top: 1px solid var(--line);
+    }
+    .signal-step:first-of-type { border-top: 0; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+    .signal-step.active .dot { background: var(--signal); box-shadow: 0 0 16px rgba(214, 255, 75, .65); }
+    .signal-step strong { font-family: var(--mono); font-size: .82rem; }
+    .signal-step span:last-child { color: var(--muted); font: .7rem/1 var(--mono); }
+    .signal-step.active span:last-child { color: var(--signal); }
+    .statusline {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 1.3rem;
+      border: 1px solid var(--line);
+    }
+    .statusline div { padding: .75rem; border-right: 1px solid var(--line); }
+    .statusline div:last-child { border-right: 0; }
+    .statusline small { display: block; color: var(--muted); font: .65rem/1.4 var(--mono); }
+    .statusline strong { display: block; margin-top: .25rem; font: .8rem/1.4 var(--mono); }
+
+    .wrap { width: min(1180px, calc(100% - 2rem)); margin-inline: auto; }
+    .section { padding: clamp(4rem, 8vw, 8rem) 0; border-bottom: 1px solid var(--line); }
+    .section-head {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 1rem;
+      align-items: start;
+      margin-bottom: clamp(2rem, 5vw, 4rem);
+    }
+    .section-no { color: var(--signal); font: 800 1rem/1 var(--mono); letter-spacing: .15em; }
+    h2 { margin-bottom: .7rem; font: 700 clamp(2rem, 4vw, 4.2rem)/1.06 var(--serif); letter-spacing: -.035em; }
+    h3 { margin-bottom: .65rem; font: 700 1.2rem/1.35 var(--serif); }
+    .section-intro { max-width: 54rem; color: var(--muted); font-size: 1.04rem; }
+
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .legend article { min-height: 145px; padding: 1.2rem; background: var(--panel); }
+    .legend b { display: block; width: 2rem; margin-bottom: 1rem; padding: .3rem 0; color: var(--black); background: var(--paper); text-align: center; font-family: var(--mono); }
+    .legend article:nth-child(1) b { background: var(--blue); }
+    .legend article:nth-child(2) b { background: var(--amber); }
+    .legend article:nth-child(3) b { background: var(--signal); }
+    .legend article:nth-child(4) b { background: var(--paper); }
+    .legend p { margin: 0; color: var(--muted); font-size: .9rem; }
+
+    .terms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .term { padding: 1.25rem; background: var(--panel); border-top: 4px solid var(--line); }
+    .term:nth-child(1) { border-color: var(--blue); }
+    .term:nth-child(2) { border-color: var(--amber); }
+    .term:nth-child(3) { border-color: var(--signal); }
+    .term p { margin-bottom: 0; color: var(--muted); }
+
+    .timeline { position: relative; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .stage {
+      display: grid;
+      grid-template-columns: 86px minmax(160px, .68fr) 1.32fr;
+      gap: 1rem;
+      padding: 1.15rem;
+      background: var(--panel);
+      align-items: start;
+    }
+    .stage .time { color: var(--signal); font: .74rem/1.5 var(--mono); }
+    .stage h3 { margin: 0; }
+    .stage p { margin: 0; color: var(--muted); }
+    .stage.warn { border-left: 5px solid var(--amber); }
+    .stage.stop { border-left: 5px solid var(--red); }
+
+    .flow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .flow-panel { padding: clamp(1.2rem, 3vw, 2rem); background: var(--panel); border: 1px solid var(--line); }
+    .packet {
+      margin: 1.2rem 0;
+      padding: 1rem;
+      background: #090d0a;
+      border: 1px dashed #556356;
+      font-family: var(--mono);
+      font-size: .82rem;
+    }
+    .packet-row { display: grid; grid-template-columns: minmax(115px, .55fr) 1.45fr; gap: 1rem; padding: .48rem 0; border-bottom: 1px solid #29332a; }
+    .packet-row:last-child { border-bottom: 0; }
+    .packet-row span:first-child { color: var(--signal); }
+    .packet-row span:last-child { color: var(--muted); }
+    .merge-order { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin-top: 1.2rem; }
+    .decision { padding: 1rem .65rem; text-align: center; border: 1px solid var(--line); background: var(--panel-2); }
+    .decision strong { display: block; font: 800 .9rem/1 var(--mono); }
+    .decision small { display: block; margin-top: .55rem; color: var(--muted); }
+    .decision.deny { border-color: var(--red); }
+    .decision.defer { border-color: var(--blue); }
+    .decision.ask { border-color: var(--amber); }
+    .decision.allow { border-color: var(--signal); }
+
+    .limits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .limit { padding: 1.25rem; background: var(--panel); border-left: 5px solid var(--red); }
+    .limit:nth-child(even) { border-left-color: var(--amber); }
+    .limit p { margin-bottom: 0; color: var(--muted); }
+    .notice { margin-top: 1rem; padding: 1.1rem 1.25rem; color: var(--paper); background: #2b2011; border: 1px solid #7d5b22; }
+
+    .observation { display: grid; grid-template-columns: .75fr 1.25fr; gap: 1rem; }
+    .meter { padding: 1.5rem; color: var(--black); background: var(--paper); }
+    .meter .big { display: block; font: 800 clamp(2.2rem, 6vw, 5rem)/1 var(--mono); letter-spacing: -.07em; }
+    .meter p { margin: 1rem 0 0; }
+    .log { padding: 1.5rem; background: var(--panel); border: 1px solid var(--line); }
+    .log-row { display: grid; grid-template-columns: 34px 1fr; gap: .8rem; padding: .7rem 0; border-bottom: 1px solid var(--line); }
+    .log-row:last-child { border-bottom: 0; }
+    .log-row b { color: var(--amber); font: 800 .75rem/1.5 var(--mono); }
+    .log-row p { margin: 0; color: var(--muted); }
+
+    details { margin-bottom: .75rem; background: var(--panel); border: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 1rem 1.1rem; color: var(--paper); font-weight: 700; }
+    details > div { padding: 0 1.1rem 1.1rem; color: var(--muted); }
+    details p:last-child { margin-bottom: 0; }
+    .source-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .source {
+      display: block;
+      min-height: 145px;
+      padding: 1.2rem;
+      color: var(--paper);
+      text-decoration: none;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+    .source:hover { border-color: var(--signal); color: white; }
+    .source b { display: block; margin-bottom: .7rem; color: var(--signal); font: 800 .72rem/1 var(--mono); letter-spacing: .1em; }
+    .source span { display: block; color: var(--muted); font-size: .9rem; }
+    .repro { margin-top: 1rem; padding: 1.2rem; background: var(--panel-2); border: 1px solid var(--line); }
+    .repro ol { margin-bottom: 0; padding-left: 1.3rem; }
+    footer { padding: 2rem 1rem 4rem; color: var(--muted); text-align: center; font: .76rem/1.8 var(--mono); }
+
+    @media (max-width: 860px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .signal-box { box-shadow: 8px 8px 0 #070a08; }
+      .legend, .terms { grid-template-columns: repeat(2, 1fr); }
+      .flow-grid, .observation { grid-template-columns: 1fr; }
+      .source-list { grid-template-columns: 1fr; }
+      .stage { grid-template-columns: 62px 1fr; }
+      .stage p { grid-column: 2; }
+    }
+    @media (max-width: 560px) {
+      .topbar { position: relative; align-items: flex-start; }
+      .topbar nav { display: none; }
+      .hero { padding-top: 3rem; }
+      h1 { font-size: clamp(2.6rem, 15vw, 4.4rem); }
+      .statusline { grid-template-columns: 1fr; }
+      .statusline div { border-right: 0; border-bottom: 1px solid var(--line); }
+      .statusline div:last-child { border-bottom: 0; }
+      .section-head { grid-template-columns: 1fr; }
+      .legend, .terms, .limits { grid-template-columns: 1fr; }
+      .stage { grid-template-columns: 1fr; }
+      .stage p { grid-column: 1; }
+      .merge-order { grid-template-columns: repeat(2, 1fr); }
+      .packet-row { grid-template-columns: 1fr; gap: .2rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Hooks 事件、决策与生命周期。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ext-03-hooks/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="EXT-03 · Hooks 事件、决策与生命周期">
+  <meta property="og:description" content="Claude Code X-Ray：Hooks 事件、决策与生命周期。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ext-03-hooks/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="EXT-03 · Hooks 事件、决策与生命周期">
+  <meta name="twitter:description" content="Claude Code X-Ray：Hooks 事件、决策与生命周期。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>EXT-03</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="brand"><span class="lamp" aria-hidden="true"></span>Claude Code XRY · EXT-03</div>
+    <nav aria-label="页内导航">
+      <a href="#sequence">时间顺序</a>
+      <a href="#limits">失败边界</a>
+      <a href="#sources">一手来源</a>
+      <a href="../index.html">返回总索引</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <span class="kicker">EXT-03 · documented</span>
+        <h1 id="answer-title">Claude Code 先发出事件，再等 hook 交回决定。</h1>
+        <p class="lead">会话开始、用户送出提示、工具准备执行、工具结束和本轮收尾，都会落到各自的生命周期点。交互会话先检查 workspace trust，随后才会放行 settings hooks。事件命中配置后，handler 收到 JSON。同步 handler 跑完以后，Claude Code 合并结果，随后继续、询问、拒绝，或者把补充信息交给下一次模型请求。</p>
+        <p class="hero-note"><span class="evidence-chip">O</span>这条链来自 Anthropic Hooks 参考与权限文档。<span class="evidence-chip">I</span>页面把它压成一次裁决链，方便看清先后。当前机器已升级到 2.1.248，本页仍以指定的 Claude Code 2.1.247 为版本基线，因此状态保持 documented。</p>
+      </div>
+      <aside class="signal-box" aria-label="一次工具动作的信号路径">
+        <div class="signal-step active"><span class="dot"></span><strong>TRUST</strong><span>放行</span></div>
+        <div class="signal-step active"><span class="dot"></span><strong>EVENT</strong><span>触发</span></div>
+        <div class="signal-step active"><span class="dot"></span><strong>MATCH</strong><span>命中</span></div>
+        <div class="signal-step active"><span class="dot"></span><strong>RUN</strong><span>并行</span></div>
+        <div class="signal-step active"><span class="dot"></span><strong>MERGE</strong><span>合并</span></div>
+        <div class="signal-step"><span class="dot"></span><strong>PERMISSION</strong><span>复核</span></div>
+        <div class="signal-step"><span class="dot"></span><strong>TOOL</strong><span>执行</span></div>
+        <div class="statusline">
+          <div><small>FEATURE</small><strong>EXT-03</strong></div>
+          <div><small>STATUS</small><strong>documented</strong></div>
+          <div><small>BASELINE</small><strong>2.1.247</strong></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">01 / TERMS</span>
+          <div><h2 id="terms-title">先分清三个东西</h2><p class="section-intro">配置里有三层。事件决定何时检查，matcher 决定这一次算不算，handler 才是实际运行的命令、端点、MCP 工具或模型判断。</p></div>
+        </div>
+        <div class="terms">
+          <article class="term"><h3>事件</h3><p><code>PreToolUse</code> 在工具执行前出现，<code>PostToolUse</code> 在成功后出现，<code>Stop</code> 在主 Agent 准备结束回复时出现。事件位置决定了 hook 还能改变什么。</p></article>
+          <article class="term"><h3>匹配</h3><p>工具事件通常按工具名匹配。没有 matcher、空字符串或星号会命中每次事件。工具 handler 还可用 <code>if</code> 按权限规则语法继续缩小范围。</p></article>
+          <article class="term"><h3>处理器</h3><p>官方参考列出 command、HTTP、MCP tool、prompt 和 agent 五类。同步处理器默认会挡住后续流程，直到完成、超时或报错。</p></article>
+        </div>
+        <div class="legend" aria-label="证据身份图例" style="margin-top:1rem">
+          <article><b>O</b><p>Anthropic 官方文档、官方 changelog 或官方仓库。用来说明公开契约。</p></article>
+          <article><b>L</b><p>本机只读命令与静态帮助。用来说明当前安装实际带了什么。</p></article>
+          <article><b>R</b><p>隔离条件下实际触发一次 hook。此页没有这一层证据。</p></article>
+          <article><b>I</b><p>研究者为了解释调用链作出的归纳。它不会替代运行证据。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">02 / SEQUENCE</span>
+          <div><h2 id="sequence-title">一次工具调用经过七站</h2><p class="section-intro">下面画的是 settings hook 已获准运行，并且 matcher 命中的路径。没有通过入口检查或没有匹配项时，Claude Code 都不会启动 handler。</p></div>
+        </div>
+        <div class="timeline">
+          <article class="stage warn"><span class="time">T-01</span><h3>会话入口先处理信任</h3><p>交互会话会暂停所有 settings hooks，连用户级配置也一样，直到用户接受当前目录或其父目录的 workspace trust。<code>-p</code> 与 SDK 不显示这道对话框，并把目录视作已信任，因此陌生仓库里的项目 hook 也可能运行。<span class="evidence-chip">O</span></p></article>
+          <article class="stage"><span class="time">T+00</span><h3>模型提出工具调用</h3><p>用户先提交提示，模型随后可能提出 Bash、Edit 或 MCP 工具调用。<code>UserPromptSubmit</code> 位于模型处理提示之前，能阻止提示进入上下文，也能附加上下文。<span class="evidence-chip">O</span></p></article>
+          <article class="stage"><span class="time">T+01</span><h3><code>PreToolUse</code> 发出</h3><p>Claude Code 把通用字段、工具名、工具输入和工具调用 ID 组成 JSON。command handler 从标准输入读取，HTTP handler 收到相同结构的 POST body。<span class="evidence-chip">O</span></p></article>
+          <article class="stage"><span class="time">T+02</span><h3>匹配项一起运行</h3><p>同一事件的所有匹配 handler 并行运行。一个 handler 先给出 deny，也不会取消已经启动的同级 handler。相同 settings handler 会去重，插件或 skill 的副本仍分开。<span class="evidence-chip">O</span></p></article>
+          <article class="stage warn"><span class="time">T+03</span><h3>结果合并</h3><p><code>PreToolUse</code> 的结构化结果按 deny、defer、ask、allow 的严格程度合并。多个 handler 给出的 <code>additionalContext</code> 会一起交给 Claude，返回 defer 的 handler 除外，它的这项内容会被忽略。<span class="evidence-chip">O</span></p></article>
+          <article class="stage"><span class="time">T+04</span><h3>权限规则继续复核</h3><p>allow 可以略过普通交互提示，却不能越过 deny 或 ask 规则。受管理的 deny 仍然优先，要求真实用户交互的某些 MCP 工具也仍会询问。<span class="evidence-chip">O</span></p></article>
+          <article class="stage stop"><span class="time">T+05</span><h3>执行或停止</h3><p>通过后工具才运行。成功会触发 <code>PostToolUse</code>，运行后失败会触发 <code>PostToolUseFailure</code>。准备结束本轮时才到 <code>Stop</code>，API 错误则改走不能裁决的 <code>StopFailure</code>。<span class="evidence-chip">O</span></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">03 / FLOW</span>
+          <div><h2 id="flow-title">输入是一包事件数据，输出是一次局部裁决</h2><p class="section-intro">通用字段让 handler 知道哪段会话、哪个目录和哪种权限模式触发了它。事件字段再补上工具输入、提示文本、错误结果或结束原因。</p></div>
+        </div>
+        <div class="flow-grid">
+          <article class="flow-panel">
+            <h3>进入 handler 的 JSON</h3>
+            <p>官方契约给每个事件一套 schema。转录路径可能落后于内存里的当前轮次，Stop handler 若要读刚生成的最终文本，应使用 <code>last_assistant_message</code>，不要假定 transcript 已经写完。</p>
+            <div class="packet" aria-label="输入字段摘要">
+              <div class="packet-row"><span>session_id</span><span>当前会话标识</span></div>
+              <div class="packet-row"><span>cwd</span><span>触发时的工作目录</span></div>
+              <div class="packet-row"><span>permission_mode</span><span>当前权限模式</span></div>
+              <div class="packet-row"><span>hook_event_name</span><span>事件名称</span></div>
+              <div class="packet-row"><span>tool_name</span><span>工具事件才有</span></div>
+              <div class="packet-row"><span>tool_input</span><span>工具事件的参数</span></div>
+            </div>
+            <p><span class="evidence-chip">O</span>这些字段可能包含敏感内容。官方安全建议要求校验输入、给 shell 变量加引号、拦截路径穿越，并避开密钥文件。</p>
+          </article>
+          <article class="flow-panel">
+            <h3>三种常规去向和一项非交互延后</h3>
+            <p><code>PreToolUse</code> 的结构化输出放在 <code>hookSpecificOutput</code> 中，并带上正确的事件名。它还能用 <code>updatedInput</code> 替换完整工具输入，用 <code>additionalContext</code> 给 Claude 补充事实。</p>
+            <div class="merge-order" aria-label="决策优先级">
+              <div class="decision deny"><strong>DENY</strong><small>取消调用</small></div>
+              <div class="decision defer"><strong>DEFER</strong><small>仅 -p 单调用</small></div>
+              <div class="decision ask"><strong>ASK</strong><small>交给用户</small></div>
+              <div class="decision allow"><strong>ALLOW</strong><small>继续复核</small></div>
+            </div>
+            <div class="notice"><strong>defer 有单独的 surface 边界。</strong> 它只在非交互 <code>claude -p</code> 中生效，并且这一轮只能有一个工具调用。交互会话会警告并忽略它，一轮并行调用也会警告并走正常权限流程。defer 同时会忽略 <code>updatedInput</code>、<code>permissionDecisionReason</code> 和该 handler 的 <code>additionalContext</code>。</div>
+            <div class="notice"><strong>权限门仍在。</strong> hook 的 allow 只解决 hook 这一关。匹配的 deny 与 ask 规则还会生效。一个同步 hook 的 deny 也不能撤销同批其他 handler 已经产生的外部副作用。</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">04 / LIMITS</span>
+          <div><h2 id="limits-title">失败时，多数路径选择继续</h2><p class="section-intro">hook 常被拿来做安全门，最容易出错的地方恰好也在这里。超时、普通非零退出和异步运行通常不会替你阻断动作。</p></div>
+        </div>
+        <div class="limits">
+          <article class="limit"><h3>超时会撤掉这次决定</h3><p>同步 command、HTTP 或 MCP tool handler 到时会被取消，输出被丢弃。<code>PreToolUse</code> 随后进入正常权限流程。官方明确提醒，不要把卡住的 hook 当成安全门。<span class="evidence-chip">O</span></p></article>
+          <article class="limit"><h3>退出码 1 通常只报错</h3><p>大多数事件里，只有退出码 2 能靠退出码本身阻断。退出码 1 会显示非阻断错误并继续。<code>WorktreeCreate</code> 是任何非零都失败的例外。<span class="evidence-chip">O</span></p></article>
+          <article class="limit"><h3>退出码 2 也要看事件</h3><p><code>PreToolUse</code> 会取消工具，<code>UserPromptSubmit</code> 会拒绝提示，<code>Stop</code> 会让 Claude 继续工作。<code>PermissionRequest</code> 不接受退出码 2 的否决，必须返回它专用的 JSON decision。<span class="evidence-chip">O</span></p></article>
+          <article class="limit"><h3>异步 handler 没有裁决权</h3><p><code>async</code> 只适用于 command handler。它启动后 Claude Code 立刻继续，decision、permissionDecision 与 continue 都不生效，结果要到后续轮次才可能送回。<span class="evidence-chip">O</span></p></article>
+          <article class="limit"><h3>后置 hook 改不了已经发生的事</h3><p><code>PostToolUse</code> 可以替换 Claude 接下来看到的工具输出，也能加上下文。文件写入、命令和网络请求已经完成，替换展示结果不会撤销这些副作用。<span class="evidence-chip">O</span></p></article>
+          <article class="limit"><h3>Stop 有循环保险</h3><p>Stop handler 连续阻止结束时会再次触发。输入里的 <code>stop_hook_active</code> 可帮助脚本避免死循环，Claude Code 在连续八次阻止后会强制结束本轮。<span class="evidence-chip">O</span></p></article>
+          <article class="limit"><h3>command hook 拿到当前用户权限</h3><p>它能访问、修改或删除当前系统用户有权处理的文件。Claude Code 的工具权限门不会给这个子进程再套一层限制，配置前需要逐条审查脚本。<span class="evidence-chip">O</span></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">05 / OBSERVE</span>
+          <div><h2 id="experiment-title">这次没有触发真实 hook</h2><p class="section-intro">本轮遵守只读边界，没有改 settings，也没有启动新的付费 Claude 会话。L 证据只能说明当前程序和 help 已经变到哪里，不能证明 2.1.247 的运行链。</p></div>
+        </div>
+        <div class="observation">
+          <div class="meter"><span class="big">R = 0</span><p>缺少一次隔离运行，所以页面状态是 documented。</p></div>
+          <div class="log">
+            <div class="log-row"><b>L1</b><p><code>claude --version</code> 返回 2.1.248。它说明本机已越过页面基线。</p></div>
+            <div class="log-row"><b>L2</b><p><code>claude --help</code> 仍列出 hooks 调试过滤、stream JSON 中包含 hook 事件、临时 settings，以及跳过 hooks 的 bare 与 safe mode。</p></div>
+            <div class="log-row"><b>L3</b><p>当前可执行文件的 SHA 与任务给定的 2.1.247 SHA 不同。它只能证明安装发生了变化。</p></div>
+            <div class="log-row"><b>O4</b><p>官方 2.1.247 changelog 修复了超大 hook 错误输出挤爆会话的问题。2.1.248 又改变了无效 hook JSON 与无效权限回答的报错表现。</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">06 / BUILD</span>
+          <div><h2 id="implementation-title">配置决定作用域，也决定谁能带走它</h2><p class="section-intro">用户、项目、本地、受管理策略、插件、skill 和 subagent 都能声明 hook。settings 各层会累加，外层的 <code>disableAllHooks</code> 不能关掉受管理 hook。</p></div>
+        </div>
+        <div class="flow-grid">
+          <article class="flow-panel">
+            <h3>最小结构</h3>
+            <p>下面只展示协议形状。它没有在本轮写进任何 settings，也没有执行。</p>
+            <pre><code>{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./check-command.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+          </article>
+          <article class="flow-panel">
+            <h3>默认等待时间</h3>
+            <p>当前官方参考给 command、HTTP 和 MCP tool 六百秒，prompt 三十秒，agent 六十秒。<code>UserPromptSubmit</code> 会把前三类默认值降到三十秒。页面没有在 2.1.247 上逐项计时，这些数字仍属于 O 层契约。</p>
+            <p>command handler 带 <code>args</code> 时直接启动可执行文件，不经过 shell。省略 <code>args</code> 才会进入 shell form。官方建议路径占位符使用 exec form，减少引号和重新解释带来的风险。</p>
+          </article>
+        </div>
+        <div class="limits" style="margin-top:1rem">
+          <article class="limit"><h3>Hooks 不绑定某一种提供商</h3><p>官方可用性表把 hooks 列为所有模型提供商都能使用的本地能力。Claude Code 会话仍要有可用认证，来源可以是 Claude.ai 订阅、Anthropic Console、Bedrock、Google Cloud、Microsoft Foundry 或企业网关。<span class="evidence-chip">O</span></p></article>
+          <article class="limit"><h3>模型型 handler 会增加模型用量</h3><p>prompt hook 每次触发会向 Claude 模型发送一次判断请求。agent hook 会启动最多五十轮的子代理。它们产生的模型请求会计入当前认证渠道对应的订阅或 API、云提供商用量，频繁触发时应把这部分计入成本。<span class="evidence-chip">O</span></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">07 / UNKNOWNS</span>
+          <div><h2 id="unknowns-title">目前还缺四块</h2><p class="section-intro">这些缺口会影响版本复现或运行判断，不能靠当前文档补成 2.1.247 的现场事实。</p></div>
+        </div>
+        <details open><summary>2.1.247 的真实运行次序没有 R 证据</summary><div><p>当前机器只有 2.1.248。本轮也不能启动付费会话，因此没有拿一个隔离项目触发 SessionStart、PreToolUse、PostToolUse 和 Stop。</p></div></details>
+        <details><summary>2026 年 8 月 27 日的官方 Hooks 页面快照没有保留在本目录</summary><div><p>在线 llms.txt 入口数仍为 202，SHA 已与指定基线不同。当前参考页可能包含第二天发布的修订，尤其是无效 JSON 的报错表现。</p></div></details>
+        <details><summary>同批 handler 的完成先后没有稳定承诺</summary><div><p>官方只承诺匹配项并行运行，等它们完成后合并结果。handler 各自何时结束不应当被脚本当成排序机制。</p></div></details>
+        <details><summary>终端、IDE、Desktop 与 Web 的现场差异没有逐端实验</summary><div><p>官方参考说这些表面都会发出相同 hook 事件。云端读取哪些本地配置另有范围限制，本页没有逐个产品表面做 R 层核对。</p></div></details>
+      </div>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">08 / SOURCES</span>
+          <div><h2 id="sources-title">一手资料与复现入口</h2><p class="section-intro">链接直达 Anthropic 官方文档或官方仓库。事实编号、访问日期和本机命令摘要另见本目录的 evidence.md。</p></div>
+        </div>
+        <div class="source-list">
+          <a class="source" href="https://code.claude.com/docs/en/hooks"><b>O1 · HOOKS REFERENCE</b>Hooks 生命周期、配置层级、输入输出、退出码、超时与各事件裁决字段。<span>证明本页主协议。</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/hooks-guide"><b>O2 · HOOKS GUIDE</b>从配置到触发的示例、并行 handler 与结果合并。<span>证明一次动作如何经过 hook。</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/permissions"><b>O3 · PERMISSIONS</b>PreToolUse 与权限规则的先后和 deny、ask、allow 优先关系。<span>证明 allow 不能越过权限门。</span></a>
+          <a class="source" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><b>O4 · OFFICIAL CHANGELOG</b>2.1.247 与 2.1.248 的 hook 输出和报错修复。<span>证明版本边界。</span></a>
+          <a class="source" href="https://github.com/anthropics/claude-code/blob/main/examples/hooks/bash_command_validator_example.py"><b>O5 · OFFICIAL EXAMPLE</b>官方 Bash validator 读取 stdin，并用退出码 2 阻止工具。<span>证明 command hook 的最小实现形状。</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/feature-availability"><b>O6 · FEATURE AVAILABILITY</b>Hooks 在各模型提供商上的可用范围。<span>证明能力不绑定某一种订阅。</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/authentication"><b>O7 · AUTHENTICATION</b>Claude.ai、Console、云提供商与网关的认证入口。<span>证明会话仍要取得访问凭据。</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/costs"><b>O8 · COSTS</b>模型请求的 token 用量与不同计费渠道。<span>证明模型型 handler 需要计入用量。</span></a>
+        </div>
+        <div class="repro">
+          <h3>安全复现办法</h3>
+          <ol>
+            <li>准备一个无凭据、可丢弃的临时目录，确认安装版本恰好是 2.1.247。</li>
+            <li>只通过命令行 <code>--settings</code> 传入临时 JSON。handler 把事件名和时间写入临时目录，绝不记录提示正文、工具参数、转录路径与会话标识。</li>
+            <li>分别让 PreToolUse 返回 allow、ask、deny，并加入一个短超时 handler。另在单工具 <code>claude -p</code> 中测试 defer，再核对交互会话与并行工具调用会警告并忽略它。</li>
+            <li>用 <code>--debug hooks</code> 和 <code>--include-hook-events</code> 只核对匿名化事件顺序。实验完删除临时目录，不写用户、项目或受管理 settings。</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>EXT-03 · documented · Claude Code 2.1.247 · 研究日期 2026-08-28</p>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

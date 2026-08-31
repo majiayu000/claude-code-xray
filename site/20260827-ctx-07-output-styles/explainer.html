@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CTX-07">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CTX-07 · Output Styles 与回复呈现</title>
+  <style>
+    :root {
+      --paper: #f2eddf;
+      --paper-deep: #e6dfcc;
+      --ink: #171815;
+      --muted: #5e6158;
+      --line: #ada58f;
+      --red: #d13d31;
+      --blue: #137f8b;
+      --lime: #c6df55;
+      --white: #fffdf5;
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+      --sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 49.8%, rgba(23,24,21,.035) 50%, transparent 50.2%),
+        repeating-linear-gradient(0deg, rgba(23,24,21,.025) 0, rgba(23,24,21,.025) 1px, transparent 1px, transparent 5px),
+        var(--paper);
+      font-family: var(--sans);
+      line-height: 1.72;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: inherit; text-underline-offset: .22em; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 48px;
+      padding: .55rem clamp(1rem, 4vw, 4rem);
+      color: var(--white);
+      background: rgba(23,24,21,.96);
+      border-bottom: 4px solid var(--red);
+      backdrop-filter: blur(8px);
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .04em;
+    }
+
+    .topbar .status { color: var(--lime); }
+    .topbar a { color: var(--white); }
+
+    main { overflow: hidden; }
+    .sheet {
+      width: min(1180px, calc(100% - 2rem));
+      margin: 0 auto;
+    }
+
+    .hero {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(90px, .22fr) minmax(0, 1.78fr);
+      min-height: min(790px, calc(100vh - 48px));
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+    }
+
+    .folio {
+      position: relative;
+      padding: 2rem 1rem;
+      border-right: 1px solid var(--ink);
+      background: var(--red);
+      color: var(--white);
+      font-family: var(--mono);
+    }
+
+    .folio strong {
+      display: block;
+      margin-top: .5rem;
+      font-size: clamp(4.5rem, 10vw, 8rem);
+      line-height: .8;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+    }
+
+    .folio small {
+      position: absolute;
+      bottom: 1.4rem;
+      left: 50%;
+      writing-mode: vertical-rl;
+      transform: translateX(-50%);
+      letter-spacing: .22em;
+    }
+
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(2rem, 6vw, 6rem) clamp(1.25rem, 6vw, 5.5rem) 2.2rem;
+    }
+
+    .eyebrow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      margin: 0 0 2rem;
+      font-family: var(--mono);
+      font-size: .75rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .stamp {
+      display: inline-block;
+      padding: .26rem .55rem .18rem;
+      border: 1px solid currentColor;
+      background: transparent;
+    }
+
+    .stamp.hot {
+      color: var(--white);
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    h1, h2, h3 { font-family: var(--serif); font-weight: 700; }
+    h1 {
+      max-width: 12ch;
+      margin: 0;
+      font-size: clamp(3rem, 7.4vw, 7rem);
+      line-height: .98;
+      letter-spacing: -.055em;
+    }
+
+    .lead {
+      max-width: 820px;
+      margin: clamp(2rem, 6vw, 5rem) 0 2rem;
+      font-family: var(--serif);
+      font-size: clamp(1.24rem, 2.3vw, 2rem);
+      line-height: 1.48;
+    }
+
+    .lead strong {
+      background: linear-gradient(transparent 58%, rgba(198,223,85,.82) 58%);
+      font-weight: inherit;
+    }
+
+    .mini-flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: auto;
+      border: 1px solid var(--ink);
+      background: var(--white);
+    }
+
+    .mini-flow div {
+      position: relative;
+      min-height: 106px;
+      padding: 1rem;
+      border-right: 1px solid var(--ink);
+    }
+
+    .mini-flow div:last-child { border-right: 0; }
+    .mini-flow b {
+      display: block;
+      margin-bottom: .35rem;
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: .72rem;
+    }
+
+    .mini-flow span { font-size: .92rem; line-height: 1.45; }
+
+    .section {
+      padding: clamp(3.6rem, 7vw, 7.5rem) 0;
+      border-top: 1px solid var(--ink);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+      align-items: start;
+    }
+
+    .section-no {
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: .8rem;
+      letter-spacing: .08em;
+    }
+
+    h2 {
+      max-width: 19ch;
+      margin: 0;
+      font-size: clamp(2rem, 4.2vw, 4.2rem);
+      line-height: 1.08;
+      letter-spacing: -.035em;
+    }
+
+    h3 { margin: 0 0 .65rem; font-size: 1.3rem; line-height: 1.35; }
+    p { margin: 0 0 1rem; }
+    .note { color: var(--muted); font-size: .9rem; }
+
+    .proof {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2rem;
+      height: 1.55rem;
+      margin-right: .34rem;
+      padding: 0 .4rem;
+      color: var(--white);
+      background: var(--ink);
+      font-family: var(--mono);
+      font-size: .7rem;
+      font-weight: 700;
+      line-height: 1;
+      vertical-align: .12em;
+    }
+
+    .proof.o { background: var(--red); }
+    .proof.l { background: var(--blue); }
+    .proof.r { color: var(--ink); background: var(--lime); }
+    .proof.i { color: var(--ink); background: transparent; border: 1px dashed var(--ink); }
+
+    .legend, .term-grid, .surface-grid, .limit-grid, .source-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-top: 1px solid var(--ink);
+      border-left: 1px solid var(--ink);
+      background: rgba(255,253,245,.48);
+    }
+
+    .legend article, .term-grid article, .surface-grid article, .limit-grid article, .source-grid a {
+      min-width: 0;
+      padding: 1.25rem;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .legend article { min-height: 148px; }
+    .legend b { display: block; margin-bottom: .55rem; font-family: var(--mono); }
+
+    .term-grid { grid-template-columns: repeat(3, 1fr); }
+    .term-grid article { min-height: 180px; }
+    .term-grid article:nth-child(2) { background: var(--ink); color: var(--white); }
+    .term-grid code, .limit-grid code {
+      padding: .12em .35em;
+      background: rgba(23,24,21,.08);
+      font-family: var(--mono);
+      font-size: .84em;
+    }
+
+    .term-grid article:nth-child(2) code { background: rgba(255,255,255,.16); }
+
+    .surface-grid { grid-template-columns: repeat(3, 1fr); }
+    .surface-grid article { min-height: 205px; }
+    .surface-grid article:nth-child(1), .surface-grid article:nth-child(2) { background: var(--white); }
+    .surface-grid article:nth-child(5), .surface-grid article:nth-child(6) { box-shadow: inset 0 7px 0 var(--blue); }
+    .surface-grid code {
+      padding: .12em .35em;
+      background: rgba(23,24,21,.08);
+      font-family: var(--mono);
+      font-size: .84em;
+    }
+
+    .access-note {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      margin-top: 1.5rem;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: var(--white);
+    }
+
+    .access-note b, .access-note div { padding: 1.25rem; }
+    .access-note b { color: var(--ink); background: var(--lime); font-family: var(--mono); }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      counter-reset: step;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 2.1rem;
+      left: 7%;
+      right: 7%;
+      height: 2px;
+      background: var(--ink);
+    }
+
+    .timeline article {
+      position: relative;
+      padding: 0 1rem 1rem 0;
+      counter-increment: step;
+    }
+
+    .timeline article::before {
+      content: counter(step, decimal-leading-zero);
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 4.2rem;
+      height: 4.2rem;
+      margin-bottom: 1.35rem;
+      color: var(--white);
+      background: var(--red);
+      border: 2px solid var(--ink);
+      border-radius: 50%;
+      box-shadow: 5px 5px 0 var(--paper);
+      font-family: var(--mono);
+      font-size: .9rem;
+    }
+
+    .timeline article:nth-child(4)::before { background: var(--blue); }
+    .timeline article:nth-child(5)::before { color: var(--ink); background: var(--lime); }
+
+    .flow-board {
+      display: grid;
+      grid-template-columns: minmax(220px, .72fr) 56px minmax(320px, 1.28fr);
+      align-items: stretch;
+    }
+
+    .flow-stack, .prompt-plate {
+      border: 1px solid var(--ink);
+      background: var(--white);
+    }
+
+    .flow-stack article, .prompt-plate article { padding: 1.15rem 1.25rem; }
+    .flow-stack article + article, .prompt-plate article + article { border-top: 1px solid var(--ink); }
+    .flow-stack article:first-child { box-shadow: inset 7px 0 0 var(--red); }
+    .flow-stack article:nth-child(2) { box-shadow: inset 7px 0 0 var(--blue); }
+    .flow-stack article:nth-child(3) { box-shadow: inset 7px 0 0 var(--lime); }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+      font-size: 2rem;
+    }
+
+    .prompt-plate {
+      position: relative;
+      background: var(--ink);
+      color: var(--white);
+    }
+
+    .prompt-plate::before {
+      content: "SYSTEM PROMPT / SESSION START";
+      display: block;
+      padding: .55rem 1.25rem;
+      color: var(--lime);
+      border-bottom: 1px solid rgba(255,255,255,.3);
+      font-family: var(--mono);
+      font-size: .7rem;
+      letter-spacing: .08em;
+    }
+
+    .prompt-plate .choice { color: #c8d6d8; font-size: .9rem; }
+
+    .hard-stop {
+      margin-top: 1.5rem;
+      padding: 1.15rem 1.35rem;
+      color: var(--white);
+      background: var(--red);
+      border: 1px solid var(--ink);
+      box-shadow: 8px 8px 0 var(--ink);
+      font-family: var(--serif);
+      font-size: 1.22rem;
+    }
+
+    .limit-grid { grid-template-columns: repeat(2, 1fr); }
+    .limit-grid article { min-height: 190px; }
+    .limit-grid article:first-child { background: var(--ink); color: var(--white); }
+
+    .observation {
+      display: grid;
+      grid-template-columns: .82fr 1.18fr;
+      border: 1px solid var(--ink);
+      background: var(--white);
+    }
+
+    .observation > div { padding: clamp(1.3rem, 3vw, 2.5rem); }
+    .observation > div + div { border-left: 1px solid var(--ink); }
+    .no-r {
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+      color: var(--white);
+      background: var(--blue);
+      text-align: center;
+    }
+    .no-r strong { display: block; font-family: var(--serif); font-size: clamp(3rem, 8vw, 6rem); line-height: .9; }
+
+    .style-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      margin: 2rem 0;
+      border: 1px solid var(--ink);
+      background: var(--white);
+    }
+
+    .style-strip article {
+      min-height: 178px;
+      padding: 1rem;
+      border-right: 1px solid var(--ink);
+    }
+
+    .style-strip article:last-child { border-right: 0; }
+    .style-strip b { display: block; margin-bottom: .55rem; font-family: var(--serif); font-size: 1.22rem; }
+    .style-strip article:nth-child(2) { border-top: 8px solid var(--red); }
+    .style-strip article:nth-child(3) { border-top: 8px solid var(--lime); }
+    .style-strip article:nth-child(4) { border-top: 8px solid var(--blue); }
+    .style-strip article:nth-child(5) { border-top: 8px solid var(--ink); }
+
+    .version-note {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      margin-top: 2rem;
+      border: 1px solid var(--ink);
+    }
+
+    .version-note b, .version-note div { padding: 1.2rem; }
+    .version-note b { color: var(--white); background: var(--red); font-family: var(--mono); }
+
+    details {
+      border-top: 1px solid var(--ink);
+    }
+
+    details:last-child { border-bottom: 1px solid var(--ink); }
+    summary {
+      position: relative;
+      cursor: pointer;
+      padding: 1.15rem 3rem 1.15rem 0;
+      font-family: var(--serif);
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    summary::after {
+      content: "+";
+      position: absolute;
+      right: .4rem;
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: 1.5rem;
+    }
+
+    details[open] summary::after { content: "×"; }
+    details p { max-width: 860px; padding: 0 3rem 1.2rem 0; color: var(--muted); }
+
+    .source-grid { grid-template-columns: repeat(3, 1fr); }
+    .source-grid a {
+      display: block;
+      min-height: 160px;
+      text-decoration: none;
+    }
+    .source-grid a:hover { color: var(--ink); background: var(--lime); }
+    .source-grid b { display: block; margin-bottom: .5rem; font-family: var(--serif); font-size: 1.2rem; }
+    .source-grid span { color: var(--muted); font-size: .88rem; }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2.2rem 0 4rem;
+      border-top: 1px solid var(--ink);
+      font-family: var(--mono);
+      font-size: .78rem;
+    }
+
+    @media (max-width: 850px) {
+      .topbar { position: static; flex-wrap: wrap; }
+      .hero { grid-template-columns: 66px minmax(0, 1fr); min-height: auto; }
+      .folio { padding-inline: .55rem; }
+      .folio strong { font-size: 4rem; }
+      .hero-copy { padding: 2.2rem 1.15rem 1.4rem; }
+      .mini-flow { grid-template-columns: repeat(2, 1fr); }
+      .mini-flow div:nth-child(2) { border-right: 0; }
+      .mini-flow div:nth-child(-n+2) { border-bottom: 1px solid var(--ink); }
+      .section-head { grid-template-columns: 1fr; gap: .5rem; }
+      .legend, .term-grid, .surface-grid, .style-strip, .source-grid { grid-template-columns: repeat(2, 1fr); }
+      .timeline { grid-template-columns: 1fr; }
+      .timeline::before { top: 1rem; bottom: 1rem; left: 2.05rem; right: auto; width: 2px; height: auto; }
+      .timeline article { min-height: 116px; padding: 0 0 1.5rem 5.7rem; }
+      .timeline article::before { position: absolute; left: 0; top: 0; width: 4.1rem; height: 4.1rem; }
+      .flow-board { grid-template-columns: 1fr; }
+      .arrow { min-height: 58px; transform: rotate(90deg); }
+      .observation { grid-template-columns: 1fr; }
+      .observation > div + div { border-top: 1px solid var(--ink); border-left: 0; }
+      .version-note { grid-template-columns: 1fr; }
+      .access-note { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      .sheet { width: min(100% - 1rem, 1180px); }
+      .hero { grid-template-columns: 48px minmax(0, 1fr); }
+      .folio strong { font-size: 3rem; }
+      h1 { font-size: clamp(2.55rem, 13vw, 4rem); }
+      .lead { font-size: 1.13rem; }
+      .mini-flow, .legend, .term-grid, .surface-grid, .limit-grid, .style-strip, .source-grid { grid-template-columns: 1fr; }
+      .mini-flow div { border-right: 0; border-bottom: 1px solid var(--ink); }
+      .mini-flow div:last-child { border-bottom: 0; }
+      .style-strip article { border-right: 0; border-bottom: 1px solid var(--ink); }
+      .style-strip article:last-child { border-bottom: 0; }
+      .footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Output Styles 与回复呈现。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ctx-07-output-styles/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CTX-07 · Output Styles 与回复呈现">
+  <meta property="og:description" content="Claude Code X-Ray：Output Styles 与回复呈现。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ctx-07-output-styles/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CTX-07 · Output Styles 与回复呈现">
+  <meta name="twitter:description" content="Claude Code X-Ray：Output Styles 与回复呈现。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CTX-07</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <span>CLAUDE CODE XRY · CTX-07 · 2.1.247</span>
+    <span class="status">状态 documented</span>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <main>
+    <section class="sheet hero" data-xray-section="answer" id="answer">
+      <aside class="folio" aria-label="页码">
+        <span>NO.</span>
+        <strong>10</strong>
+        <small>OUTPUT STYLES</small>
+      </aside>
+      <div class="hero-copy">
+        <div>
+          <p class="eyebrow">
+            <span class="stamp hot">CTX-07</span>
+            <span class="stamp">Claude Code 2.1.247</span>
+            <span class="stamp">documented</span>
+          </p>
+          <h1>同一位 Claude，换一套出场规矩</h1>
+          <p class="lead">用户选中的 Output Style 会在<strong>新会话开始时进入系统提示</strong>，随后持续约束主会话的角色、语气和默认格式。它不增加知识，也拿不到新的工具权限。</p>
+        </div>
+        <div class="mini-flow" aria-label="最短因果链">
+          <div><b>01 发现</b><span>从用户、项目、managed policy 或插件找到样式</span></div>
+          <div><b>02 选择</b><span>由设置层级或强制插件确定生效名称</span></div>
+          <div><b>03 注入</b><span>新会话组装系统提示并加入样式正文</span></div>
+          <div><b>04 呈现</b><span>每轮按样式回复，权限仍由独立规则裁定</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section sheet" data-xray-section="terms" id="terms">
+      <div class="section-head">
+        <span class="section-no">01 / TERMS</span>
+        <h2>先把四种证据分开</h2>
+      </div>
+      <div class="legend" aria-label="证据图例">
+        <article><b><span class="proof o">O</span>官方契约</b><p>Anthropic 文档、changelog 与官方 SDK 文档公开承诺的行为。</p></article>
+        <article><b><span class="proof l">L</span>本机静态证据</b><p>2.1.247 二进制、CLI 帮助和公开字段留下的本机证据。</p></article>
+        <article><b><span class="proof r">R</span>真实实验</b><p>本轮没有。真实模型请求与真实配置写入都在授权边界外。</p></article>
+        <article><b><span class="proof i">I</span>研究者推断</b><p>官方没有公开的连接处，只保留成待验证解释。</p></article>
+      </div>
+
+      <div class="term-grid" style="margin-top:2rem">
+        <article><h3>样式定义</h3><p>一份 Markdown。frontmatter 提供名称与开关，正文提供要加入系统提示的指令。<span class="proof o">O</span></p></article>
+        <article><h3>生效选择</h3><p><code>outputStyle</code> 保存样式名称。终端里的 <code>/config</code> 会把选择写到项目本地设置。<span class="proof o">O</span></p></article>
+        <article><h3>呈现</h3><p>角色、语气和默认输出格式会变。Claude 已知的内容不会随样式增加。<span class="proof o">O</span></p></article>
+      </div>
+    </section>
+
+    <section class="section sheet" data-xray-section="sequence" id="sequence">
+      <div class="section-head">
+        <span class="section-no">02 / SEQUENCE</span>
+        <h2>一次选择要等到新会话才落地</h2>
+      </div>
+      <div class="timeline">
+        <article><h3>准备定义</h3><p>Claude Code 扫描内置样式，以及当前配置范围内的自定义样式。<span class="proof o">O</span></p></article>
+        <article><h3>用户选择</h3><p>终端运行 <code>/config</code>，或直接写 <code>outputStyle</code>。菜单选择落在项目本地设置。<span class="proof o">O</span></p></article>
+        <article><h3>解析胜者</h3><p>设置层级决定选中的名称。强制插件可以覆盖用户选择。<span class="proof o">O</span></p></article>
+        <article><h3>会话开始</h3><p>Claude Code 组装系统提示，加入样式指令，并按开关决定是否保留软件工程指令。<span class="proof o">O</span></p></article>
+        <article><h3>持续回复</h3><p>主会话每轮都受样式约束。非 Default 样式还会得到遵循样式的提醒。<span class="proof o">O</span></p></article>
+      </div>
+      <p class="hard-stop">运行中的会话改了样式，下一条回复仍沿用旧系统提示。执行 <code>/clear</code> 或新开会话以后，新选择才生效。<span class="proof o">O</span></p>
+      <p style="max-width:860px; margin-top:2rem">这里会发生两次读取。Claude Code 先在允许的来源里寻找样式定义，再从设置层级和强制插件中确定生效名称。<code>/config</code> 写下的是选择结果，Markdown 正文仍留在样式文件中。启动新会话时，程序才按这个名称取出正文，组装新的系统提示。<span class="proof o">O</span></p>
+      <p class="note" style="max-width:860px">所以，在运行中的会话里修改选择，只改了下一次会话启动时要读取的状态。当前会话已经带着旧系统提示运行，不能靠下一条普通用户消息替换它。这个生效边界也解释了为什么官方要求执行 <code>/clear</code> 或重新开始会话。</p>
+    </section>
+
+    <section class="section sheet" data-xray-section="flow" id="flow">
+      <div class="section-head">
+        <span class="section-no">03 / FLOW</span>
+        <h2>定义文件、设置值和系统提示各管一段</h2>
+      </div>
+      <div class="flow-board">
+        <div class="flow-stack">
+          <article><h3>样式来源</h3><p>内置样式、用户目录、项目嵌套目录、managed policy、插件。项目同名定义由离工作目录最近者取胜。<span class="proof o">O</span></p></article>
+          <article><h3>设置值</h3><p>Managed 高于一次启动的 <code>--settings</code>，随后依次是项目本地、共享项目、用户设置。<span class="proof o">O</span></p></article>
+          <article><h3>插件强制</h3><p><code>force-for-plugin</code> 会覆盖用户的 <code>outputStyle</code>。多个强制插件采用最先加载者。<span class="proof o">O</span></p></article>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="prompt-plate">
+          <article><h3>Default</h3><p class="choice">沿用既有系统提示。</p></article>
+          <article><h3>自定义样式保留编码指令</h3><p class="choice"><code>keep-coding-instructions: true</code> 时，软件工程指令与自定义正文一起进入系统提示。</p></article>
+          <article><h3>自定义样式替换编码角色</h3><p class="choice">开关缺省为 false。Claude Code 省去软件工程专用指令，加入样式正文。</p></article>
+          <article><h3>对话中的提醒</h3><p class="choice">非 Default 样式在会话过程中还会收到遵循样式的提醒。精确频率没有公开。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section sheet" data-xray-section="availability" id="availability">
+      <div class="section-head">
+        <span class="section-no">04 / SURFACES</span>
+        <h2>这套选择入口没有铺到每个界面</h2>
+      </div>
+      <div class="surface-grid">
+        <article><h3>终端</h3><p><code>/config</code> 提供 Output style 菜单，选择结果写入项目本地设置。这是官方写明的完整入口。<span class="proof o">O</span></p></article>
+        <article><h3>Desktop</h3><p>官方要求在设置文件里填写 <code>outputStyle</code>。Desktop 中的 <code>/config</code> 打开 Claude Code 设置页，不会出现终端菜单。<span class="proof o">O</span></p></article>
+        <article><h3>IDE</h3><p>VS Code 与 JetBrains 属于 Claude Code surface。Output styles 文档没有给它们列出独立选择入口，本页不把终端菜单推广到 IDE。<span class="proof i">I</span></p></article>
+        <article><h3>Web</h3><p>Web 会话不使用本机配置。官方没有写 Web picker 或项目样式在云端的加载规则，本页将支持情况留作未验证。<span class="proof o">O</span><span class="proof i">I</span></p></article>
+        <article><h3>Agent SDK · TypeScript</h3><p>可在传给 <code>query()</code> 的内联 <code>settings</code> 中设置 <code>outputStyle</code>。它不是顶层 Options 字段，加载定义还要启用相应 setting sources。<span class="proof o">O</span></p></article>
+        <article><h3>Agent SDK · Python</h3><p>没有编程式选择 Output Style 的选项。已有设置来源可以加载样式；纯代码部署应改用 append 或自定义系统提示。<span class="proof o">O</span></p></article>
+      </div>
+      <div class="access-note">
+        <b>AUTH &amp; USAGE</b>
+        <div><p>真实回复需要有效认证。终端可使用 Claude 订阅、Console 或受支持的云提供商；多数 surface 需要订阅或 Console 账户，Desktop 要求付费订阅。测试 prompt 会计入订阅额度，或按 API token 进入 Console 与云提供商账单。官方没有保证这类测试请求免计用量或费用。<span class="proof o">O</span></p></div>
+      </div>
+    </section>
+
+    <section class="section sheet" data-xray-section="limits" id="limits">
+      <div class="section-head">
+        <span class="section-no">05 / LIMITS</span>
+        <h2>样式能影响决定，不能替工具开门</h2>
+      </div>
+      <div class="limit-grid">
+        <article><h3>权限门独立存在</h3><p>Proactive 会鼓励立即行动，permission mode 仍决定哪些工具动作可直接运行。权限规则由 Claude Code 执行，系统提示里的句子不能授予访问权。<span class="proof o">O</span></p></article>
+        <article><h3>主会话边界</h3><p>普通 subagent 使用自己的系统提示，不受主会话样式影响。fork 会继承父会话完整系统提示，因此带走样式。<span class="proof o">O</span></p></article>
+        <article><h3>错误设置会被跳过</h3><p>无效 JSON 或被拒绝的值会触发 Settings Error 或 Warning。非交互运行没有修复对话框，Claude Code 会跳过坏文件或坏值；可用 <code>claude doctor</code> 查看细节。<span class="proof o">O</span></p></article>
+        <article><h3>安全模式停用定制</h3><p>2.1.247 的 <code>--safe-mode</code> 帮助明确列出禁用 output styles，内置工具和 permissions 仍正常工作。managed policy 与强制样式同时出现时的细节留作未知。<span class="proof l">L</span></p></article>
+      </div>
+    </section>
+
+    <section class="section sheet" data-xray-section="experiment" id="experiment">
+      <div class="section-head">
+        <span class="section-no">06 / OBSERVATION</span>
+        <h2>这页有 O 和 L，没有 R</h2>
+      </div>
+      <div class="observation">
+        <div class="no-r"><p><strong>R = 0</strong><br>没有发送测试 prompt</p></div>
+        <div>
+          <h3>本机静态结果</h3>
+          <p><span class="proof l">L</span>保留的安装文件返回 Claude Code 2.1.247，SHA-256 与研究基线完全一致。</p>
+          <p><span class="proof l">L</span>帮助中可见 <code>--settings</code>、<code>--setting-sources</code>、<code>--safe-mode</code> 与独立权限选项，没有独立 <code>--output-style</code>。</p>
+          <p><span class="proof l">L</span>安装物的定向静态字符串包含 <code>outputStyle</code>、相关 frontmatter 字段和五个内置样式名称。</p>
+          <p class="note">这些结果只能证明 2.1.247 安装物带有相应入口与字段。它们没有证明样式正文在某次真实请求中怎样注入，也没有证明模型这次遵循了多少。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section sheet" data-xray-section="implementation" id="implementation">
+      <div class="section-head">
+        <span class="section-no">07 / IMPLEMENTATION</span>
+        <h2>五种内置取向，同一套权限边界</h2>
+      </div>
+      <div class="style-strip">
+        <article><b>Default</b><p>既有软件工程系统提示。</p></article>
+        <article><b>Proactive</b><p>少停顿，多做合理假设，仍接受权限门裁定。</p></article>
+        <article><b>Concise</b><p>结果靠前，减少铺垫。错误、安全警告与破坏性确认保持完整。</p></article>
+        <article><b>Explanatory</b><p>工作期间加入教育性 Insights。</p></article>
+        <article><b>Learning</b><p>协作式学习，会留下少量 <code>TODO(human)</code> 让用户完成。</p></article>
+      </div>
+      <p><span class="proof o">O</span>额外的样式指令会增加输入 token。Explanatory 和 Learning 按设计会写得更长，Concise 倾向缩短输出。提示缓存能减轻同一会话首轮之后的重复输入成本。</p>
+      <div class="version-note">
+        <b>VERSION CUT</b>
+        <div><p>Concise 在 2.1.237 加入。旧 <code>/output-style</code> 在 2.1.73 弃用，2.1.91 移除。2.1.178 又明确了嵌套项目中同名样式由最近目录取胜。2.1.247 已包含这三段变化。<span class="proof o">O</span></p></div>
+      </div>
+      <p class="note" style="margin-top:1.5rem">研究时 PATH 已更新到 2.1.248。本页所有本机静态结论都来自保留的 2.1.247 安装文件。官方索引在 2026-08-28 仍为 202 个入口，散列已经变化，因此本页保留 2026-08-27 给定散列作为基线。</p>
+    </section>
+
+    <section class="section sheet" data-xray-section="unknowns" id="unknowns">
+      <div class="section-head">
+        <span class="section-no">08 / UNKNOWNS</span>
+        <h2>官方契约停在这些地方</h2>
+      </div>
+      <details open>
+        <summary>样式正文插在系统提示的哪个精确位置</summary>
+        <p>官方确认自定义指令进入系统提示，也确认软件工程指令可被保留或省去。完整系统提示没有公开，字节级排列仍未知。<span class="proof i">I</span></p>
+      </details>
+      <details>
+        <summary>样式名称找不到或文件损坏时怎样逐字报错</summary>
+        <p>设置文档给出了通用错误与跳过规则。缺失样式、空正文和坏 frontmatter 的逐字错误与回退值没有 R 证据。<span class="proof i">I</span></p>
+      </details>
+      <details>
+        <summary>不同来源提供同名定义时的完整顺序</summary>
+        <p>已知嵌套项目目录取最近者，设置值遵循设置层级，强制插件覆盖用户选择。用户、managed policy 与插件的定义文件同名时，官方没有在一张统一表里写完全部组合。<span class="proof i">I</span></p>
+      </details>
+      <details>
+        <summary>长会话里的样式提醒多久重发一次</summary>
+        <p>官方只说非 Default 样式会收到提醒。压缩、恢复与长会话中的精确重发时点没有公开。<span class="proof i">I</span></p>
+      </details>
+      <details>
+        <summary>安全模式碰到 managed 强制样式时谁赢</summary>
+        <p>2.1.247 帮助一边说安全模式禁用 output styles，一边说 admin-managed policy settings 仍适用。两者同场时的样式正文是否注入，现有证据不够。<span class="proof i">I</span></p>
+      </details>
+      <details>
+        <summary>IDE 与 Web 能否选择并加载同一套样式</summary>
+        <p>官方只给终端和 Desktop 写了选择办法。Web 不使用本机配置，IDE 与 Web 的独立 picker、项目样式发现和云端加载行为没有在本轮得到官方契约或真实实验。<span class="proof i">I</span></p>
+      </details>
+    </section>
+
+    <section class="section sheet" data-xray-section="sources" id="sources">
+      <div class="section-head">
+        <span class="section-no">09 / SOURCES</span>
+        <h2>从这里复核一手契约</h2>
+      </div>
+      <div class="source-grid">
+        <a href="https://code.claude.com/docs/en/output-styles"><b>Output styles</b><span>证明发现、选择、系统提示注入、frontmatter 与继承边界</span></a>
+        <a href="https://code.claude.com/docs/en/settings"><b>Claude Code settings</b><span>证明设置范围、优先级、生效时点和错误处理</span></a>
+        <a href="https://code.claude.com/docs/en/permissions"><b>Configure permissions</b><span>证明权限由 Claude Code 执行及样式发现目录边界</span></a>
+        <a href="https://code.claude.com/docs/en/commands"><b>Commands</b><span>证明当前终端设置入口是 /config</span></a>
+        <a href="https://code.claude.com/docs/en/changelog"><b>Claude Code changelog</b><span>证明 Concise、嵌套目录规则与旧命令版本变化</span></a>
+        <a href="https://code.claude.com/docs/en/agent-sdk/modifying-system-prompts"><b>Modifying system prompts</b><span>交叉核对 Output Style 与 CLAUDE.md 走不同提示路径</span></a>
+        <a href="https://code.claude.com/docs/en/overview"><b>Claude Code overview</b><span>证明 surface 范围与多数入口所需账户</span></a>
+        <a href="https://code.claude.com/docs/en/web-quickstart"><b>Web quickstart</b><span>证明 Web 会话不使用本机配置</span></a>
+        <a href="https://code.claude.com/docs/en/authentication"><b>Authentication</b><span>证明终端支持的认证方式</span></a>
+        <a href="https://code.claude.com/docs/en/costs"><b>Manage costs</b><span>证明订阅额度与 API token 用量边界</span></a>
+      </div>
+      <p class="note" style="margin-top:1.5rem">复现时先做版本与 SHA-256 静态核对。真实会话实验需要另行授权，并应放在隔离配置目录中，不读取私人设置或 transcript。</p>
+    </section>
+  </main>
+
+  <footer class="sheet footer">
+    <span>CTX-07 · Output Styles 与回复呈现</span>
+    <span>研究状态 documented · 基线 2026-08-27</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

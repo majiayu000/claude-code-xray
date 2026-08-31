@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="ADM-05">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>ADM-05 · Gateway、认证转发、模型路由与限额</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --paper: #11130f;
+      --panel: #191c16;
+      --panel-2: #20241b;
+      --ink: #f2eddc;
+      --muted: #a7aa98;
+      --line: #3e4434;
+      --amber: #ffc247;
+      --green: #72d08b;
+      --red: #ff715f;
+      --blue: #72b7d2;
+      --shadow: #080906;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+        var(--paper);
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      line-height: 1.72;
+    }
+
+    a { color: var(--amber); text-underline-offset: .22em; }
+    a:hover { color: #ffe09b; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    code, .mono, .tag, .eyebrow, .status, th, .step-no {
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+
+    code {
+      padding: .1em .35em;
+      border: 1px solid var(--line);
+      background: #0c0e0b;
+      color: #f7d37f;
+      overflow-wrap: anywhere;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .72rem clamp(1rem, 4vw, 4rem);
+      border-bottom: 1px solid var(--line);
+      background: rgba(17, 19, 15, .94);
+      backdrop-filter: blur(10px);
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      font-size: .82rem;
+    }
+
+    .topbar nav { display: flex; flex-wrap: wrap; gap: .75rem 1.1rem; }
+    .topbar a { color: var(--muted); text-decoration: none; }
+    .topbar a:hover { color: var(--ink); }
+
+    main, footer {
+      width: min(1180px, calc(100% - 2rem));
+      margin-inline: auto;
+    }
+
+    header {
+      width: 100%;
+      min-height: min(760px, calc(100vh - 42px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(340px, .92fr);
+      align-items: center;
+      gap: clamp(2rem, 5vw, 5rem);
+      padding: clamp(4rem, 9vw, 8rem) 0 4rem;
+    }
+
+    .eyebrow {
+      margin: 0 0 1.2rem;
+      color: var(--amber);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      font-size: .8rem;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 13ch;
+      margin-bottom: 1.25rem;
+      font-size: clamp(2.7rem, 6.5vw, 6.2rem);
+      line-height: .98;
+      letter-spacing: -.055em;
+      font-weight: 700;
+    }
+
+    .lede {
+      max-width: 41rem;
+      margin-bottom: 1.5rem;
+      font-size: clamp(1.08rem, 2vw, 1.42rem);
+      line-height: 1.65;
+    }
+
+    .meta-row { display: flex; flex-wrap: wrap; gap: .6rem; }
+    .status, .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 2rem;
+      padding: .25rem .62rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      font-size: .76rem;
+    }
+    .status::before {
+      width: .5rem;
+      height: .5rem;
+      margin-right: .45rem;
+      border-radius: 50%;
+      background: var(--amber);
+      content: "";
+      box-shadow: 0 0 0 4px rgba(255,194,71,.12);
+    }
+
+    .ticket {
+      position: relative;
+      border: 1px solid #5d624d;
+      background: #e8dfc5;
+      color: #1d2118;
+      box-shadow: 14px 14px 0 var(--shadow), 15px 15px 0 #353a2d;
+      transform: rotate(1.2deg);
+    }
+
+    .ticket::before, .ticket::after {
+      position: absolute;
+      left: 22%;
+      right: 0;
+      border-top: 2px dashed rgba(29,33,24,.32);
+      content: "";
+    }
+    .ticket::before { top: 31%; }
+    .ticket::after { top: 64%; }
+
+    .ticket-head, .ticket-row {
+      display: grid;
+      grid-template-columns: 22% 1fr;
+      min-height: 5.2rem;
+    }
+    .ticket-head { min-height: 4rem; background: var(--amber); }
+    .ticket-label, .ticket-value {
+      display: flex;
+      align-items: center;
+      padding: .8rem 1rem;
+    }
+    .ticket-label {
+      border-right: 1px solid rgba(29,33,24,.35);
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      font-size: .74rem;
+      letter-spacing: .08em;
+    }
+    .ticket-value {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: .18rem;
+      font-weight: 700;
+    }
+    .ticket-value small { display: block; font-weight: 400; line-height: 1.35; opacity: .72; }
+
+    main { padding-bottom: 4rem; }
+    section {
+      scroll-margin-top: 4rem;
+      padding: clamp(3.8rem, 8vw, 7rem) 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 8rem minmax(0, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .section-kicker {
+      padding-top: .45rem;
+      color: var(--amber);
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      font-size: .75rem;
+      letter-spacing: .1em;
+    }
+    h2 {
+      margin-bottom: .6rem;
+      font-size: clamp(1.8rem, 4vw, 3.4rem);
+      line-height: 1.16;
+      letter-spacing: -.035em;
+    }
+    .section-intro { max-width: 48rem; color: #c5c7b7; }
+
+    .legend, .term-grid, .boundary-grid, .limits-grid, .unknown-grid, .source-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+    .legend > div, .term-grid > article, .boundary-grid > article, .limits-grid > article,
+    .unknown-grid > article, .source-grid > a {
+      min-width: 0;
+      padding: 1.25rem;
+      background: var(--panel);
+    }
+    .legend b { display: block; margin-bottom: .45rem; font-family: ui-monospace, monospace; }
+    .legend p, article p { margin-bottom: 0; color: var(--muted); }
+    .e-o b { color: var(--green); }
+    .e-l b { color: var(--blue); }
+    .e-r b { color: var(--amber); }
+    .e-i b { color: #d7a7ef; }
+
+    h3 { margin-bottom: .6rem; font-size: 1.06rem; line-height: 1.35; }
+    .term-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .boundary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 1.2rem; }
+    .boundary-grid ul { margin: .8rem 0 0; padding-left: 1.2rem; color: var(--muted); }
+    .boundary-grid li + li { margin-top: .48rem; }
+
+    .sequence {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(9.5rem, 1fr));
+      gap: 1px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+    .sequence article {
+      position: relative;
+      min-width: 9rem;
+      min-height: 15rem;
+      padding: 1.2rem;
+      background: var(--panel);
+    }
+    .sequence article::after {
+      position: absolute;
+      top: 2rem;
+      right: -.55rem;
+      z-index: 2;
+      width: 1.1rem;
+      height: 1.1rem;
+      border-top: 2px solid var(--amber);
+      border-right: 2px solid var(--amber);
+      background: var(--panel);
+      content: "";
+      transform: rotate(45deg);
+    }
+    .sequence article:last-child::after { display: none; }
+    .step-no { display: block; margin-bottom: 2.5rem; color: var(--amber); font-size: .78rem; }
+
+    .flow-board {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr 1fr;
+      gap: 2.4rem;
+      align-items: stretch;
+    }
+    .lane {
+      position: relative;
+      padding: 1.4rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .lane.gateway { border-color: var(--amber); background: #222216; }
+    .lane.gateway::before, .lane.gateway::after {
+      position: absolute;
+      top: 50%;
+      width: 2.4rem;
+      border-top: 1px dashed var(--amber);
+      content: "";
+    }
+    .lane.gateway::before { left: -2.4rem; }
+    .lane.gateway::after { right: -2.4rem; }
+    .lane h3 { padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
+    .packet {
+      margin-top: 1rem;
+      padding: .85rem;
+      border-left: 3px solid var(--blue);
+      background: #11130f;
+      color: #c9cbbb;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      font-size: .78rem;
+    }
+    .gateway .packet { border-left-color: var(--amber); }
+    .provider .packet { border-left-color: var(--green); }
+
+    .limits-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .limit-number {
+      display: block;
+      margin-bottom: .45rem;
+      color: var(--amber);
+      font-family: ui-monospace, monospace;
+      font-size: 1.6rem;
+    }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); }
+    table { width: 100%; min-width: 720px; border-collapse: collapse; background: var(--panel); }
+    th, td { padding: .95rem 1rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--amber); font-size: .74rem; letter-spacing: .06em; }
+    tr:last-child td { border-bottom: 0; }
+    td:first-child { color: var(--ink); font-family: ui-monospace, monospace; }
+
+    .experiment-card {
+      display: grid;
+      grid-template-columns: .75fr 1.25fr;
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+    .experiment-card > div { padding: clamp(1.2rem, 3vw, 2rem); background: var(--panel); }
+    .terminal { background: #090b08 !important; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: .82rem; }
+    .terminal p { margin-bottom: .65rem; color: #c4d0b7; }
+    .terminal .ok { color: var(--green); }
+    .terminal .err { color: var(--red); }
+
+    details { border: 1px solid var(--line); background: var(--panel); }
+    details + details { margin-top: .65rem; }
+    summary { cursor: pointer; padding: 1rem 1.1rem; color: var(--ink); font-weight: 700; }
+    details > div { padding: 0 1.1rem 1.1rem; color: var(--muted); }
+
+    .unknown-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .source-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .source-grid a { display: block; min-height: 8rem; color: var(--ink); text-decoration: none; }
+    .source-grid a:hover { background: var(--panel-2); }
+    .source-grid span { display: block; margin-bottom: .6rem; color: var(--green); font-family: ui-monospace, monospace; font-size: .75rem; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2rem 0 4rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
+    @media (max-width: 900px) {
+      header { grid-template-columns: 1fr; min-height: auto; }
+      h1 { max-width: 15ch; }
+      .ticket { max-width: 34rem; transform: none; }
+      .term-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .term-grid article:last-child { grid-column: 1 / -1; }
+      .flow-board { grid-template-columns: 1fr; gap: 1rem; }
+      .lane.gateway::before, .lane.gateway::after { display: none; }
+      .limits-grid { grid-template-columns: 1fr; }
+      .boundary-grid { grid-template-columns: 1fr; }
+      .legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 600px) {
+      .topbar { position: static; display: block; }
+      .topbar > a { display: inline-block; margin-bottom: .5rem; }
+      main, footer { width: min(100% - 1.25rem, 1180px); }
+      h1 { font-size: clamp(2.45rem, 14vw, 4.2rem); }
+      .section-head { grid-template-columns: 1fr; gap: .4rem; }
+      .ticket-head, .ticket-row { grid-template-columns: 28% 1fr; }
+      .ticket::before, .ticket::after { left: 28%; }
+      .term-grid, .legend, .boundary-grid, .unknown-grid, .source-grid { grid-template-columns: 1fr; }
+      .term-grid article:last-child { grid-column: auto; }
+      .experiment-card { grid-template-columns: 1fr; }
+      footer { display: block; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Gateway、认证转发、模型路由与限额。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-adm-05-gateway-routing/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="ADM-05 · Gateway、认证转发、模型路由与限额">
+  <meta property="og:description" content="Claude Code X-Ray：Gateway、认证转发、模型路由与限额。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-adm-05-gateway-routing/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ADM-05 · Gateway、认证转发、模型路由与限额">
+  <meta name="twitter:description" content="Claude Code X-Ray：Gateway、认证转发、模型路由与限额。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>ADM-05</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <div class="topbar">
+    <a href="../index.html">← 返回总索引</a>
+    <nav aria-label="页内导航">
+      <a href="#sequence">时序</a>
+      <a href="#limits">限额</a>
+      <a href="#experiment">实验</a>
+      <a href="#sources">来源</a>
+    </nav>
+  </div>
+
+  <main>
+  <header data-xray-section="answer">
+    <div>
+      <p class="eyebrow">ADM-05 · REQUEST CONTROL DESK</p>
+      <h1>每次模型请求先过企业网关</h1>
+      <p class="lede">Claude Code 带着网关凭证和模型名发出请求。网关认出开发者，检查模型权限与个人额度，再把模型名换成具体上游的标识。通过的请求继续流式转发，拒绝时把可读错误送回终端。<span class="e-o">［O］</span></p>
+      <div class="meta-row">
+        <span class="status">当前状态 documented</span>
+        <span class="tag">Claude Code 2.1.247</span>
+        <span class="tag">研究基线 2026-08-27</span>
+      </div>
+    </div>
+
+    <div class="ticket" aria-label="一次请求经过的四项判定">
+      <div class="ticket-head">
+        <div class="ticket-label">REQ</div>
+        <div class="ticket-value">一张请求票</div>
+      </div>
+      <div class="ticket-row">
+        <div class="ticket-label">WHO</div>
+        <div class="ticket-value">企业身份<small>短期 bearer 或开发者 key</small></div>
+      </div>
+      <div class="ticket-row">
+        <div class="ticket-label">WHERE</div>
+        <div class="ticket-value">模型映射<small>客户端模型名 → 上游模型 ID</small></div>
+      </div>
+      <div class="ticket-row">
+        <div class="ticket-label">STOP</div>
+        <div class="ticket-value">额度与错误<small>放行流式响应或返回 4xx / 5xx</small></div>
+      </div>
+    </div>
+  </header>
+
+    <section data-xray-section="terms" id="terms">
+      <div class="section-head">
+        <div class="section-kicker">01 / TERMS</div>
+        <div>
+          <h2>先分清两套凭证</h2>
+          <p class="section-intro">开发者向网关证明身份。网关再用自己保管的凭证访问模型提供商。客户端无需拿到 AWS、Google Cloud、Foundry 或 Anthropic 的上游密钥。<span class="e-o">［O］</span></p>
+        </div>
+      </div>
+
+      <div class="term-grid">
+        <article><h3>客户端凭证</h3><p>企业自建 Claude apps gateway 使用 OIDC 登录后签发的短期 bearer。其他网关也可收 bearer、API key 或动态 helper 的输出。</p></article>
+        <article><h3>上游凭证</h3><p>只留在网关基础设施内。它可能是云角色、provider API key 或工作负载身份。</p></article>
+        <article><h3>模型目录</h3><p>客户端请求 canonical 模型名。网关可按 provider、区域或部署名改写实际 ID。</p></article>
+        <article><h3>额度账本</h3><p>Claude apps gateway 用 Postgres 保存周期内花费、限额和管理审计。</p></article>
+        <article><h3>上游故障转移</h3><p>网关按顺序试上游。指定状态码、超时或缺少模型时才继续下一项。</p></article>
+      </div>
+
+      <p style="margin-top:1rem;color:var(--muted)">下文用 Claude apps gateway 说明企业自托管方案怎样执行身份、模型和花费规则。组织已有的其他 gateway 只要符合通用协议也能接入，具体限额与路由实现由该产品负责。</p>
+
+      <div class="boundary-grid" aria-label="进入请求链前的条件与产品限制">
+        <article>
+          <h3>进入主链前，管理员与开发者各做一件事</h3>
+          <ul>
+            <li>管理员通过设备管理下发 <code>forceLoginMethod</code> 和 <code>forceLoginGatewayUrl</code>。开发者的登录选择器没有 gateway 入口，个人设置里的地址也不会生效。</li>
+            <li>地址只能解析到私网，生产入口必须使用 HTTPS。HTTP 只允许 localhost 或 loopback。</li>
+            <li>开发者用企业账号完成浏览器登录。此后不需要 claude.ai 账号、API key 或订阅，模型费用由组织的上游 provider 账户承担。</li>
+          </ul>
+          <p><span class="e-o">［O］</span></p>
+        </article>
+        <article>
+          <h3>这套入口有明确缺口</h3>
+          <ul>
+            <li>无人值守 CI 没有 service-token 登录流，应直接连接 provider。无显示器的远程开发机仍可由开发者在另一台设备批准登录。</li>
+            <li>WebSearch、Remote Control 与一小时 prompt cache 不可用，缓存只用五分钟 TTL。</li>
+            <li>认证只支持 OIDC。单个 gateway 不支持多个 OIDC issuer，Windows 也不能作为 gateway server。</li>
+          </ul>
+          <p><span class="e-o">［O］</span></p>
+        </article>
+      </div>
+
+      <div class="legend" style="margin-top:1.2rem" aria-label="证据图例">
+        <div class="e-o"><b>O · 官方契约</b><p>Anthropic 官方文档与官方参考。</p></div>
+        <div class="e-l"><b>L · 本机证据</b><p>固定版本二进制、校验值与 help。</p></div>
+        <div class="e-r"><b>R · 本轮实验</b><p>只连本地假网关的隔离请求。</p></div>
+        <div class="e-i"><b>I · 研究者推断</b><p>从契约拼出的因果解释，保留边界。</p></div>
+      </div>
+    </section>
+
+    <section data-xray-section="sequence" id="sequence">
+      <div class="section-head">
+        <div class="section-kicker">02 / SEQUENCE</div>
+        <div>
+          <h2>一次模型请求的五个时点</h2>
+          <p class="section-intro">网关已经启动，管理员已经下发地址，开发者也已经登录。单轮请求只走这一条状态链，待认证请求 → 已绑定企业主体 → 已判定模型与额度 → 已转发或拒绝 → 结果回到 Claude Code。</p>
+        </div>
+      </div>
+
+      <div class="sequence" aria-label="网关请求时序">
+        <article><span class="step-no">T0 · 客户端</span><h3>发模型请求</h3><p>Claude Code 带 gateway bearer、模型名、版本与能力头，把请求送到已配置的私网地址。<span class="e-o">［O］</span></p></article>
+        <article><span class="step-no">T1 · 网关</span><h3>绑定身份与模型</h3><p>网关从 token 读用户和组，再执行服务端 availableModels。凭证无效停在 401，模型未获准停在 400。<span class="e-o">［O］</span></p></article>
+        <article><span class="step-no">T2 · 网关</span><h3>检查个人额度</h3><p>一次 Postgres 查询得到有效 cap 与周期花费。超额便停止转发，返回不可重试的 429。<span class="e-o">［O］</span></p></article>
+        <article><span class="step-no">T3 · 网关与上游</span><h3>改写并流式转发</h3><p>网关换成上游模型 ID，按顺序尝试 provider。获准的 SSE 与 ping 持续回到客户端，特定故障才切下一项。<span class="e-o">［O］</span></p></article>
+        <article><span class="step-no">T4 · 停止</span><h3>记账或返回错误</h3><p>成功流结束后按 token 用量记账。失败则保留可恢复语义，Claude Code 显示错误，并按错误类型重试、降级或停下。<span class="e-o">［O］</span></p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="flow" id="flow">
+      <div class="section-head">
+        <div class="section-kicker">03 / FLOW</div>
+        <div>
+          <h2>数据经过三段，秘密停在不同位置</h2>
+          <p class="section-intro">客户端看到企业签发的网关凭证。网关看到开发者身份与完整推理请求。模型提供商收到网关转发的请求和网关自己的上游凭证。<span class="e-o">［O］</span></p>
+        </div>
+      </div>
+
+      <div class="flow-board">
+        <div class="lane client">
+          <h3>Claude Code 2.1.247</h3>
+          <div class="packet">gateway bearer<br>model = claude-sonnet-4-6<br>anthropic-version<br>anthropic-beta<br>x-claude-code-session-id</div>
+          <p>模型请求走 gateway。版本检查、某些安全检查等非必要流量可能另走外部地址，需单独关闭。<span class="e-o">［O］</span></p>
+        </div>
+        <div class="lane gateway">
+          <h3>企业 Gateway</h3>
+          <div class="packet">OIDC subject + groups<br>availableModels check<br>spend pre-check<br>canonical ID → upstream ID<br>provider credential injection</div>
+          <p>它既是身份边界，也是路由与限额执行点。Postgres 存设备登录状态和花费计数。<span class="e-o">［O］</span></p>
+        </div>
+        <div class="lane provider">
+          <h3>模型 Provider</h3>
+          <div class="packet">Anthropic API<br>Amazon Bedrock<br>Claude Platform on AWS<br>Google Cloud<br>Microsoft Foundry</div>
+          <p>哪个上游实际服务请求，由 gateway.yaml 的顺序、模型映射和失败状态共同决定。<span class="e-o">［O］</span></p>
+        </div>
+      </div>
+    </section>
+
+    <section data-xray-section="limits" id="limits">
+      <div class="section-head">
+        <div class="section-kicker">04 / LIMITS</div>
+        <div>
+          <h2>额度先拦，费用后记</h2>
+          <p class="section-intro">每个推理请求先查到期内花费。超过任一有效 cap 就停在网关。通过的请求完成后再按 token 用量累加，所以这套数字用于花费熔断，正式账单仍需对 provider 报表。<span class="e-o">［O］</span></p>
+        </div>
+      </div>
+
+      <div class="limits-grid">
+        <article><span class="limit-number">75% / 95%</span><h3>接近上限</h3><p>2.1.225 及以后，客户端读取成功响应里的统一限额头，在两个阈值各提醒一次。</p></article>
+        <article><span class="limit-number">429</span><h3>已经超额</h3><p>响应带 billing_error、重置时间、retry-after 与 x-should-retry false。Claude Code 直接显示 gateway 文案。</p></article>
+        <article><span class="limit-number">2 s</span><h3>账本不可用</h3><p>Postgres 预查超时默认放行。管理员可切换 fail closed，让请求收到 spend limit unavailable。</p></article>
+      </div>
+
+      <div class="table-wrap" style="margin-top:1.2rem">
+        <table>
+          <thead><tr><th>停点</th><th>网关动作</th><th>Claude Code 所见</th><th>随后怎样办</th></tr></thead>
+          <tbody>
+            <tr><td>401</td><td>开发者凭证无效，或放错认证头</td><td>认证错误</td><td>修正 bearer / API key 来源，必要时重新登录</td></tr>
+            <tr><td>400</td><td>模型不在服务端 allowlist，或能力字段不兼容</td><td>模型或字段错误</td><td>换获准模型，或修正 gateway 的字段转发</td></tr>
+            <tr><td>429</td><td>个人 cap 已到，或全部上游都限流</td><td>网关文案与重置时间</td><td>额度型 429 不重试，等重置或让管理员调高</td></tr>
+            <tr><td>502</td><td>所有可尝试上游都失败且无更合适错误</td><td>all upstreams failed</td><td>管理员检查上游、凭证、区域与模型映射</td></tr>
+            <tr><td>静默流 300 s</td><td>自定义 base URL 的 SSE 长时间没有字节</td><td>流被中止，是否重试取决于进度</td><td>gateway 应持续转发 ping，不能缓冲完整响应</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section data-xray-section="experiment" id="experiment">
+      <div class="section-head">
+        <div class="section-kicker">05 / EXPERIMENT</div>
+        <div>
+          <h2>本地假网关接住了一次 429</h2>
+          <p class="section-intro">实验没有联网，也没有使用真实凭证。2.1.247 以 bare、无持久化、空工具模式向 127.0.0.1 发送一个点号。假网关只记录匿名字段，随后返回不可重试的 429。<span class="e-r">［R］</span></p>
+        </div>
+      </div>
+
+      <div class="experiment-card">
+        <div>
+          <h3>先核静态基线</h3>
+          <p>保留的本机二进制报告 <code>2.1.247 (Claude Code)</code>。SHA-256 与给定基线完全相同。<span class="e-l">［L］</span></p>
+          <p><code>gateway --help</code> 公开了 <code>--config &lt;path&gt;</code>，说明该版本带企业认证与遥测 gateway 入口。<span class="e-l">［L］</span></p>
+        </div>
+        <div class="terminal" aria-label="匿名化实验结果">
+          <p class="ok">HEAD /api/hello</p>
+          <p class="ok">POST /v1/messages?beta=true</p>
+          <p>x-api-key present · authorization absent</p>
+          <p>anthropic-version present</p>
+          <p>model claude-sonnet-4-6</p>
+          <p class="err">API Error · Request rejected (429) · isolated research limit</p>
+          <p>process exit 1</p>
+        </div>
+      </div>
+      <p style="margin-top:1rem;color:var(--muted)">这次实验只证明客户端会把 API key 放入对应请求头、保留模型名并把网关 429 显示出来。它没有证明真实 OIDC、provider 改写、Postgres 额度判定或跨上游故障转移。页面因此保持 documented。</p>
+    </section>
+
+    <section data-xray-section="implementation" id="implementation">
+      <div class="section-head">
+        <div class="section-kicker">06 / IMPLEMENTATION</div>
+        <div>
+          <h2>部署要守住的契约</h2>
+          <p class="section-intro">Claude apps gateway 把协议翻译和限额实现装在同一个二进制里。其他 gateway 也能接 Claude Code，但运营方必须自己维护下列转发约定。<span class="e-o">［O］</span></p>
+        </div>
+      </div>
+
+      <details open>
+        <summary>启动与状态文件</summary>
+        <div>gateway.yaml 定义监听、OIDC、session、Postgres 和 upstreams。秘密从环境变量或挂载文件展开。进程启动时校验 schema，关键项失效便退出。Postgres 保存设备授权、额度计数与管理审计。<span class="e-o">［O］</span></div>
+      </details>
+      <details>
+        <summary>协议与流式传输</summary>
+        <div>Anthropic Messages 路径至少提供 /v1/messages，并原样转发 anthropic-version、anthropic-beta 和请求体。SSE 与 ping 要边到边发。包完整缓冲会让客户端停住，长思考时丢 ping 也会触发超时。<span class="e-o">［O］</span></div>
+      </details>
+      <details>
+        <summary>错误与自动恢复</summary>
+        <div>普通第三方 gateway 应保留上游错误体，因为 Claude Code 会按错误文案识别可降级能力。Claude apps gateway 对云厂商可能泄露账号信息的错误做安全归一，并用 capability_rejected token 保留恢复语义。<span class="e-o">［O］</span></div>
+      </details>
+      <details>
+        <summary>2.1.247 的版本边界</summary>
+        <div>gateway 子命令从 2.1.195 提供。额度警告和带重置时间的 429 从 2.1.225 提供。2.1.233 增加云上游安全错误语义。2.1.248 才让模型发现请求同时发送两个认证头，2.1.247 仍按凭证类型只发一个。2.1.251 的 /usage 花费条不属于本页基线。<span class="e-o">［O］</span></div>
+      </details>
+    </section>
+
+    <section data-xray-section="unknowns" id="unknowns">
+      <div class="section-head">
+        <div class="section-kicker">07 / UNKNOWNS</div>
+        <div>
+          <h2>这轮仍然没有验证的地方</h2>
+          <p class="section-intro">这些缺口会影响企业部署判断，现阶段保留为未知，不用本地假网关补成运行事实。</p>
+        </div>
+      </div>
+
+      <div class="unknown-grid">
+        <article><h3>真实企业登录</h3><p>没有 IdP、私网域名和 TLS 证书，未验证设备登录、token 刷新与离职后的实际失效延迟。</p></article>
+        <article><h3>真实 provider 改写</h3><p>没有云账号与获准模型，未验证 canonical ID 到 Bedrock、Google Cloud 或 Foundry ID 的现场请求。</p></article>
+        <article><h3>并发额度一致性</h3><p>没有 Postgres 与并发流量，未观察许多 agent 同时越过 cap 边缘时的交易顺序和提示时间。</p></article>
+        <article><h3>组织自己的第三方 gateway</h3><p>它的 WAF、错误包装、缓存和重试策略不在本机。协议文档能给要求，不能替代该部署的验收。</p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="sources" id="sources">
+      <div class="section-head">
+        <div class="section-kicker">08 / SOURCES</div>
+        <div>
+          <h2>一手来源与复现入口</h2>
+          <p class="section-intro">以下链接直达 Anthropic 官方文档。更细的命令、证据身份和实验限制收在同目录 evidence.md。</p>
+        </div>
+      </div>
+
+      <div class="source-grid">
+        <a href="https://code.claude.com/docs/en/claude-apps-gateway"><span>O · 身份与总体调用链</span>Claude apps gateway 的角色、OIDC、provider 翻译与部署边界</a>
+        <a href="https://code.claude.com/docs/en/claude-apps-gateway-config"><span>O · 模型路由与失败</span>gateway.yaml、模型映射、上游顺序和错误选择</a>
+        <a href="https://code.claude.com/docs/en/claude-apps-gateway-spend-limits"><span>O · 限额执行</span>额度优先级、Postgres 预查、429 和客户端警告</a>
+        <a href="https://code.claude.com/docs/en/llm-gateway-protocol"><span>O · 通用协议</span>API 格式、请求头、SSE、能力转发与错误保真</a>
+        <a href="https://code.claude.com/docs/en/llm-gateway-connect"><span>O · 客户端接入</span>base URL、凭证头、模型发现和本地核对办法</a>
+        <a href="https://code.claude.com/docs/en/errors"><span>O · 客户端错误呈现</span>401、429、spend limit 与终止行为</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>ADM-05 · documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

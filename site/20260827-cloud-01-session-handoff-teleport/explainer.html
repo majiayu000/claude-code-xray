@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CLOUD-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CLOUD-01 Web 与 Teleport 的会话接力</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #16202a;
+      --paper: #f2ead8;
+      --paper-2: #e7dcc5;
+      --night: #0d1720;
+      --night-2: #142531;
+      --line: #7a715f;
+      --line-dark: #344550;
+      --signal: #f15a3a;
+      --signal-2: #ffca5b;
+      --mint: #7cc8ad;
+      --sky: #8bc0dc;
+      --muted: #aeb9b9;
+      --white: #fffaf0;
+      --shadow: 0 18px 50px rgb(0 0 0 / 24%);
+      --serif: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", serif;
+      --sans: "Avenir Next", "Futura", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Roboto Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--night);
+    }
+
+    body {
+      margin: 0;
+      color: var(--white);
+      font-family: var(--sans);
+      line-height: 1.72;
+      background:
+        linear-gradient(90deg, transparent 0 49.85%, rgb(255 255 255 / 3%) 50%, transparent 50.15%),
+        radial-gradient(circle at 82% 12%, rgb(241 90 58 / 16%), transparent 23rem),
+        var(--night);
+    }
+
+    a { color: inherit; }
+
+    a:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid var(--signal-2);
+      outline-offset: 4px;
+      border-radius: 3px;
+    }
+
+    .skip {
+      position: fixed;
+      z-index: 20;
+      top: 12px;
+      left: 12px;
+      padding: .65rem 1rem;
+      color: var(--ink);
+      background: var(--signal-2);
+      transform: translateY(-180%);
+      transition: transform .15s ease;
+    }
+
+    .skip:focus { transform: translateY(0); }
+
+    .evidence {
+      display: inline-flex;
+      min-width: 1.7rem;
+      height: 1.7rem;
+      margin: 0 .3rem;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      font: 800 .72rem/1 var(--mono);
+      vertical-align: .15rem;
+    }
+
+    .ev-o { color: #17352a; background: #9fe1c7; }
+    .ev-l { color: #163247; background: #abd8ef; }
+    .ev-r { color: #402a00; background: #ffca5b; }
+    .ev-i { color: #3b2140; background: #e4b9e8; }
+
+    .hero {
+      min-height: min(860px, 100svh);
+      padding: clamp(1.2rem, 4vw, 4rem);
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(300px, .88fr);
+      gap: clamp(2rem, 6vw, 7rem);
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+      border-bottom: 1px solid var(--line-dark);
+    }
+
+    .hero::before {
+      content: "32";
+      position: absolute;
+      right: -2vw;
+      bottom: -11vw;
+      color: rgb(255 255 255 / 3%);
+      font: 900 clamp(14rem, 37vw, 35rem)/.8 var(--serif);
+      pointer-events: none;
+    }
+
+    .kicker {
+      display: flex;
+      gap: .65rem;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 0 0 2rem;
+      font: 750 .76rem/1.2 var(--mono);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .kicker span {
+      padding: .45rem .6rem;
+      border: 1px solid var(--line-dark);
+    }
+
+    .kicker .hot {
+      color: var(--ink);
+      background: var(--signal-2);
+      border-color: var(--signal-2);
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 12ch;
+      margin-bottom: 1.2rem;
+      font: 700 clamp(3.2rem, 7.6vw, 7.6rem)/.92 var(--serif);
+      letter-spacing: -.065em;
+    }
+
+    .lead {
+      max-width: 34em;
+      margin-bottom: 1.3rem;
+      color: #dfe5df;
+      font-size: clamp(1.05rem, 1.7vw, 1.4rem);
+      line-height: 1.65;
+    }
+
+    .hero-note {
+      max-width: 44em;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+
+    .ticket {
+      width: min(100%, 470px);
+      justify-self: end;
+      position: relative;
+      padding: clamp(1.5rem, 4vw, 3rem);
+      color: var(--ink);
+      background:
+        repeating-linear-gradient(0deg, transparent 0 29px, rgb(22 32 42 / 5%) 30px),
+        var(--paper);
+      border: 1px solid #fff6df;
+      box-shadow: var(--shadow);
+      transform: rotate(1.3deg);
+    }
+
+    .ticket::before,
+    .ticket::after {
+      content: "";
+      position: absolute;
+      width: 1.45rem;
+      height: 1.45rem;
+      top: 48%;
+      border-radius: 50%;
+      background: var(--night);
+    }
+
+    .ticket::before { left: -.75rem; }
+    .ticket::after { right: -.75rem; }
+
+    .ticket-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--ink);
+      font: 800 .72rem/1.2 var(--mono);
+      letter-spacing: .1em;
+    }
+
+    .ticket h2 {
+      margin: 1.5rem 0 2rem;
+      font: 700 clamp(2rem, 4vw, 3.4rem)/1 var(--serif);
+      letter-spacing: -.04em;
+    }
+
+    .gate-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .8rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .gate {
+      min-height: 5.4rem;
+      padding: .8rem;
+      border: 1px solid var(--line);
+      background: rgb(255 255 255 / 23%);
+    }
+
+    .gate b {
+      display: block;
+      margin-bottom: .25rem;
+      font: 800 .72rem/1.2 var(--mono);
+      letter-spacing: .08em;
+    }
+
+    .gate span { font-size: .9rem; }
+
+    .stamp {
+      display: inline-block;
+      padding: .4rem .8rem;
+      color: #b83d29;
+      border: 3px double currentColor;
+      font: 900 .82rem/1 var(--mono);
+      letter-spacing: .12em;
+      transform: rotate(-5deg);
+    }
+
+    .rail-nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      gap: .4rem;
+      padding: .65rem clamp(1rem, 4vw, 4rem);
+      overflow-x: auto;
+      background: rgb(13 23 32 / 94%);
+      border-bottom: 1px solid var(--line-dark);
+      backdrop-filter: blur(12px);
+    }
+
+    .rail-nav a {
+      flex: 0 0 auto;
+      padding: .38rem .7rem;
+      color: #cbd4d2;
+      border: 1px solid transparent;
+      text-decoration: none;
+      font-size: .78rem;
+    }
+
+    .rail-nav a:hover {
+      color: var(--signal-2);
+      border-color: var(--line-dark);
+    }
+
+    .section {
+      width: min(1180px, calc(100% - 2.2rem));
+      margin: 0 auto;
+      padding: clamp(4.5rem, 10vw, 9rem) 0;
+      position: relative;
+    }
+
+    .section + .section { border-top: 1px solid var(--line-dark); }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 8rem minmax(0, 1fr);
+      gap: 1.5rem;
+      margin-bottom: clamp(2rem, 5vw, 4rem);
+    }
+
+    .section-no {
+      color: var(--signal);
+      font: 800 .78rem/1.2 var(--mono);
+      letter-spacing: .12em;
+    }
+
+    .section h2 {
+      max-width: 17ch;
+      margin-bottom: .8rem;
+      font: 700 clamp(2.1rem, 5vw, 4.7rem)/1.02 var(--serif);
+      letter-spacing: -.05em;
+    }
+
+    .section-head p {
+      max-width: 50em;
+      color: var(--muted);
+    }
+
+    .legend-grid,
+    .role-grid,
+    .gate-grid,
+    .unknown-grid,
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--line-dark);
+      border: 1px solid var(--line-dark);
+    }
+
+    .legend-card,
+    .role,
+    .limit-card,
+    .unknown-card,
+    .source-card {
+      padding: 1.35rem;
+      background: var(--night-2);
+    }
+
+    .legend-card b,
+    .role b,
+    .limit-card b,
+    .unknown-card b {
+      display: block;
+      margin-bottom: .65rem;
+      color: var(--white);
+      font: 800 .8rem/1.3 var(--mono);
+      letter-spacing: .05em;
+    }
+
+    .legend-card p,
+    .role p,
+    .limit-card p,
+    .unknown-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .role-grid {
+      grid-template-columns: repeat(3, 1fr);
+      margin-top: 2.5rem;
+    }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      gap: 1.1rem;
+      margin-left: 8rem;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: -3.05rem;
+      top: 2rem;
+      bottom: 2rem;
+      width: 2px;
+      background: linear-gradient(var(--signal), var(--signal-2), var(--mint));
+    }
+
+    .time-card {
+      position: relative;
+      display: grid;
+      grid-template-columns: 10rem minmax(0, 1fr);
+      gap: 1.2rem;
+      padding: 1.35rem;
+      color: var(--ink);
+      background: var(--paper);
+      border-left: 5px solid var(--signal);
+    }
+
+    .time-card::before {
+      content: "";
+      position: absolute;
+      left: -3.72rem;
+      top: 1.65rem;
+      width: 1.1rem;
+      height: 1.1rem;
+      background: var(--night);
+      border: 4px solid var(--signal-2);
+      border-radius: 50%;
+    }
+
+    .time-card .when {
+      font: 850 .74rem/1.3 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .time-card h3 {
+      margin-bottom: .35rem;
+      font: 750 1.15rem/1.35 var(--serif);
+    }
+
+    .time-card p { margin: 0; font-size: .94rem; }
+
+    .handoff {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 5rem minmax(0, 1fr);
+      align-items: stretch;
+      gap: 1rem;
+    }
+
+    .station {
+      min-height: 25rem;
+      padding: clamp(1.4rem, 3vw, 2.5rem);
+      border: 1px solid var(--line-dark);
+      background: var(--night-2);
+    }
+
+    .station.cloud { border-top: 7px solid var(--sky); }
+    .station.local { border-top: 7px solid var(--mint); }
+
+    .station .tag {
+      display: inline-block;
+      margin-bottom: 1rem;
+      color: var(--muted);
+      font: 800 .72rem/1.2 var(--mono);
+      letter-spacing: .1em;
+    }
+
+    .station h3 {
+      margin-bottom: 1.4rem;
+      font: 700 2rem/1.05 var(--serif);
+    }
+
+    .manifest {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .manifest li {
+      display: grid;
+      grid-template-columns: 1.3rem 1fr;
+      gap: .7rem;
+      padding: .85rem 0;
+      border-top: 1px solid var(--line-dark);
+      color: #d8dfdc;
+      font-size: .92rem;
+    }
+
+    .manifest li::before {
+      content: "✓";
+      color: var(--signal-2);
+      font-weight: 900;
+    }
+
+    .switch {
+      display: grid;
+      place-items: center;
+      color: var(--signal-2);
+      font: 900 2.3rem/1 var(--mono);
+    }
+
+    .switch span {
+      width: 4rem;
+      height: 4rem;
+      display: grid;
+      place-items: center;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+    }
+
+    .split-note {
+      max-width: 48rem;
+      margin: 2rem auto 0;
+      padding: 1rem 1.2rem;
+      color: var(--ink);
+      background: var(--signal-2);
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .gate-grid { grid-template-columns: repeat(2, 1fr); }
+
+    .limit-card {
+      min-height: 12rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .limit-card::after {
+      content: attr(data-mark);
+      position: absolute;
+      right: .6rem;
+      bottom: -.35rem;
+      color: rgb(255 255 255 / 5%);
+      font: 900 5.5rem/1 var(--serif);
+    }
+
+    .failure-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+      margin-top: 2.5rem;
+    }
+
+    .failure {
+      padding: 1.2rem;
+      color: var(--ink);
+      background: var(--paper-2);
+      border-left: 5px solid var(--signal);
+    }
+
+    .failure b {
+      display: block;
+      margin-bottom: .45rem;
+      font-family: var(--mono);
+      font-size: .78rem;
+    }
+
+    .failure p { margin: 0; font-size: .9rem; }
+
+    .lab-sheet {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, .65fr);
+      color: var(--ink);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .lab-main,
+    .lab-side { padding: clamp(1.5rem, 4vw, 3rem); }
+
+    .lab-side {
+      background: var(--ink);
+      color: var(--white);
+    }
+
+    .lab-main h3,
+    .lab-side h3 {
+      margin-bottom: 1.2rem;
+      font: 700 1.7rem/1.15 var(--serif);
+    }
+
+    .lab-list {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+
+    .lab-list li { margin: .65rem 0; }
+
+    .no-r {
+      display: grid;
+      place-items: center;
+      min-height: 10rem;
+      margin-top: 1.5rem;
+      padding: 1.2rem;
+      border: 2px dashed var(--line-dark);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .version-ledger {
+      display: grid;
+      grid-template-columns: 9rem minmax(0, 1fr);
+      gap: 0;
+      border: 1px solid var(--line-dark);
+    }
+
+    .version-ledger > div {
+      padding: 1.2rem;
+      border-bottom: 1px solid var(--line-dark);
+    }
+
+    .version-ledger > div:nth-last-child(-n + 2) { border-bottom: 0; }
+
+    .version {
+      color: var(--signal-2);
+      background: var(--night-2);
+      font: 850 .85rem/1.4 var(--mono);
+    }
+
+    .version-text { color: #d6dddd; }
+
+    details {
+      margin-top: 2rem;
+      border: 1px solid var(--line-dark);
+      background: var(--night-2);
+    }
+
+    summary {
+      padding: 1rem 1.2rem;
+      cursor: pointer;
+      color: var(--signal-2);
+      font-weight: 800;
+    }
+
+    .details-body {
+      padding: 0 1.2rem 1.3rem;
+      color: var(--muted);
+    }
+
+    .details-body ul { margin-bottom: 0; }
+
+    .unknown-grid { grid-template-columns: repeat(2, 1fr); }
+
+    .unknown-card { min-height: 12rem; }
+
+    .unknown-card .num {
+      display: block;
+      margin-bottom: 1.3rem;
+      color: var(--signal);
+      font: 900 2.8rem/1 var(--serif);
+    }
+
+    .source-grid { grid-template-columns: repeat(3, 1fr); }
+
+    .source-card {
+      min-height: 13rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-decoration: none;
+      transition: transform .15s ease, background .15s ease;
+    }
+
+    .source-card:hover {
+      z-index: 1;
+      background: #1d3542;
+      transform: translateY(-4px);
+    }
+
+    .source-card b {
+      color: var(--white);
+      font: 700 1.3rem/1.25 var(--serif);
+    }
+
+    .source-card span {
+      color: var(--muted);
+      font-size: .88rem;
+    }
+
+    .source-card em {
+      color: var(--signal-2);
+      font: 800 .74rem/1 var(--mono);
+      font-style: normal;
+      letter-spacing: .08em;
+    }
+
+    .repro {
+      margin-top: 2.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--line-dark);
+      border: 1px solid var(--line-dark);
+    }
+
+    .repro > div {
+      padding: 1.2rem;
+      background: var(--night-2);
+    }
+
+    .repro b {
+      display: block;
+      margin-bottom: .5rem;
+      color: var(--signal-2);
+      font-family: var(--mono);
+      font-size: .78rem;
+    }
+
+    .repro p { margin: 0; color: var(--muted); font-size: .9rem; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2rem clamp(1.1rem, 4vw, 4rem);
+      color: var(--muted);
+      border-top: 1px solid var(--line-dark);
+      font-size: .85rem;
+    }
+
+    footer a {
+      color: var(--signal-2);
+      text-underline-offset: .25rem;
+    }
+
+    @media (max-width: 880px) {
+      .hero {
+        min-height: auto;
+        grid-template-columns: 1fr;
+        padding-top: 5rem;
+      }
+
+      .ticket { justify-self: start; transform: none; }
+      .legend-grid, .source-grid { grid-template-columns: 1fr 1fr; }
+      .role-grid { grid-template-columns: 1fr; }
+      .handoff { grid-template-columns: 1fr; }
+      .switch { min-height: 4rem; transform: rotate(90deg); }
+      .lab-sheet { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 600px) {
+      .hero { padding: 4.2rem 1.1rem 3rem; gap: 2.5rem; }
+      h1 { font-size: clamp(3rem, 15vw, 4.3rem); }
+      .ticket { width: 100%; padding: 1.3rem; }
+      .gate-row { grid-template-columns: 1fr; }
+      .section { width: min(100% - 2rem, 1180px); padding: 4rem 0; }
+      .section-head { grid-template-columns: 1fr; gap: .6rem; }
+      .legend-grid, .gate-grid, .unknown-grid, .source-grid { grid-template-columns: 1fr; }
+      .timeline { margin-left: 2.4rem; }
+      .timeline::before { left: -1.6rem; }
+      .time-card { grid-template-columns: 1fr; }
+      .time-card::before { left: -2.27rem; }
+      .failure-strip { grid-template-columns: 1fr; }
+      .version-ledger { grid-template-columns: 1fr; }
+      .version-ledger > div:nth-last-child(2) { border-bottom: 1px solid var(--line-dark); }
+      .repro { grid-template-columns: 1fr; }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Web/Cloud 与 Teleport 的会话接力。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-cloud-01-session-handoff-teleport/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CLOUD-01 · Web/Cloud 与 Teleport 的会话接力">
+  <meta property="og:description" content="Claude Code X-Ray：Web/Cloud 与 Teleport 的会话接力。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-cloud-01-session-handoff-teleport/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CLOUD-01 · Web/Cloud 与 Teleport 的会话接力">
+  <meta name="twitter:description" content="Claude Code X-Ray：Web/Cloud 与 Teleport 的会话接力。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CLOUD-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <a class="skip" href="#main">跳到正文</a>
+
+  <header class="hero" data-xray-section="answer" id="answer">
+    <div>
+      <p class="kicker">
+        <span class="hot">CLOUD-01</span>
+        <span>当前状态 documented</span>
+        <span>Claude Code 2.1.247</span>
+      </p>
+      <h1>接来一份云会话副本</h1>
+      <p class="lead">Teleport 要求账号、仓库、本地工作树和云分支同时满足条件。门槛都过了，Claude 把云端分支和完整对话拉进终端。终端从此有自己的副本，后来在本地说的话不会回到原云会话。官方没有承诺这四项的内部核验顺序。<span class="evidence ev-o" aria-label="官方证据">O</span></p>
+      <p class="hero-note">这页只追踪身份、代码状态、权限和接管。Deep Links、Artifacts 与分享留在边界外。</p>
+    </div>
+
+    <aside class="ticket" aria-label="Teleport 接力条件">
+      <div class="ticket-label"><span>SESSION HANDOFF</span><span>ONE WAY</span></div>
+      <h2>放行前有四项并列门槛</h2>
+      <div class="gate-row">
+        <div class="gate"><b>ACCOUNT</b><span>登录创建云会话的同一账号</span></div>
+        <div class="gate"><b>REPOSITORY</b><span>当前 checkout 属于同一仓库</span></div>
+        <div class="gate"><b>WORKTREE</b><span>未提交改动要先处理</span></div>
+        <div class="gate"><b>BRANCH</b><span>云端分支已经推送</span></div>
+      </div>
+      <span class="stamp">LOCAL COPY</span><span class="evidence ev-o" aria-label="官方证据">O</span>
+    </aside>
+  </header>
+
+  <nav class="rail-nav" aria-label="页面章节">
+    <a href="#terms">证据与角色</a>
+    <a href="#sequence">接力时序</a>
+    <a href="#flow">状态流</a>
+    <a href="#limits">权限与失败</a>
+    <a href="#experiment">本机观察</a>
+    <a href="#implementation">版本边界</a>
+    <a href="#unknowns">未知项</a>
+    <a href="#sources">来源</a>
+  </nav>
+
+  <main id="main">
+    <section class="section" data-xray-section="terms" id="terms">
+      <div class="section-head">
+        <span class="section-no">01 / TERMS</span>
+        <div>
+          <h2>先把证据和角色分开</h2>
+          <p>官方契约能说明产品答应做什么，本机帮助只能说明 2.1.247 带着哪些入口。没有真实云端接力，本页就停在 documented。</p>
+        </div>
+      </div>
+
+      <div class="legend-grid" aria-label="O L R I 证据图例">
+        <article class="legend-card"><b><span class="evidence ev-o">O</span>官方契约</b><p>Anthropic 文档、帮助与 changelog，用来定支持范围。</p></article>
+        <article class="legend-card"><b><span class="evidence ev-l">L</span>本机证据</b><p>冻结的 2.1.247 二进制、哈希和帮助输出。</p></article>
+        <article class="legend-card"><b><span class="evidence ev-r">R</span>真实实验</b><p>本轮没有。云端接力会碰真实账号、会话与 Git 状态。</p></article>
+        <article class="legend-card"><b><span class="evidence ev-i">I</span>研究推断</b><p>只负责连接已知事实，遇到缺口就停下来标明。</p></article>
+      </div>
+
+      <div class="role-grid">
+        <article class="role"><b>云会话</b><p>在 Anthropic 托管 VM 或组织自托管环境运行，保存对话并维护自己的工作分支。<span class="evidence ev-o">O</span></p></article>
+        <article class="role"><b>本地 CLI</b><p>发起 Teleport。四项条件满足后，CLI fetch、checkout 并载入对话。<span class="evidence ev-o">O</span></p></article>
+        <article class="role"><b>Git remote 与账号</b><p>remote 承担代码交接，claude.ai 账号承担会话访问。两道身份都要对上。<span class="evidence ev-o">O</span></p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sequence" id="sequence">
+      <div class="section-head">
+        <span class="section-no">02 / SEQUENCE</span>
+        <div>
+          <h2>一次接力经过这些阶段</h2>
+          <p>时序从云端已经有会话开始。CLI 创建云任务属于前情，Teleport 的工作从选中那场云会话才开始。</p>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <article class="time-card">
+          <div class="when">T0 云端工作</div>
+          <div><h3>云会话持有对话和工作分支</h3><p>常规云任务从 GitHub remote 的选定分支起步。仓库已提交配置能进去，用户目录里的本机配置留在本机。<span class="evidence ev-o">O</span></p></div>
+        </article>
+        <article class="time-card">
+          <div class="when">T1 用户选择</div>
+          <div><h3>用户从终端挑一场云会话</h3><p>可以运行 Teleport 入口、在会话内打开选择器，也可以从任务列表触发。它列的是云会话，普通 resume 只看本机历史。<span class="evidence ev-o">O</span><span class="evidence ev-l">L</span></p></div>
+        </article>
+        <article class="time-card">
+          <div class="when">T2 前置条件</div>
+          <div><h3>四项并列门槛都要通过</h3><p>账号必须相同，当前 checkout 要属于同一仓库，本地工作树不能留有未处理的改动，云分支也要能从 remote 取得。任何一项不满足，接力停在这里。官方只列出这些要求，没有公开 CLI 的内部核验次序。<span class="evidence ev-o">O</span></p></div>
+        </article>
+        <article class="time-card">
+          <div class="when">T3 拉取状态</div>
+          <div><h3>CLI 拉下分支并载入完整对话</h3><p>CLI fetch 并 checkout 云端分支，随后载入完整会话历史。代码分支经 Git 取得，官方没有公开对话传输的内部协议。<span class="evidence ev-o">O</span></p></div>
+        </article>
+        <article class="time-card">
+          <div class="when">T4 本地续做</div>
+          <div><h3>本地副本从这里独立继续</h3><p>接管完成后，终端里的新工作留在本地，claude.ai 和移动端的原云会话不会同步这些新消息。需要手机继续操控本机，要另开 Remote Control。<span class="evidence ev-o">O</span></p></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" id="flow">
+      <div class="section-head">
+        <span class="section-no">03 / FLOW</span>
+        <div>
+          <h2>接管之后，状态在这里分叉</h2>
+          <p>会话来源能追溯到云端，后续状态却分成两份。把它当成同步，会在最要紧的地方理解错。</p>
+        </div>
+      </div>
+
+      <div class="handoff" aria-label="云会话复制到本地副本的因果图">
+        <article class="station cloud">
+          <span class="tag">CLOUD SESSION</span>
+          <h3>接力前的云端</h3>
+          <ul class="manifest">
+            <li>对话历史保存在云会话</li>
+            <li>代码以云端已推送分支为交接载体</li>
+            <li>运行环境采用云环境的网络与变量</li>
+            <li>权限模式由 Web 可用模式约束</li>
+          </ul>
+        </article>
+
+        <div class="switch" aria-hidden="true"><span>→</span></div>
+
+        <article class="station local">
+          <span class="tag">LOCAL COPY</span>
+          <h3>接力后的终端</h3>
+          <ul class="manifest">
+            <li>完整历史已载入本地副本</li>
+            <li>CLI 已 fetch 并 checkout 对应分支</li>
+            <li>后续命令使用本机文件与工具</li>
+            <li>新消息不回写原云会话</li>
+          </ul>
+        </article>
+      </div>
+      <p class="split-note">本地副本保留云会话的来源关系。代码由 Git 交接，对话在接管点复制。官方没有说明权限自动迁移。<span class="evidence ev-o">O</span><span class="evidence ev-i">I</span></p>
+    </section>
+
+    <section class="section" data-xray-section="limits" id="limits">
+      <div class="section-head">
+        <span class="section-no">04 / LIMITS</span>
+        <div>
+          <h2>权限门和停止点很具体</h2>
+          <p>Teleport 把本地工作树、仓库、云分支和账号都设为放行门槛。官方没有说明这些门槛按什么次序核验。云环境自己的权限模式与网络隔离仍然影响接力前的工作。</p>
+        </div>
+      </div>
+
+      <div class="gate-grid">
+        <article class="limit-card" data-mark="A"><b>套餐与认证门</b><p>Web/Cloud 研究预览面向 Pro、Max、Team，以及有 premium seat 或 Chat + Claude Code seat 的 Enterprise 用户。Teleport 还要求 CLI 登录创建云会话的同一 claude.ai 账号；API key 与第三方 provider 不满足这项认证要求，组织也能关闭云会话。<span class="evidence ev-o">O</span></p></article>
+        <article class="limit-card" data-mark="G"><b>Git 门</b><p>仓库不匹配、当前 checkout 是 fork、分支未推送，都会阻止接力。本地有改动时，2.1.247 会提出 stash。<span class="evidence ev-o">O</span></p></article>
+        <article class="limit-card" data-mark="P"><b>云端权限</b><p>Web 提供 Accept edits 与 Plan。Auto 取决于组织和模型，Bypass permissions 在云会话里不可用。<span class="evidence ev-o">O</span></p></article>
+        <article class="limit-card" data-mark="N"><b>运行隔离</b><p>Anthropic 托管会话处在隔离 VM，网络受环境策略限制，Git 凭据留在沙箱外并由代理代办。<span class="evidence ev-o">O</span></p></article>
+      </div>
+
+      <div class="failure-strip" aria-label="失败和停止条件">
+        <article class="failure"><b>核验失败</b><p>CLI 报错或要求先处理本地状态，分支与对话都不接管。</p></article>
+        <article class="failure"><b>环境到期</b><p>云 VM 被回收。对话可在新环境恢复，仍在跑的 shell 与后台 agent 不会恢复。</p></article>
+        <article class="failure"><b>接力完成</b><p>终端拿到副本后，云端与本地各自继续。双向同步不在这条状态机里。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" id="experiment">
+      <div class="section-head">
+        <span class="section-no">05 / EXPERIMENT</span>
+        <div>
+          <h2>本机只核到入口，没有冒充接力成功</h2>
+          <p>这轮没有登录、没有打开真实 session picker，也没有 fetch 或 checkout 任何项目。安全边界在这里很清楚。</p>
+        </div>
+      </div>
+
+      <div class="lab-sheet">
+        <div class="lab-main">
+          <h3>2.1.247 静态与帮助证据</h3>
+          <ul class="lab-list">
+            <li>冻结二进制报告 Claude Code 2.1.247。</li>
+            <li>SHA-256 与任务给定基线完全一致。</li>
+            <li>帮助同时列出 cloud 与 teleport 两个入口。</li>
+            <li>Teleport 可以打开选择器，也能接受会话标识。</li>
+          </ul>
+          <p><span class="evidence ev-l">L</span>这些结果只证明本机版本带着入口。</p>
+        </div>
+        <aside class="lab-side">
+          <h3>实验停在登录门</h3>
+          <p>真实 Teleport 会读取云会话，可能 stash 改动并切换分支。任务禁止登录、访问私人会话和影响现有工作，因此没有继续。</p>
+          <div class="no-r"><span><span class="evidence ev-r">R</span><br>本轮没有真实云端接力证据<br>页面状态保持 documented</span></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" id="implementation">
+      <div class="section-head">
+        <span class="section-no">06 / IMPLEMENTATION</span>
+        <div>
+          <h2>版本差异会改变入口和提示</h2>
+          <p>本页锁在 2026-08-27 的 2.1.247。后续文档与 CLI 更新以后，应重新核对命令名、错误文案和权限模式。</p>
+        </div>
+      </div>
+
+      <div class="version-ledger" aria-label="版本边界">
+        <div class="version">2.1.223</div><div class="version-text">云会话内加入 Teleport 提示，能给出继续到本地的命令。<span class="evidence ev-o">O</span></div>
+        <div class="version">2.1.243</div><div class="version-text">带会话参数的 Teleport 遇到未提交改动时会提出 stash，不再直接退出。<span class="evidence ev-o">O</span></div>
+        <div class="version">2.1.247</div><div class="version-text">本机冻结二进制的版本与哈希吻合，帮助列出 cloud 和 teleport。<span class="evidence ev-l">L</span></div>
+        <div class="version">文档基线</div><div class="version-text">官方索引按 2026-08-27 的 202 个入口冻结。本页使用 cloud 作为主名，旧 remote 只作兼容别名理解。<span class="evidence ev-o">O</span></div>
+      </div>
+
+      <details>
+        <summary>查看与相邻页的分工</summary>
+        <div class="details-body">
+          <ul>
+            <li>本机 resume 与 fork 归 CTX-02。</li>
+            <li>完整权限规则归 SAFE-01。</li>
+            <li>云环境创建、自托管 runner 与缓存归 ADM-04。</li>
+            <li>Remote Control、移动端与跨设备操控归 UI-07。</li>
+            <li>Deep Links 留给 AUTO-05 候选，Artifacts 与分享留给 EXT-07 companion 边界。</li>
+          </ul>
+        </div>
+      </details>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" id="unknowns">
+      <div class="section-head">
+        <span class="section-no">07 / UNKNOWNS</span>
+        <div>
+          <h2>公开契约还缺四块</h2>
+          <p>这些问题会影响故障恢复或安全判断，当前证据不够，页面不替产品补答案。</p>
+        </div>
+      </div>
+
+      <div class="unknown-grid">
+        <article class="unknown-card"><span class="num">01</span><b>接管后的初始权限</b><p>2.1.247 怎样为本地副本选择初始权限模式，公开文档没有给出足够精确的优先级。</p></article>
+        <article class="unknown-card"><span class="num">02</span><b>活跃会话的一致边界</b><p>云端仍在生成工具调用时发起 Teleport，服务怎样截取一致的消息边界，官方没有公开。</p></article>
+        <article class="unknown-card"><span class="num">03</span><b>失败后的局部状态</b><p>下载中断是否留下可恢复副本，本轮不能在私人本地会话结构里检查。</p></article>
+        <article class="unknown-card"><span class="num">04</span><b>弱网恢复策略</b><p>大型会话传输的断点、重试和逐阶段超时没有公开的完整契约。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sources" id="sources">
+      <div class="section-head">
+        <span class="section-no">08 / SOURCES</span>
+        <div>
+          <h2>一手来源与复现入口</h2>
+          <p>所有技术结论落在 Anthropic 官方页面或本机冻结版本。没有使用二手文章进入事实表。</p>
+        </div>
+      </div>
+
+      <div class="source-grid">
+        <a class="source-card" href="https://code.claude.com/docs/en/claude-code-on-the-web"><b>Web 与 Teleport 主契约</b><span>证明创建、拉取、账号门、Git 门与副本分叉</span><em>OFFICIAL ↗</em></a>
+        <a class="source-card" href="https://code.claude.com/docs/en/cloud-environments"><b>Cloud environments</b><span>证明 fresh clone、配置继承、网络与凭据边界</span><em>OFFICIAL ↗</em></a>
+        <a class="source-card" href="https://code.claude.com/docs/en/permission-modes"><b>Permission modes</b><span>证明 Web 可选模式与 bypass 限制</span><em>OFFICIAL ↗</em></a>
+        <a class="source-card" href="https://code.claude.com/docs/en/cli-usage"><b>CLI reference</b><span>证明公开的 Teleport 命令入口</span><em>OFFICIAL ↗</em></a>
+        <a class="source-card" href="https://code.claude.com/docs/en/changelog"><b>Claude Code changelog</b><span>证明 2.1.223、2.1.243 与 2.1.247 的版本边界</span><em>OFFICIAL ↗</em></a>
+        <a class="source-card" href="https://code.claude.com/docs/llms.txt"><b>官方文档索引</b><span>2026-08-27 基线记录了 202 个入口</span><em>OFFICIAL ↗</em></a>
+      </div>
+
+      <div class="repro">
+        <div><b>安全准备</b><p>使用专用测试账号、一次性仓库和无敏感信息的分支。记录版本与哈希，不记录完整 session 标识。</p></div>
+        <div><b>建立云端状态</b><p>让测试云会话提交并 push 一处可识别改动，记下分支头和一条公开测试消息。</p></div>
+        <div><b>完成接力</b><p>在同仓库的干净 checkout 运行 Teleport，核对分支、提交头与完整对话。</p></div>
+        <div><b>证明已经分叉</b><p>本地发送一条测试消息，再回 Web 查看原云会话。它不应出现这条本地消息。</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>CLOUD-01 · documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

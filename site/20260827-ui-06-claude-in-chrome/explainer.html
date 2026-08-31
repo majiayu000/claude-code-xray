@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="UI-06">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>UI-06 · Claude in Chrome 的连接与页面动作</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #e9f0ef;
+      --muted: #9fb0b2;
+      --night: #0c1519;
+      --panel: #111f24;
+      --panel-2: #16292f;
+      --line: #35505a;
+      --cyan: #57e1d4;
+      --orange: #ff7a3d;
+      --cream: #f4e8ca;
+      --red: #ff6b64;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--night); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(87, 225, 212, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(87, 225, 212, .035) 1px, transparent 1px),
+        radial-gradient(circle at 84% 12%, rgba(255, 122, 61, .11), transparent 28rem),
+        var(--night);
+      background-size: 34px 34px, 34px 34px, auto, auto;
+      font-family: "Noto Sans CJK SC", "PingFang SC", sans-serif;
+      line-height: 1.72;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: var(--cyan); text-decoration-thickness: .08em; text-underline-offset: .2em; }
+    a:hover { color: var(--cream); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--orange);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    code {
+      padding: .08em .38em;
+      border: 1px solid rgba(87, 225, 212, .24);
+      border-radius: 3px;
+      color: var(--cream);
+      background: #071014;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .88em;
+    }
+
+    .topbar {
+      position: sticky;
+      z-index: 10;
+      top: 0;
+      border-bottom: 1px solid var(--line);
+      background: rgba(8, 17, 21, .94);
+      backdrop-filter: blur(12px);
+    }
+
+    .topbar-inner {
+      width: min(calc(100% - 34px), var(--max));
+      min-height: 58px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .tab-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-bottom-color: var(--orange);
+      background: var(--panel);
+      color: var(--cream);
+      font-weight: 800;
+      letter-spacing: .08em;
+      white-space: nowrap;
+    }
+
+    .tab-mark::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--orange);
+      content: "";
+      box-shadow: 13px 0 0 var(--cyan);
+      margin-right: 13px;
+    }
+
+    .topnav {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: none;
+      font-size: .88rem;
+    }
+
+    .topnav::-webkit-scrollbar { display: none; }
+    .topnav a { color: var(--muted); text-decoration: none; }
+    .topnav a:hover { color: var(--ink); }
+
+    main { overflow: hidden; }
+    .wrap { width: min(calc(100% - 34px), var(--max)); margin: 0 auto; }
+
+    .hero {
+      min-height: calc(100svh - 58px);
+      padding: clamp(44px, 8vw, 102px) 0 54px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(260px, .55fr);
+      gap: clamp(34px, 7vw, 92px);
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 24px;
+      color: var(--cyan);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before { width: 44px; height: 2px; background: var(--cyan); content: ""; }
+
+    h1, h2, h3 {
+      margin-top: 0;
+      font-family: "Noto Serif CJK SC", "Songti SC", STSong, serif;
+      text-wrap: balance;
+    }
+
+    h1 {
+      max-width: 13ch;
+      margin-bottom: 24px;
+      color: var(--cream);
+      font-size: clamp(3rem, 7.2vw, 6.9rem);
+      line-height: .98;
+      letter-spacing: -.055em;
+    }
+
+    .lead {
+      max-width: 35em;
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(1.14rem, 2vw, 1.55rem);
+      line-height: 1.62;
+    }
+
+    .lead strong { color: var(--orange); font-weight: 800; }
+
+    .status-stack { position: relative; }
+    .status-stack::before {
+      position: absolute;
+      inset: -18px 18px 18px -18px;
+      border: 1px dashed rgba(87, 225, 212, .27);
+      content: "";
+      pointer-events: none;
+    }
+
+    .status-card {
+      position: relative;
+      padding: 27px;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, var(--panel-2), var(--panel));
+      box-shadow: 12px 12px 0 #071014;
+    }
+
+    .status-card p { margin: 0; }
+    .status-label { color: var(--muted); font-size: .78rem; letter-spacing: .12em; }
+    .status-value { color: var(--orange); font: 800 1.42rem/1.3 "SFMono-Regular", Consolas, monospace; }
+    .status-rule { height: 1px; margin: 19px 0; background: var(--line); }
+    .version { color: var(--cream); font-weight: 800; }
+    .status-note { margin-top: 11px !important; color: var(--muted); font-size: .9rem; }
+
+    .hero-signal {
+      grid-column: 1 / -1;
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+      background: #081115;
+    }
+
+    .signal-cell {
+      position: relative;
+      min-height: 86px;
+      padding: 18px 19px;
+      border-right: 1px solid var(--line);
+    }
+    .signal-cell:last-child { border-right: 0; }
+    .signal-cell::after {
+      position: absolute;
+      top: 50%; right: -7px;
+      z-index: 1;
+      width: 12px; height: 12px;
+      border: 2px solid var(--night);
+      border-radius: 50%;
+      background: var(--cyan);
+      content: "";
+      transform: translateY(-50%);
+    }
+    .signal-cell:last-child::after { display: none; }
+    .signal-cell b { display: block; color: var(--cream); font-size: .92rem; }
+    .signal-cell span { color: var(--muted); font-size: .79rem; }
+
+    .section {
+      padding: clamp(72px, 9vw, 126px) 0;
+      border-top: 1px solid rgba(53, 80, 90, .58);
+    }
+
+    .section-kicker {
+      margin: 0 0 11px;
+      color: var(--orange);
+      font: 700 .76rem/1.3 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .14em;
+    }
+
+    .section h2 {
+      margin-bottom: 22px;
+      color: var(--cream);
+      font-size: clamp(2.05rem, 4.3vw, 4.25rem);
+      line-height: 1.06;
+      letter-spacing: -.035em;
+    }
+
+    .section-intro {
+      max-width: 49rem;
+      margin: 0 0 42px;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    .term-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      padding: 1px;
+      background: var(--line);
+    }
+
+    .term {
+      min-height: 210px;
+      padding: 24px;
+      background: var(--panel);
+    }
+    .term-num { color: var(--cyan); font: 700 .76rem/1 monospace; }
+    .term h3 { margin: 34px 0 10px; color: var(--cream); font-size: 1.28rem; }
+    .term p { margin: 0; color: var(--muted); font-size: .93rem; }
+
+    .sequence-board {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 42px;
+    }
+
+    .sequence-index {
+      align-self: start;
+      position: sticky;
+      top: 84px;
+      padding: 20px;
+      border-left: 3px solid var(--orange);
+      background: rgba(17, 31, 36, .72);
+      color: var(--muted);
+    }
+    .sequence-index strong { display: block; margin-bottom: 7px; color: var(--cream); }
+
+    .steps { counter-reset: path; }
+    .step {
+      position: relative;
+      padding: 0 0 46px 72px;
+      counter-increment: path;
+    }
+    .step::before {
+      position: absolute;
+      left: 0; top: 0;
+      width: 44px; height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      background: var(--night);
+      content: counter(path, decimal-leading-zero);
+      font: 700 .75rem/1 monospace;
+    }
+    .step::after {
+      position: absolute;
+      left: 21px; top: 45px; bottom: 0;
+      width: 1px;
+      background: linear-gradient(var(--cyan), var(--line));
+      content: "";
+    }
+    .step:last-child::after { display: none; }
+    .step h3 { margin-bottom: 8px; color: var(--cream); font-size: 1.38rem; }
+    .step p { max-width: 46rem; margin: 0; color: var(--muted); }
+    .evidence-tag {
+      display: inline-grid;
+      width: 24px; height: 24px;
+      margin-right: 7px;
+      place-items: center;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      color: var(--cyan);
+      font: 800 .72rem/1 monospace;
+      vertical-align: .08em;
+    }
+    .evidence-tag.i { color: var(--orange); }
+    .evidence-tag.l { color: var(--cream); }
+    .evidence-tag.r { color: var(--red); }
+
+    .flow-shell {
+      padding: clamp(22px, 4vw, 44px);
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(90deg, rgba(87, 225, 212, .025) 50%, transparent 50%),
+        var(--panel);
+      background-size: 18px 18px;
+    }
+
+    .flow-row {
+      display: grid;
+      grid-template-columns: 1fr 48px 1fr 48px 1fr 48px 1fr;
+      align-items: stretch;
+    }
+    .flow-node {
+      min-height: 145px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      background: rgba(8, 17, 21, .92);
+    }
+    .flow-node b { display: block; margin-bottom: 13px; color: var(--cream); }
+    .flow-node span { color: var(--muted); font-size: .88rem; }
+    .flow-arrow { display: grid; place-items: center; color: var(--orange); font: 800 1.4rem monospace; }
+
+    .return-row {
+      margin-top: 26px;
+      padding-top: 24px;
+      border-top: 1px dashed var(--line);
+      color: var(--muted);
+    }
+    .return-row b { color: var(--cyan); }
+
+    .limits-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .limit-card {
+      padding: 26px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .limit-card.stop { border-color: rgba(255, 107, 100, .6); }
+    .limit-card h3 { margin-bottom: 12px; color: var(--cream); font-size: 1.3rem; }
+    .limit-card p { margin: 0; color: var(--muted); }
+    .limit-card ul { margin: 16px 0 0; padding-left: 1.15rem; color: var(--muted); }
+    .limit-card li + li { margin-top: 7px; }
+
+    .stop-levels {
+      margin-top: 34px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 3px solid var(--orange);
+    }
+    .stop-level {
+      min-height: 190px;
+      padding: 22px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: #0a1317;
+    }
+    .stop-level:first-child { border-left: 1px solid var(--line); }
+    .stop-level small { color: var(--orange); font-family: monospace; }
+    .stop-level h3 { margin: 16px 0 9px; color: var(--cream); font-size: 1.18rem; }
+    .stop-level p { margin: 0; color: var(--muted); font-size: .91rem; }
+
+    .experiment-panel {
+      display: grid;
+      grid-template-columns: minmax(220px, .65fr) minmax(0, 1.35fr);
+      gap: 1px;
+      padding: 1px;
+      background: var(--line);
+    }
+    .experiment-status, .experiment-notes { padding: 30px; background: var(--panel); }
+    .experiment-status .big { color: var(--red); font: 800 clamp(2rem, 5vw, 4.5rem)/1 monospace; }
+    .experiment-status p, .experiment-notes p { color: var(--muted); }
+    .experiment-notes ul { padding-left: 1.2rem; color: var(--muted); }
+
+    .version-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--line);
+    }
+    .version-item { min-height: 170px; padding: 23px; border-right: 1px solid var(--line); background: var(--panel); }
+    .version-item:last-child { border-right: 0; }
+    .version-item b { color: var(--orange); font: 800 1.18rem monospace; }
+    .version-item p { margin: 15px 0 0; color: var(--muted); font-size: .9rem; }
+
+    details {
+      border-top: 1px solid var(--line);
+      background: rgba(17, 31, 36, .58);
+    }
+    details:last-of-type { border-bottom: 1px solid var(--line); }
+    summary {
+      padding: 19px 18px;
+      cursor: pointer;
+      color: var(--cream);
+      font-weight: 750;
+    }
+    details p { max-width: 52rem; margin: 0; padding: 0 18px 22px 42px; color: var(--muted); }
+
+    .unknown-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      counter-reset: unknown;
+    }
+    .unknown-list li {
+      position: relative;
+      min-height: 90px;
+      padding: 22px 20px 22px 84px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      counter-increment: unknown;
+    }
+    .unknown-list li:last-child { border-bottom: 1px solid var(--line); }
+    .unknown-list li::before {
+      position: absolute;
+      left: 18px; top: 18px;
+      color: var(--orange);
+      content: "?" counter(unknown);
+      font: 800 1.1rem monospace;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 42px;
+    }
+    .legend-item { padding: 18px; border: 1px solid var(--line); background: var(--panel); }
+    .legend-item b { display: block; margin-bottom: 6px; color: var(--cream); }
+    .legend-item span { color: var(--muted); font-size: .86rem; }
+
+    .source-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .source-link {
+      min-height: 124px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      text-decoration: none;
+    }
+    .source-link:hover { border-color: var(--cyan); background: var(--panel-2); }
+    .source-link b { display: block; color: var(--cyan); }
+    .source-link span { display: block; margin-top: 8px; color: var(--muted); font-size: .9rem; }
+
+    .footnote {
+      margin-top: 48px;
+      padding: 24px 0 8px;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    @media (max-width: 900px) {
+      .topnav a:not(.index-link) { display: none; }
+      .hero { grid-template-columns: 1fr; }
+      .status-stack { max-width: 480px; }
+      .hero-signal { grid-template-columns: repeat(2, 1fr); }
+      .signal-cell:nth-child(2) { border-right: 0; }
+      .signal-cell:nth-child(2)::after { display: none; }
+      .signal-cell:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .term-grid { grid-template-columns: repeat(2, 1fr); }
+      .sequence-board { grid-template-columns: 1fr; }
+      .sequence-index { position: static; }
+      .flow-row { grid-template-columns: 1fr; }
+      .flow-arrow { min-height: 42px; transform: rotate(90deg); }
+      .limits-grid, .source-list { grid-template-columns: 1fr; }
+      .version-strip { grid-template-columns: repeat(2, 1fr); }
+      .version-item:nth-child(2) { border-right: 0; }
+      .version-item:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 560px) {
+      .topbar-inner, .wrap { width: min(calc(100% - 26px), var(--max)); }
+      .topbar-inner { gap: 9px; }
+      .tab-mark { padding: 6px 9px; font-size: .78rem; }
+      .topnav { font-size: .79rem; }
+      .hero { min-height: auto; padding-top: 60px; }
+      h1 { max-width: 10ch; font-size: clamp(3rem, 16vw, 4.7rem); }
+      .hero-signal, .term-grid, .stop-levels, .experiment-panel, .version-strip, .legend { grid-template-columns: 1fr; }
+      .signal-cell { border-right: 0; border-bottom: 1px solid var(--line); }
+      .signal-cell::after { display: none; }
+      .signal-cell:last-child { border-bottom: 0; }
+      .term { min-height: auto; }
+      .term h3 { margin-top: 20px; }
+      .step { padding-left: 60px; }
+      .stop-level { border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+      .version-item { border-right: 0; border-bottom: 1px solid var(--line); }
+      .version-item:last-child { border-bottom: 0; }
+      .footnote { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Claude in Chrome 的连接与页面动作。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ui-06-claude-in-chrome/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="UI-06 · Claude in Chrome 的连接与页面动作">
+  <meta property="og:description" content="Claude Code X-Ray：Claude in Chrome 的连接与页面动作。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ui-06-claude-in-chrome/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="UI-06 · Claude in Chrome 的连接与页面动作">
+  <meta name="twitter:description" content="Claude Code X-Ray：Claude in Chrome 的连接与页面动作。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>UI-06</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <span class="tab-mark">UI-06</span>
+      <nav class="topnav" aria-label="页内导航">
+        <a href="#sequence">一次连接</a>
+        <a href="#limits">权限与停止</a>
+        <a href="#unknowns">未知项</a>
+        <a class="index-link" href="../index.html">返回总索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="wrap hero" data-xray-section="answer" aria-labelledby="hero-title">
+      <div>
+        <p class="eyebrow">Claude in Chrome · connection trace</p>
+        <h1 id="hero-title">页面接通以后，Claude 才能看和动</h1>
+        <p class="lead">一次 Chrome 任务有一条很短的主线。会话先连上扩展，扩展把<strong>可见标签页</strong>交给浏览器工具。读取结果回到会话，点击、输入和导航经过当时版本采用的提示路径后落到页面。拒绝、掉线或禁用 Chrome 都会截断这条浏览器连接。</p>
+      </div>
+
+      <aside class="status-stack" aria-label="研究状态">
+        <div class="status-card">
+          <p class="status-label">PAGE STATUS</p>
+          <p class="status-value">documented</p>
+          <div class="status-rule"></div>
+          <p class="version">Claude Code 2.1.247</p>
+          <p class="status-note">仅限通过 <code>/login</code> 登录的直接 Anthropic 付费计划。API key、<code>setup-token</code> 和第三方模型提供商不能启用这项集成。</p>
+          <p class="status-note">有官方契约与本机静态观察，没有付费浏览器动作实验。</p>
+        </div>
+      </aside>
+
+      <div class="hero-signal" aria-label="主状态链">
+        <div class="signal-cell"><b>未接入</b><span>会话没有浏览器工具</span></div>
+        <div class="signal-cell"><b>已连接</b><span>扩展与浏览器已选定</span></div>
+        <div class="signal-cell"><b>页面在用</b><span>读状态或执行获准动作</span></div>
+        <div class="signal-cell"><b>已停止</b><span>拒绝、禁用、退出或掉线</span></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="wrap">
+        <p class="section-kicker">01 / FOUR ACTORS</p>
+        <h2 id="terms-title">先认清四个角色</h2>
+        <p class="section-intro">页面动作没有凭空发生。Claude Code 负责会话与工具调用，扩展站在浏览器里，native messaging host 负责让两边找到彼此，可见标签页承接实际读写。</p>
+        <div class="term-grid">
+          <article class="term"><span class="term-num">A1</span><h3>用户</h3><p>启用连接、选浏览器、给出任务，随后批准、拒绝或手动接管登录与 CAPTCHA。</p></article>
+          <article class="term"><span class="term-num">A2</span><h3>Claude Code 会话</h3><p>加载 <code>claude-in-chrome</code> 浏览器工具，把页面结果带回当前对话，并把下一步动作送出去。</p></article>
+          <article class="term"><span class="term-num">A3</span><h3>扩展与主机</h3><p>扩展拥有页面读取和浏览器控制能力。首次连接还会安装 native messaging host 配置，让 CLI 找到扩展。</p></article>
+          <article class="term"><span class="term-num">A4</span><h3>标签页与站点</h3><p>任务在可见窗口里执行，并沿用浏览器已有登录态。站点许可和组织策略决定它能走到哪里。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="sequence" class="section" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="wrap">
+        <p class="section-kicker">02 / ONE BROWSER TASK</p>
+        <h2 id="sequence-title">一次动作按这个顺序走</h2>
+        <div class="sequence-board">
+          <aside class="sequence-index"><strong>唯一状态转换</strong>会话从没有页面能力，变成可读取和可操作；权限拒绝、连接掉线或会话禁用 Chrome 后，浏览器工具停止承接动作。</aside>
+          <div class="steps">
+            <article class="step"><h3><span class="evidence-tag">O</span>会话请求 Chrome</h3><p>用户用 <code>--chrome</code> 启动，或在现有会话运行 <code>/chrome</code>。第一次启用会出现一次性说明，并安装浏览器读取的 native messaging host 配置。</p></article>
+            <article class="step"><h3><span class="evidence-tag">O</span>扩展与浏览器就绪</h3><p><code>/chrome</code> 显示 Enabled 和 Installed 才算工作。连接多个浏览器时，用户要选一个；Claude Code 会继续用这次选择，不会因为另一浏览器后来接入就自行切换。</p></article>
+            <article class="step"><h3><span class="evidence-tag">O</span>打开任务标签页</h3><p>Claude Code 在可见窗口打开新标签，并把自己开的标签收进会话标签组。页面沿用该浏览器的登录状态，用户能实时看到动作。</p></article>
+            <article class="step"><h3><span class="evidence-tag">O</span>读取页面状态</h3><p>浏览器工具可取页面文字与结构，也能读控制台、网络请求和截图。它还会沿用浏览器已有的登录状态，因此连接前要先确认当前标签页适合交给任务使用。</p></article>
+            <article class="step"><h3><span class="evidence-tag">O</span>提示路径决定下一步</h3><p>现行文档把 Plan Mode 的纯读取列为免提示，把点击、输入、导航、标签管理和录制列为要审批。2.1.247 有一项版本例外。关闭遥测的会话当时使用 Chrome 扩展自己的提示，不能把每次浏览器动作都写成先经过 Claude Code 权限检查。2.1.251 才统一到 Claude Code 权限检查。</p></article>
+            <article class="step"><h3><span class="evidence-tag">O</span>页面改变或任务暂停</h3><p>获准后，扩展把点击、输入或导航落到页面。碰到登录页与 CAPTCHA，Claude 会停下，请用户手动完成。拒绝则阻止当前动作。</p></article>
+            <article class="step"><h3><span class="evidence-tag i">I</span>停止以后不再发动作</h3><p>用户可拒绝当前动作或撤销站点许可。另开会话时，<code>--no-chrome</code> 可让该会话不加载集成。连接休眠要用 <code>/chrome</code> 重连。官方没有说明撤权与已发动作之间的竞态，逐调用停止点仍是未知项。</p></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="wrap">
+        <p class="section-kicker">03 / DATA PATH</p>
+        <h2 id="flow-title">页面内容怎样进出会话</h2>
+        <p class="section-intro">官方文档公开了工具入口、native messaging host、扩展和页面能力。下面的四段关系有官方事实支撑，把它们画成逐调用传输链仍含研究者推断。</p>
+        <div class="flow-shell">
+          <div class="flow-row" aria-label="浏览器动作数据流">
+            <div class="flow-node"><b>Claude Code 会话</b><span>保留用户任务，决定何时请求浏览器工具，并接住页面返回结果。</span></div>
+            <div class="flow-arrow" aria-hidden="true">→</div>
+            <div class="flow-node"><b>浏览器工具</b><span><code>claude-in-chrome</code> 提供读取、点击、输入、导航、标签和截图等调用。</span></div>
+            <div class="flow-arrow" aria-hidden="true">→</div>
+            <div class="flow-node"><b>主机与扩展</b><span>native messaging host 让 CLI 找到扩展，扩展使用浏览器权限触达标签页。</span></div>
+            <div class="flow-arrow" aria-hidden="true">→</div>
+            <div class="flow-node"><b>可见标签页</b><span>DOM、文字、控制台、网络和截图可被读取，获准动作会改动页面。</span></div>
+          </div>
+          <p class="return-row"><b>返回方向</b> 页面文字、结构、截图和调试信息回到当前对话。上传文件走相反方向，Claude Code 先读文件，再把内容交给浏览器。Read 规则、10 MB 总量和多硬链接检查都可能把上传拦住。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="limits" class="section" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="wrap">
+        <p class="section-kicker">04 / GATES &amp; STOPS</p>
+        <h2 id="limits-title">动作提示有版本差异，站点门一直在</h2>
+        <p class="section-intro">通用 Claude Code 审批由 SAFE-01 解释。本页只交代 Chrome 动作怎样进入提示，以及扩展能不能进入当前站点。2.1.247 的关闭遥测会话走扩展提示。到 2.1.251，浏览器动作才全部经过 Claude Code 权限检查。</p>
+        <div class="limits-grid">
+          <article class="limit-card"><h3>账号与认证门</h3><p>用户要有 Pro、Max、Team 或 Enterprise 这类直接 Anthropic 计划，并通过 <code>/login</code> 登录。API key、<code>setup-token</code> 长期令牌和第三方模型提供商不支持这项集成。</p></article>
+          <article class="limit-card"><h3>现行工具动作门</h3><p>现行文档允许 Plan Mode 的纯读取直接运行。点击、输入、导航和标签管理会改变浏览器状态，需要用户批准。带改状态参数的读取调用也会进入审批。</p></article>
+          <article class="limit-card"><h3>2.1.247 的例外</h3><p>目标版本关闭遥测以后，浏览器动作使用 Chrome 扩展自己的提示。页面无法据此断言这些动作先经过 Claude Code 权限检查。2.1.251 才取消这条分支。</p></article>
+          <article class="limit-card"><h3>扩展站点门</h3><p>站点许可来自 Chrome 扩展。扩展设置决定 Claude 能在哪些站点浏览、点击和输入。动作提示出现时，用户也可以把当前站点的全部动作放行到本次会话结束。</p></article>
+          <article class="limit-card stop"><h3>人工接管点</h3><p>登录页面、CAPTCHA 和 JavaScript 模态框会让自动动作停下。用户完成登录、解开验证或关掉对话框以后，才能让 Claude 继续。</p></article>
+          <article class="limit-card stop"><h3>连接故障点</h3><p>扩展的 service worker 长时间闲置后可能休眠，浏览器连接随之中断。此时页面动作不会继续，要回到 <code>/chrome</code> 选择重连。</p></article>
+        </div>
+
+        <div class="stop-levels" aria-label="三个停止层级">
+          <article class="stop-level"><small>STOP 01</small><h3>拒绝这一步</h3><p>选择拒绝会阻止当前站点动作。Claude 可以换安全做法或跳过任务，许可不会因此自动扩大。</p></article>
+          <article class="stop-level"><small>STOP 02</small><h3>收回这个站点</h3><p>Chrome 扩展设置控制 Claude 可以浏览、点击和输入的站点。收回许可后，后续访问会再次停在这道站点门前。</p></article>
+          <article class="stop-level"><small>STOP 03</small><h3>禁用新会话的连接</h3><p>以 <code>--no-chrome</code> 启动时，该会话不加载集成。官方没有给出已连接会话中立即卸载浏览器工具的单独命令。扩展 service worker 休眠属于意外掉线，恢复要回到 <code>/chrome</code> 选择重连。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="wrap">
+        <p class="section-kicker">05 / SAFE OBSERVATION</p>
+        <h2 id="experiment-title">本轮没有冒充一次真实连接</h2>
+        <div class="experiment-panel">
+          <div class="experiment-status"><span class="big">R = 0</span><p>验证这项功能要启动付费 Claude 会话，并让扩展读写测试页。本任务禁止这样做，所以状态保持 documented。</p></div>
+          <div class="experiment-notes">
+            <p><span class="evidence-tag l">L</span>隔离环境的 <code>PATH</code> 没有目标 <code>claude</code>。另一个 Matrix runtime 报告 2.1.126，哈希也不符，已排除，不能拿来证明 2.1.247 的实现。</p>
+            <p><span class="evidence-tag l">L</span>Chrome 与 Edge 的标准 native messaging host 位置都没有目标清单。这只说明本轮隔离入口未完成首次连接，不能证明扩展从未安装。</p>
+            <p><span class="evidence-tag">O</span>官方 Chrome 文档、CLI reference 和 changelog 互相核对了动作、权限、掉线与版本差异。没有读取 Cookie、浏览历史、扩展存储或 transcript。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="wrap">
+        <p class="section-kicker">06 / IMPLEMENTATION &amp; VERSIONS</p>
+        <h2 id="implementation-title">公开到主机配置为止</h2>
+        <p class="section-intro">官方能确认首次连接会写 native messaging host 配置，浏览器工具挂在 <code>claude-in-chrome</code> 入口下。消息 schema、认证材料和重连算法没有公开，页面不会把推断写成协议。</p>
+
+        <div class="version-strip" aria-label="版本差异">
+          <article class="version-item"><b>2.1.198</b><p>官方 changelog 记录 Claude in Chrome 一般可用。</p></article>
+          <article class="version-item"><b>2.1.211</b><p>修复 CLI 与远程会话上传文件，也修复 Chrome 未运行时的启动挂起。</p></article>
+          <article class="version-item"><b>2.1.216</b><p>修复 OAuth scope 不足造成的 Chrome 重连循环。</p></article>
+          <article class="version-item"><b>2.1.247 → 2.1.251</b><p>本页基线仍有关闭遥测时改走扩展提示的分支。2.1.251 起，浏览器动作一律经过 Claude Code 权限检查。</p></article>
+        </div>
+
+        <div style="margin-top:34px">
+          <details open><summary>连接没有建立时先查什么</summary><p>确认扩展已安装并启用，浏览器正在运行，<code>/chrome</code> 显示 Installed。首次安装主机配置后，Chrome 可能要重启才能读取。组织 IP allowlist 也可能挡住官方桥接域名。</p></details>
+          <details><summary>连接建立后为什么突然没反应</summary><p>JavaScript 模态框会阻塞浏览器事件，扩展 service worker 长时间闲置也会休眠。前者要手动关掉对话框，后者用 <code>/chrome</code> 重连。</p></details>
+          <details><summary>会话结束后标签页会怎样</summary><p><code>/clear</code> 通常关闭会话标签组。切换会话或退出时，只装着空白新标签的组才会被关闭，用户还在看的页面可能保留。页面保留不代表浏览器工具仍在工作。</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section id="unknowns" class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="wrap">
+        <p class="section-kicker">07 / OPEN QUESTIONS</p>
+        <h2 id="unknowns-title">官方没有讲到的地方</h2>
+        <ul class="unknown-list">
+          <li>native messaging host 与扩展之间的消息 schema、认证材料寿命和重连退避算法没有公开。</li>
+          <li>Claude 怎样在 DOM、纯文本和截图之间选择，以及截图频率怎样变化，官方没有说明。</li>
+          <li>用户撤销许可、禁用扩展或关闭浏览器时，已经发出的页面动作会不会完成，公开契约没有原子性保证。</li>
+          <li>公开 Claude Code 文档没有列出哪些站点会触发动作提示，也没有说明站点判断规则。</li>
+          <li>浏览器工具常驻会增加上下文占用，官方没有给出可跨任务复用的数字。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="wrap">
+        <p class="section-kicker">08 / EVIDENCE MAP</p>
+        <h2 id="sources-title">证据身份与复现入口</h2>
+        <div class="legend" aria-label="证据图例">
+          <div class="legend-item"><b><span class="evidence-tag">O</span>官方契约</b><span>Claude Code 官方文档和官方仓库</span></div>
+          <div class="legend-item"><b><span class="evidence-tag l">L</span>本机静态</b><span>版本、help、安装入口和匿名结构</span></div>
+          <div class="legend-item"><b><span class="evidence-tag r">R</span>真实实验</b><span>本页缺席，没有启动付费浏览器会话</span></div>
+          <div class="legend-item"><b><span class="evidence-tag i">I</span>研究推断</b><span>只用于串起公开角色，不冒充协议</span></div>
+        </div>
+
+        <div class="source-list">
+          <a class="source-link" href="https://code.claude.com/docs/en/chrome"><b>官方 Chrome 集成文档</b><span>证明连接、页面动作、Plan Mode、标签组与重连</span></a>
+          <a class="source-link" href="https://code.claude.com/docs/en/cli-usage"><b>官方 CLI reference</b><span>证明 <code>--chrome</code> 与会话级 <code>--no-chrome</code></span></a>
+          <a class="source-link" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><b>官方 Claude Code changelog</b><span>证明 2.1.198、2.1.211、2.1.216 与 2.1.251 的版本节点</span></a>
+          <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+        </div>
+
+        <div class="footnote">
+          <span>UI-06 · 状态 documented · Claude Code 2.1.247</span>
+          <a href="../index.html">返回总索引</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

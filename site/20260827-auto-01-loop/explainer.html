@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="AUTO-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>AUTO-01 /loop 会话内定时器</title>
+  <style>
+    :root {
+      --ink: #17232c;
+      --paper: #f3efe4;
+      --paper-deep: #e5ddcb;
+      --signal: #df5b2a;
+      --signal-dark: #9e3413;
+      --blue: #23607a;
+      --green: #1d6951;
+      --muted: #667076;
+      --rule: #9ea5a2;
+      --shadow: 8px 8px 0 rgba(23, 35, 44, .12);
+      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+      --serif: "Iowan Old Style", Baskerville, "Songti SC", "Noto Serif CJK SC", serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image: repeating-linear-gradient(0deg, transparent 0 27px, rgba(23, 35, 44, .035) 27px 28px);
+      font-family: var(--serif);
+      line-height: 1.72;
+    }
+    a { color: var(--blue); text-underline-offset: .18em; }
+    a:hover { color: var(--signal-dark); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--signal);
+      outline-offset: 4px;
+    }
+    code, .mono { font-family: var(--mono); }
+    code {
+      padding: .12em .38em;
+      border: 1px solid rgba(23, 35, 44, .22);
+      background: rgba(255, 255, 255, .55);
+      font-size: .88em;
+    }
+    .topbar {
+      position: sticky;
+      z-index: 10;
+      top: 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .7rem clamp(1rem, 4vw, 4rem);
+      border-bottom: 2px solid var(--ink);
+      background: rgba(243, 239, 228, .94);
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .04em;
+    }
+    .topbar nav { display: flex; flex-wrap: wrap; gap: .9rem; }
+    .status { color: var(--green); font-weight: 800; }
+    main { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; }
+    section { scroll-margin-top: 5rem; }
+
+    .hero {
+      min-height: calc(100vh - 42px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(270px, .82fr);
+      align-items: center;
+      gap: clamp(2rem, 7vw, 7rem);
+      padding: clamp(3rem, 9vh, 7rem) 0;
+    }
+    .eyebrow {
+      margin: 0 0 1.2rem;
+      font: 800 .82rem/1.4 var(--mono);
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: var(--signal-dark);
+    }
+    h1, h2, h3 { line-height: 1.12; }
+    h1 {
+      max-width: 12ch;
+      margin: 0;
+      font-size: clamp(3.2rem, 8.4vw, 7.8rem);
+      font-weight: 800;
+      letter-spacing: -.065em;
+    }
+    h1 span { color: var(--signal); }
+    .lede {
+      max-width: 40rem;
+      margin: 2rem 0 0;
+      font-size: clamp(1.14rem, 2.1vw, 1.55rem);
+      line-height: 1.6;
+    }
+    .lede strong { text-decoration: underline 5px rgba(223, 91, 42, .35); text-underline-offset: .1em; }
+    .clock {
+      position: relative;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 3px solid var(--ink);
+      border-radius: 50%;
+      background: var(--paper-deep);
+      box-shadow: var(--shadow);
+    }
+    .clock::before, .clock::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 50%;
+      width: 4px;
+      transform-origin: 50% 100%;
+      background: var(--ink);
+    }
+    .clock::before { height: 31%; transform: translateX(-50%) rotate(52deg); }
+    .clock::after { height: 39%; transform: translateX(-50%) rotate(138deg); background: var(--signal); }
+    .clock-face {
+      width: 58%;
+      padding: 1.15rem;
+      border: 2px solid var(--ink);
+      background: var(--paper);
+      text-align: center;
+      transform: rotate(-5deg);
+      box-shadow: 5px 5px 0 rgba(23, 35, 44, .16);
+      font: 800 clamp(.75rem, 1.5vw, 1rem)/1.5 var(--mono);
+    }
+    .clock-face b { display: block; color: var(--signal-dark); font-size: 1.35em; }
+
+    .sheet {
+      margin: 0 0 4rem;
+      padding: clamp(1.3rem, 4vw, 3rem);
+      border: 2px solid var(--ink);
+      background: rgba(250, 247, 238, .9);
+      box-shadow: var(--shadow);
+    }
+    .section-head {
+      display: grid;
+      grid-template-columns: 5rem minmax(0, 1fr);
+      gap: 1rem;
+      align-items: baseline;
+      padding-bottom: 1.1rem;
+      border-bottom: 2px solid var(--ink);
+    }
+    .section-no { font: 800 .78rem/1 var(--mono); color: var(--signal-dark); }
+    h2 { margin: 0; font-size: clamp(1.8rem, 4vw, 3.25rem); letter-spacing: -.035em; }
+    h3 { margin: 0 0 .6rem; font-size: 1.2rem; }
+    .body-copy { max-width: 72ch; margin: 1.5rem 0 0 6rem; }
+    .grid-2, .grid-3 { display: grid; gap: 1rem; margin-top: 1.5rem; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .note {
+      padding: 1.1rem;
+      border: 1px solid var(--ink);
+      border-top: 5px solid var(--blue);
+      background: var(--paper);
+    }
+    .note p { margin: .35rem 0 0; }
+    .badge {
+      display: inline-block;
+      min-width: 1.8rem;
+      margin-right: .38rem;
+      padding: .12rem .38rem;
+      border: 1px solid currentColor;
+      font: 800 .72rem/1.25 var(--mono);
+      text-align: center;
+    }
+    .o { color: #8f2e10; }
+    .l { color: #125d78; }
+    .r { color: #5a6370; }
+    .i { color: #6c5314; }
+
+    .timeline { margin: 2rem 0 0; padding: 0; list-style: none; counter-reset: tick; }
+    .timeline li {
+      counter-increment: tick;
+      display: grid;
+      grid-template-columns: 4.8rem minmax(0, 1fr);
+      min-height: 7.5rem;
+    }
+    .timeline li::before {
+      content: counter(tick, decimal-leading-zero);
+      padding-top: .15rem;
+      border-right: 3px solid var(--ink);
+      font: 800 1rem/1 var(--mono);
+      color: var(--signal-dark);
+    }
+    .timeline .event { position: relative; padding: 0 0 2rem 1.7rem; }
+    .timeline .event::before {
+      content: "";
+      position: absolute;
+      left: -8px;
+      top: .1rem;
+      width: 13px;
+      height: 13px;
+      border: 2px solid var(--paper);
+      border-radius: 50%;
+      background: var(--signal);
+      box-shadow: 0 0 0 2px var(--ink);
+    }
+    .timeline p { max-width: 68ch; margin: .4rem 0 0; }
+
+    .rail {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      margin-top: 2rem;
+      border: 2px solid var(--ink);
+      background: var(--paper);
+    }
+    .rail > div { position: relative; min-height: 9rem; padding: 1rem; border-right: 1px solid var(--rule); }
+    .rail > div:last-child { border-right: 0; }
+    .rail b { display: block; min-height: 2.8rem; font: 800 .82rem/1.35 var(--mono); }
+    .rail p { margin: .45rem 0 0; font-size: .9rem; line-height: 1.45; }
+    .rail .wait { background: rgba(35, 96, 122, .1); }
+    .rail .fire { background: rgba(223, 91, 42, .13); }
+    .rail .stop { background: rgba(29, 105, 81, .12); }
+
+    table { width: 100%; margin-top: 1.5rem; border-collapse: collapse; font-size: .96rem; }
+    th, td { padding: .75rem; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+    th { border-bottom: 2px solid var(--ink); font-family: var(--mono); font-size: .78rem; }
+    details { margin-top: 1rem; border: 1px solid var(--ink); background: var(--paper); }
+    summary { cursor: pointer; padding: .9rem 1rem; font-family: var(--mono); font-weight: 800; }
+    details > div { padding: 0 1rem 1rem; }
+    .callout {
+      margin-top: 1.5rem;
+      padding: 1rem 1.2rem;
+      border-left: 8px solid var(--signal);
+      background: var(--paper-deep);
+    }
+    .source-list { padding-left: 1.15rem; }
+    .source-list li { margin: .8rem 0; }
+    footer { padding: 1rem 0 4rem; font: .78rem/1.6 var(--mono); color: var(--muted); }
+    .footer-inner { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; }
+
+    @media (max-width: 820px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .clock { width: min(70vw, 360px); justify-self: center; }
+      .grid-3 { grid-template-columns: 1fr; }
+      .rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .rail > div:nth-child(3) { border-right: 0; }
+      .rail > div:nth-child(-n+3) { border-bottom: 1px solid var(--rule); }
+    }
+    @media (max-width: 560px) {
+      main { width: min(100% - 1rem, 1180px); }
+      .topbar { position: static; display: block; }
+      .topbar nav { margin-top: .45rem; }
+      .hero { padding: 3rem .5rem; }
+      h1 { font-size: clamp(3rem, 18vw, 5.5rem); }
+      .sheet { padding: 1.1rem; box-shadow: 4px 4px 0 rgba(23, 35, 44, .12); }
+      .section-head { grid-template-columns: 3.7rem minmax(0, 1fr); }
+      .body-copy { margin-left: 0; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .timeline li { grid-template-columns: 3.4rem minmax(0, 1fr); }
+      .timeline .event { padding-left: 1.2rem; }
+      .rail { grid-template-columns: 1fr; }
+      .rail > div { min-height: 0; border-right: 0; border-bottom: 1px solid var(--rule); }
+      .rail > div:last-child { border-bottom: 0; }
+      table { display: block; overflow-x: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：/loop 会话内定时器。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-auto-01-loop/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="AUTO-01 · /loop 会话内定时器">
+  <meta property="og:description" content="Claude Code X-Ray：/loop 会话内定时器。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-auto-01-loop/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="AUTO-01 · /loop 会话内定时器">
+  <meta name="twitter:description" content="Claude Code X-Ray：/loop 会话内定时器。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>AUTO-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div>AUTO-01 · Claude Code 2.1.247 · <span class="status">documented</span></div>
+    <nav aria-label="页内导航"><a href="#sequence">时序</a> <a href="#limits">停止</a> <a href="#sources">来源</a> <a href="../index.html">返回总索引</a></nav>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="hero-title">
+      <div>
+        <p class="eyebrow">会话内定时器 · 官方契约与本机静态核对</p>
+        <h1 id="hero-title"><span>/loop</span> 到点只排队</h1>
+        <p class="lede">活跃会话就是它的执行边界。间隔到期时，任务先进入低优先级队列。Claude 还在回答，下一轮就等到当前回合结束，不会重叠开跑，错过的多个间隔也只补一次。固定间隔任务按 ID 取消，自定节奏任务也能由 Claude 或用户停下。<strong>退出后不再触发，恢复原会话时未过期任务可能回来。</strong> <span class="badge o">O</span></p>
+      </div>
+      <div class="clock" aria-label="一枚表示会话内等待的时钟">
+        <div class="clock-face"><b>SESSION OPEN</b>到点 → 排队 → 空闲后执行</div>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head"><span class="section-no">01 / TERMS</span><h2 id="terms-title">先分清两种循环</h2></div>
+      <div class="grid-2 body-copy">
+        <article class="note">
+          <h3>固定间隔</h3>
+          <p><code>/loop 5m 检查部署</code> 会转成五字段 cron，创建后给出频率和八字符任务 ID。它一直按计划等候，直到取消、到达七天期限或会话停止触发。 <span class="badge o">O</span></p>
+        </article>
+        <article class="note">
+          <h3>自定节奏</h3>
+          <p><code>/loop 检查部署</code> 让 Claude 每轮根据观察结果选择下一次等待，范围是一分钟到一小时。结束时会显示等待多久及原因，工作做完后 Claude 可以主动停止。 <span class="badge o">O</span></p>
+        </article>
+      </div>
+      <div class="body-copy callout">
+        <strong>本页的状态转换</strong>
+        <p>当前会话接纳循环任务，等待到期后把提示变成下一回合；会话忙时延后且合并漏掉的时点，任务经取消或过期后停止，关闭进程后也不再触发。</p>
+      </div>
+      <div class="grid-2 body-copy">
+        <article class="note"><h3>任务</h3><p>保存提示、日程、是否重复及 ID 的会话级条目。一次会话最多 50 个。 <span class="badge o">O</span></p></article>
+        <article class="note"><h3>回合</h3><p>一次用户输入到 Claude 完成回复的工作段。定时提示只能在两个回合之间进入，不能在回复中途插进来。 <span class="badge o">O</span></p></article>
+      </div>
+    </section>
+
+    <section id="sequence" class="sheet" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head"><span class="section-no">02 / SEQUENCE</span><h2 id="sequence-title">一次循环怎样走完</h2></div>
+      <ol class="timeline body-copy">
+        <li><div class="event"><h3>用户交代间隔和提示</h3><p>间隔和提示都可省略。省略间隔会进入自定节奏，省略提示会使用内置维护提示，项目或用户的 <code>loop.md</code> 可以替换这个默认。 <span class="badge o">O</span></p></div></li>
+        <li><div class="event"><h3>技能解释输入</h3><p>固定间隔会换算为 cron。秒数向上取整到分钟，无法整除日程的间隔会被调到可表示的邻近值，Claude 会告诉用户最后采用什么。 <span class="badge o">O</span></p></div></li>
+        <li><div class="event"><h3>调度器登记</h3><p>固定任务由 <code>CronCreate</code> 登记。创建结果显示频率和任务 ID。自定节奏用 <code>ScheduleWakeup</code> 留下下一次唤醒。2.1.247 安装文件同时含有这些工具名和输入说明。 <span class="badge o">O</span><span class="badge l">L</span></p></div></li>
+        <li><div class="event"><h3>本机等待</h3><p>固定任务由调度器每秒检查。时间按本机时区解释，重复任务还有由任务 ID 决定的固定抖动。 <span class="badge o">O</span></p></div></li>
+        <li><div class="event"><h3>到点进入低优先级队列</h3><p>这一步只安排下一条提示。Claude 若在处理中，提示等到本回合结束。期间错过多个时点也只在空闲后触发一次。 <span class="badge o">O</span></p></div></li>
+        <li><div class="event"><h3>沿用当前会话执行</h3><p>任务能访问会话可见的本地文件和 MCP，权限提示也沿用会话规则。执行结果成为同一段对话里的下一轮内容。 <span class="badge o">O</span></p></div></li>
+        <li><div class="event"><h3>再等一次或停止</h3><p>固定间隔继续等下一时点。自定节奏会选择一分钟到一小时的下一次等待，也能判断工作已经完成并停止。某一轮既没重新安排，也没明确停止，Claude Code 约二十分钟后兜底唤醒一次；这一轮仍不安排下一次，循环便结束。 <span class="badge o">O</span></p></div></li>
+      </ol>
+    </section>
+
+    <section class="sheet" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head"><span class="section-no">03 / FLOW</span><h2 id="flow-title">六格因果链</h2></div>
+      <div class="rail" aria-label="从用户输入到停止的流程">
+        <div><b>用户输入</b><p>间隔、提示或两者省略</p></div>
+        <div><b>技能解释</b><p>固定 cron 或自定唤醒</p></div>
+        <div class="wait"><b>会话等待</b><p>本机时区与确定性抖动</p></div>
+        <div class="fire"><b>到期排队</b><p>忙碌时延后，漏点合并</p></div>
+        <div><b>同会话执行</b><p>继承文件、MCP 与权限门</p></div>
+        <div class="stop"><b>继续或终止</b><p>取消、七日、退出、完成或兜底结束</p></div>
+      </div>
+      <div class="grid-3 body-copy">
+        <article class="note"><h3>输入流</h3><p>提示文字进入任务条目。裸命令会在每轮读取优先级最高的 <code>loop.md</code>，文件改动从下一轮生效，超过 25,000 字节的内容会截断。 <span class="badge o">O</span></p></article>
+        <article class="note"><h3>时间流</h3><p>固定 cron 按本机时间计算，并带有确定性抖动。当前官方页面与归档 2.1.247 安装说明给出的精确上限不同，本页不替 2.1.247 选定其中一套公式。 <span class="badge o">O</span><span class="badge l">L</span><span class="badge i">I</span></p></article>
+        <article class="note"><h3>结果流</h3><p>定时提示只在回合之间送入对话。它会经过原会话的工具和权限边界，涉及写入、推送或删除时仍可能停在批准处。 <span class="badge o">O</span></p></article>
+      </div>
+    </section>
+
+    <section id="limits" class="sheet" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head"><span class="section-no">04 / LIMITS</span><h2 id="limits-title">哪里会停，哪里只会等</h2></div>
+      <table>
+        <thead><tr><th>情形</th><th>结果</th><th>证据</th></tr></thead>
+        <tbody>
+          <tr><td>Claude 正在回复</td><td>到期提示等到回合结束。错过多个间隔，空闲后只触发一次。</td><td><span class="badge o">O</span></td></tr>
+          <tr><td>固定循环不再需要</td><td>自然语言要求取消，或用任务 ID 调用 <code>CronDelete</code>。</td><td><span class="badge o">O</span></td></tr>
+          <tr><td>自定节奏正在等待</td><td>用户按 Esc 可清掉待唤醒，Claude 也能用停止参数结束。固定 cron 不受这个 Esc 动作影响。</td><td><span class="badge o">O</span></td></tr>
+          <tr><td>自定节奏漏了重新安排</td><td>系统约二十分钟后兜底唤醒一次。下一轮仍没有重新安排，循环自动结束。</td><td><span class="badge o">O</span></td></tr>
+          <tr><td>进程退出或终端关闭</td><td>任务不再触发。把整场会话转入后台可继续运行。</td><td><span class="badge o">O</span></td></tr>
+          <tr><td>开始全新对话</td><td>会话级任务被清除。恢复原对话时，七日内的重复任务可恢复。</td><td><span class="badge o">O</span></td></tr>
+          <tr><td>创建满七天</td><td>重复任务最后触发一次，随后自删。</td><td><span class="badge o">O</span></td></tr>
+          <tr><td>设置禁用环境变量</td><td><code>CLAUDE_CODE_DISABLE_CRON=1</code> 会让工具和 <code>/loop</code> 不可用，已有任务也停止触发。</td><td><span class="badge o">O</span><span class="badge l">L</span></td></tr>
+          <tr><td>任务执行要用受限工具</td><td>调度工具本身无需批准，实际任务仍继承会话权限，可能等待用户。</td><td><span class="badge o">O</span></td></tr>
+        </tbody>
+      </table>
+      <p class="body-copy callout"><strong>登录和费用跟着现有会话走。</strong> Claude Code 支持订阅账号、Console API 凭据和云提供商等认证方式；<code>/loop</code> 的官方指南没有另列登录或套餐门槛，也没有公布每轮怎样计入用量或费用。本页只能确认它在已打开的当前会话中运行，不能把某一种计费方式写成通则。长期可靠运行应交给云端 Routines、Desktop Scheduled Tasks 或 GitHub Actions。 <span class="badge o">O</span><span class="badge i">I</span></p>
+    </section>
+
+    <section class="sheet" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head"><span class="section-no">05 / OBSERVATION</span><h2 id="experiment-title">本机只做了静态核对</h2></div>
+      <div class="body-copy">
+        <p>归档的 2.1.247 可执行文件报告 <code>2.1.247 (Claude Code)</code>，SHA-256 与基线给定值完全一致。它的公开帮助列出恢复与继续会话的参数；安装文件静态字符串包含 <code>/loop</code> 用法、三个 Cron 工具、<code>ScheduleWakeup</code> 和禁用环境变量。 <span class="badge l">L</span></p>
+        <p>当前命令链接已指向 2.1.250。研究没有把当前链接的行为倒算到 2.1.247，也没有启动新的 Claude 会话。这样避开了付费调用、私人会话和全局状态改动。缺少真实触发结果，页面状态保留为 <strong>documented</strong>。 <span class="badge l">L</span></p>
+        <details>
+          <summary>本轮执行过的安全命令</summary>
+          <div><p><code>归档二进制 --version</code>、<code>归档二进制 --help</code>、<code>shasum -a 256 归档二进制</code>，以及对安装文件做限量的公开功能字符串筛选。没有读取任何会话记录或私人配置。</p></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head"><span class="section-no">06 / VERSION</span><h2 id="implementation-title">2.1.247 的实现边界</h2></div>
+      <div class="grid-2 body-copy">
+        <article class="note"><h3>公开工具面</h3><p><code>CronCreate</code> 接收五字段 cron、提示和是否重复。<code>CronList</code> 显示 ID、日程和提示，<code>CronDelete</code> 按 ID 删除。自定节奏另用 <code>ScheduleWakeup</code>。 <span class="badge o">O</span><span class="badge l">L</span></p></article>
+        <article class="note"><h3>2.1.247 之后的一步</h3><p>2.1.248 才把自定节奏和无提示默认扩展为所有提供商始终可用。处在 Bedrock、Vertex、Foundry 或关闭功能标志抓取的 2.1.247 会退到旧行为，无间隔提示固定十分钟，裸 <code>/loop</code> 显示用法。 <span class="badge o">O</span></p></article>
+      </div>
+      <div class="grid-2 body-copy">
+        <article class="note"><h3>技能调用门</h3><p>定时提示里的技能只有在 Claude 可自主调用时才执行。内置命令、禁止模型调用的技能、被规则隐藏的技能和 MCP prompt 会作为普通文字进入 Claude。 <span class="badge o">O</span></p></article>
+        <article class="note"><h3>显示面</h3><p>固定任务创建时显示采用的节奏和 ID，列表显示所有任务的 ID、日程和提示。自定节奏每轮末尾显示下一次等待及理由。 <span class="badge o">O</span></p></article>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head"><span class="section-no">07 / UNKNOWNS</span><h2 id="unknowns-title">还没有证实的七件事</h2></div>
+      <div class="body-copy">
+        <p><span class="badge i">I</span>官方没有公开 2.1.247 会话级任务在各平台上的完整落盘格式、锁策略与崩溃一致性。</p>
+        <p><span class="badge i">I</span>本轮没有测量调度器忙碌时从回合结束到提示实际进入模型的额外延迟。</p>
+        <p><span class="badge i">I</span>本轮没有在 50 个任务上限处观察具体错误文案，也没有核对删除失败后的界面状态。</p>
+        <p><span class="badge i">I</span>恢复任务时，抖动偏移和下一次触发点怎样重算，没有用 2.1.247 做运行核对。</p>
+        <p><span class="badge i">I</span>当前官方页面与 2.1.247 安装说明给出的抖动上限不同，基线版本实际采用哪套公式没有 R。</p>
+        <p><span class="badge i">I</span>权限提示长时间无人处理时，后续多个到期点怎样显示，只能确认它们不会在忙碌回合里并发执行。</p>
+        <p><span class="badge i">I</span>官方没有给 <code>/loop</code> 单列登录或套餐门槛，也没有公开每轮在订阅、Console API 与云提供商认证下怎样计入用量或费用。</p>
+      </div>
+    </section>
+
+    <section id="sources" class="sheet" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head"><span class="section-no">08 / SOURCES</span><h2 id="sources-title">一手来源与复现</h2></div>
+      <div class="grid-2 body-copy">
+        <div>
+          <h3>证据图例</h3>
+          <p><span class="badge o">O</span>Anthropic 官方契约</p>
+          <p><span class="badge l">L</span>本机帮助或安装文件</p>
+          <p><span class="badge r">R</span>真实运行，本页没有</p>
+          <p><span class="badge i">I</span>研究者推断或待验证项</p>
+        </div>
+        <div>
+          <h3>复现顺序</h3>
+          <ol>
+            <li>先核对版本和二进制摘要。</li>
+            <li>在获准的隔离会话创建一分钟固定循环。</li>
+            <li>让前一回合持续越过两个触发点，观察是否只补一次。</li>
+            <li>列出任务、记录 ID、取消，再确认列表为空。</li>
+            <li>另测自定节奏的 Esc、主动停止、二十分钟兜底和恢复边界。</li>
+          </ol>
+        </div>
+      </div>
+      <ul class="source-list body-copy">
+        <li><a href="https://code.claude.com/docs/en/scheduled-tasks">定时任务指南，涵盖会话范围、触发、合并漏点、停止与七日过期</a></li>
+        <li><a href="https://code.claude.com/docs/en/tools-reference">Cron 工具的职责和权限提示属性见工具参考</a></li>
+        <li><a href="https://code.claude.com/docs/en/commands">命令参考收录 /loop 语法、自定节奏与 /proactive 别名</a></li>
+        <li><a href="https://code.claude.com/docs/en/changelog#21247">2.1.247 基线及相邻版本变化见官方更新记录</a></li>
+        <li><a href="https://code.claude.com/docs/en/goal">/goal 指南划出按时间触发与按条件续跑的边界</a></li>
+        <li><a href="https://code.claude.com/docs/en/authentication">认证指南列出当前会话可能采用的账号和凭据类型</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer><div class="footer-inner">AUTO-01 · 研究日期 2026-08-29 · 基线日期 2026-08-27 · 页面状态 documented · <a href="../index.html">返回总索引</a></div></footer>
+</body>
+</html>

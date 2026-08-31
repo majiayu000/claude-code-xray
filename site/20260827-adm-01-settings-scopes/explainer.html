@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="ADM-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>ADM-01 配置作用域与组织门控</title>
+  <style>
+    :root {
+      --ink: #13211f;
+      --paper: #f2efe4;
+      --paper-2: #e6e0cf;
+      --night: #101b1a;
+      --mint: #65d6b3;
+      --amber: #f3a846;
+      --red: #e46c55;
+      --blue: #57a7c7;
+      --rule: rgba(19, 33, 31, .24);
+      --muted: #52615d;
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Roboto Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(19,33,31,.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(19,33,31,.055) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: var(--serif);
+      line-height: 1.75;
+    }
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: .22em; }
+    a:hover { color: #006f59; }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; }
+    .shell { max-width: 1440px; margin: 0 auto; display: grid; grid-template-columns: 250px minmax(0, 1fr); }
+    .rail {
+      min-height: 100vh;
+      padding: 28px 22px;
+      background: var(--night);
+      color: #e9eee6;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      z-index: 5;
+    }
+    .stamp { font: 800 2rem/1 var(--mono); letter-spacing: -.07em; color: var(--mint); }
+    .rail .status { margin: 12px 0 28px; font: 600 .72rem/1.5 var(--mono); text-transform: uppercase; letter-spacing: .11em; }
+    .rail nav { display: grid; gap: 5px; }
+    .rail nav a { border-left: 2px solid #324340; padding: 6px 10px; text-decoration: none; font-size: .9rem; }
+    .rail nav a:hover { border-color: var(--mint); color: var(--mint); }
+    .return { margin-top: auto; font-size: .85rem; color: #b8c5c0; }
+    .legend { margin-top: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font: 700 .75rem/1.4 var(--mono); }
+    .legend span { border: 1px solid #3f514d; padding: 6px 8px; }
+    .legend b { color: var(--amber); }
+    main { min-width: 0; }
+    section { padding: clamp(54px, 7vw, 104px) clamp(24px, 6vw, 90px); border-bottom: 1px solid var(--rule); }
+    .hero { min-height: 92vh; display: grid; align-content: center; background: rgba(242,239,228,.76); }
+    .eyebrow { margin: 0 0 18px; font: 700 .72rem/1.5 var(--mono); letter-spacing: .13em; text-transform: uppercase; color: #346b5e; }
+    h1, h2, h3 { margin: 0; line-height: 1.16; }
+    h1 { max-width: 980px; font-size: clamp(2.7rem, 7vw, 6.6rem); letter-spacing: -.065em; font-weight: 900; }
+    h2 { font-size: clamp(2rem, 4vw, 4rem); letter-spacing: -.045em; }
+    h3 { font-size: 1.18rem; }
+    .lede { max-width: 800px; margin: 28px 0 36px; font-size: clamp(1.1rem, 1.7vw, 1.45rem); }
+    .one-line { border-left: 8px solid var(--amber); padding: 12px 0 12px 20px; max-width: 880px; font-weight: 700; }
+    .priority { margin-top: 48px; display: grid; grid-template-columns: repeat(5, 1fr); border: 2px solid var(--ink); background: var(--paper); box-shadow: 12px 12px 0 var(--ink); }
+    .tier { min-height: 126px; padding: 16px; border-right: 1px solid var(--ink); display: flex; flex-direction: column; justify-content: space-between; }
+    .tier:last-child { border-right: 0; }
+    .tier small { font: 700 .66rem/1.4 var(--mono); color: var(--muted); }
+    .tier strong { font-size: clamp(1rem, 1.5vw, 1.4rem); }
+    .tier.top { background: var(--mint); }
+    .tier.cli { background: var(--amber); }
+    .callout { margin-top: 34px; display: flex; gap: 14px; align-items: flex-start; color: var(--muted); font-size: .95rem; }
+    .badge { flex: none; padding: 3px 9px; border: 1px solid currentColor; border-radius: 999px; font: 800 .72rem/1.5 var(--mono); }
+    .section-head { display: grid; grid-template-columns: 180px minmax(0, 800px); gap: 32px; margin-bottom: 44px; }
+    .section-no { font: 800 .8rem/1.4 var(--mono); letter-spacing: .12em; color: #347362; }
+    .section-head p { margin: 14px 0 0; color: var(--muted); max-width: 720px; }
+    .term-grid, .gate-grid, .unknown-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .card { background: rgba(255,255,255,.44); border: 1px solid var(--rule); padding: 24px; }
+    .card p { margin: 10px 0 0; color: var(--muted); }
+    .card code, .inline-code { font: .88em/1.5 var(--mono); background: #d9d4c3; padding: .08em .35em; }
+    .timeline { counter-reset: step; display: grid; gap: 0; max-width: 980px; }
+    .step { counter-increment: step; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 22px; padding: 24px 0; border-top: 1px solid var(--rule); }
+    .step::before { content: "0" counter(step); font: 900 1.8rem/1 var(--mono); color: #357765; }
+    .step p { margin: 8px 0 0; color: var(--muted); }
+    .flow-board { display: grid; grid-template-columns: 1fr 56px 1.2fr 56px 1fr; align-items: stretch; gap: 10px; }
+    .flow-node { border: 2px solid var(--ink); background: var(--paper); padding: 22px; min-height: 220px; }
+    .flow-node.center { background: var(--night); color: #edf1e9; }
+    .flow-node ul { margin: 18px 0 0; padding-left: 1.1em; }
+    .arrow { align-self: center; font: 900 2rem/1 var(--mono); text-align: center; color: #387866; }
+    .gate-grid .card { position: relative; padding-top: 52px; }
+    .gate-grid .tag { position: absolute; top: 0; left: 0; padding: 7px 12px; background: var(--ink); color: white; font: 800 .7rem/1.4 var(--mono); }
+    .stop { border-color: var(--red); }
+    .stop .tag { background: var(--red); }
+    .warn { border-color: var(--amber); }
+    .warn .tag { background: var(--amber); color: var(--ink); }
+    .evidence-panel { background: var(--night); color: #e8eee7; border-left: 12px solid var(--blue); padding: clamp(24px, 5vw, 54px); }
+    .evidence-panel h3 { color: var(--mint); }
+    .evidence-panel p { color: #b9c7c3; }
+    .drift { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 28px 0; }
+    .drift > div { border: 1px solid #40514e; padding: 18px; }
+    .drift strong { display: block; font: 800 1.5rem/1.2 var(--mono); color: var(--amber); }
+    .matrix { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.4); }
+    .matrix th, .matrix td { text-align: left; vertical-align: top; padding: 14px; border: 1px solid var(--rule); }
+    .matrix th { background: var(--ink); color: white; font: 700 .77rem/1.4 var(--mono); }
+    details { border-top: 1px solid var(--rule); }
+    details:last-child { border-bottom: 1px solid var(--rule); }
+    summary { cursor: pointer; padding: 18px 4px; font-weight: 800; }
+    details p { margin: 0 0 20px 32px; max-width: 850px; color: var(--muted); }
+    .sources { background: #dfe9df; }
+    .source-list { display: grid; gap: 12px; max-width: 960px; }
+    .source-list a { display: grid; grid-template-columns: 54px 1fr; gap: 16px; padding: 18px 20px; border: 1px solid var(--ink); background: rgba(255,255,255,.35); text-decoration: none; }
+    .source-list a:hover { background: var(--mint); color: var(--ink); }
+    .source-list b { font: 900 .82rem/1.5 var(--mono); }
+    footer { padding: 24px clamp(24px, 6vw, 90px); background: var(--night); color: #b7c3bf; font-size: .82rem; }
+    @media (max-width: 900px) {
+      .shell { display: block; }
+      .rail { position: relative; height: auto; min-height: 0; padding: 16px 20px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; }
+      .rail .status { margin: 0; }
+      .rail nav, .legend { display: none; }
+      .return { margin: 0; }
+      .hero { min-height: auto; padding-top: 72px; }
+      .priority { grid-template-columns: 1fr; box-shadow: 7px 7px 0 var(--ink); }
+      .tier { min-height: 74px; border-right: 0; border-bottom: 1px solid var(--ink); flex-direction: row; align-items: center; }
+      .tier:last-child { border-bottom: 0; }
+      .section-head { grid-template-columns: 1fr; gap: 10px; }
+      .flow-board { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); padding: 10px; }
+    }
+    @media (max-width: 560px) {
+      body { background-size: 18px 18px; }
+      .rail { grid-template-columns: auto 1fr; }
+      .rail .return { grid-column: 1 / -1; }
+      section { padding: 48px 20px; }
+      h1 { font-size: clamp(2.55rem, 14vw, 4.2rem); }
+      .term-grid, .gate-grid, .unknown-grid, .drift { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 54px 1fr; gap: 12px; }
+      .matrix { display: block; overflow-x: auto; font-size: .9rem; }
+      .source-list a { grid-template-columns: 42px 1fr; padding: 15px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：配置作用域、优先级、Managed Settings 与功能可用性。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-adm-01-settings-scopes/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="ADM-01 · 配置作用域、优先级、Managed Settings 与功能可用性">
+  <meta property="og:description" content="Claude Code X-Ray：配置作用域、优先级、Managed Settings 与功能可用性。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-adm-01-settings-scopes/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ADM-01 · 配置作用域、优先级、Managed Settings 与功能可用性">
+  <meta name="twitter:description" content="Claude Code X-Ray：配置作用域、优先级、Managed Settings 与功能可用性。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>ADM-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <div class="shell">
+    <aside class="rail" aria-label="页面导航">
+      <div class="stamp">ADM-01</div>
+      <div class="status">当前状态 · documented<br>Claude Code 2.1.247</div>
+      <nav>
+        <a href="#answer">最短答案</a>
+        <a href="#terms">五个来源</a>
+        <a href="#sequence">裁决顺序</a>
+        <a href="#flow">文件与能力流</a>
+        <a href="#limits">门与停止点</a>
+        <a href="#experiment">本机核对</a>
+        <a href="#implementation">例外与更新</a>
+        <a href="#unknowns">未知项</a>
+        <a href="#sources">一手来源</a>
+      </nav>
+      <div class="legend" aria-label="证据图例">
+        <span><b>O</b> 官方</span><span><b>L</b> 本机</span>
+        <span><b>R</b> 实验</span><span><b>I</b> 推断</span>
+      </div>
+      <a class="return" href="../index.html">← 返回总索引</a>
+    </aside>
+
+    <main>
+      <section class="hero" id="answer" data-xray-section="answer">
+        <p class="eyebrow">配置裁决记录 · 基线 2026-08-27</p>
+        <h1>同一个设置，组织策略先裁决。</h1>
+        <p class="lede">Claude Code 先收集能到达这次会话的设置，再按 managed、命令行、local、项目、用户的顺序选值。组织层还能收窄选择范围，功能可能因而从界面消失，或在执行前被拦下。</p>
+        <p class="one-line">候选设置先进入加载与校验，随后变成当前会话实际可用的功能。 <span class="badge">O</span></p>
+        <div class="priority" aria-label="普通单值设置优先级，从高到低">
+          <div class="tier top"><small>最高 01</small><strong>组织 managed</strong></div>
+          <div class="tier cli"><small>02 · 本次会话</small><strong>命令行</strong></div>
+          <div class="tier"><small>03 · 个人项目</small><strong>local</strong></div>
+          <div class="tier"><small>04 · 团队共享</small><strong>项目</strong></div>
+          <div class="tier"><small>最低 05</small><strong>用户</strong></div>
+        </div>
+        <div class="callout"><span class="badge">O</span><span>这张顺序图只适用于普通单值键。列表会合并，环境变量逐键判断，一些安全键还会接受较低层更严格的值。</span></div>
+      </section>
+
+      <section id="terms" data-xray-section="terms">
+        <div class="section-head"><div class="section-no">01 · TERMS</div><div><h2>先看设置能到谁那里</h2><p>作用域回答覆盖人群，优先级回答冲突结果。两个问题分开以后，project 和 local 就不会再混。</p></div></div>
+        <div class="term-grid">
+          <article class="card"><h3>用户</h3><p>放在用户配置目录，影响这台机器上此人的所有项目。适合主题、默认模型和个人规则。 <span class="badge">O</span></p></article>
+          <article class="card"><h3>共享项目</h3><p>放在仓库的 <code>.claude/settings.json</code>，提交后随仓库到达协作者。它高于用户设置。 <span class="badge">O</span></p></article>
+          <article class="card"><h3>项目 local</h3><p>放在 <code>.claude/settings.local.json</code>，只给当前用户在这个项目使用。它高于共享项目，又不会随提交交给队友。 <span class="badge">O</span></p></article>
+          <article class="card"><h3>managed 与命令行</h3><p>managed 由组织或设备管理渠道交付。命令行只改一次启动。两者相遇时 managed 在上。 <span class="badge">O</span></p></article>
+        </div>
+      </section>
+
+      <section id="sequence" data-xray-section="sequence">
+        <div class="section-head"><div class="section-no">02 · SEQUENCE</div><div><h2>一次启动里的裁决顺序</h2><p>文件存在时，键仍要通过校验，随后才会进入候选集。</p></div></div>
+        <div class="timeline">
+          <article class="step"><div><h3>确定运行表面</h3><p>本机 CLI、IDE、Desktop 与云端会话可读的来源不同。云端不会带走本机 user 和 local 文件。 <span class="badge">O</span></p></div></article>
+          <article class="step"><div><h3>收集到达当前会话的来源</h3><p>本机设置文件、启动参数与 managed 交付源进入候选集。命令行省略的键仍由下面的文件补上。 <span class="badge">O</span></p></div></article>
+          <article class="step"><div><h3>解析并剔除坏条目</h3><p>普通文件的坏 JSON 会触发错误处理。managed payload 会尽量保留仍然有效的键，失效键可能回到更严格的默认。 <span class="badge">O</span></p></div></article>
+          <article class="step"><div><h3>先解决 managed 内部来源</h3><p>默认由最高的非空 managed 来源获胜。2.1.242 起，管理员可以明确选择合并受控来源。 <span class="badge">O</span></p></div></article>
+          <article class="step"><div><h3>逐键裁决</h3><p>普通单值走五层顺序，列表常取并集，环境变量查看自己的规则，安全键保留更严格值。 <span class="badge">O</span></p></div></article>
+          <article class="step"><div><h3>再过功能可用性门</h3><p>provider、订阅与管理员开关会继续收窄结果。最终界面可能显示、隐藏、灰掉，也可能在执行前阻断。 <span class="badge">O</span> <span class="badge">I</span></p></div></article>
+        </div>
+      </section>
+
+      <section id="flow" data-xray-section="flow">
+        <div class="section-head"><div class="section-no">03 · FLOW</div><div><h2>文件怎样变成一个可用功能</h2><p>这是一张因果图。每个箭头都能在证据表里找到身份，最后一步是依据官方多张表做出的解释。</p></div></div>
+        <div class="flow-board">
+          <div class="flow-node"><h3>输入面</h3><ul><li>用户文件</li><li>项目与 local 文件</li><li>启动参数</li><li>远端、MDM、系统文件</li></ul><p><span class="badge">O</span></p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="flow-node center"><h3>客户端裁决器</h3><ul><li>选择能到达当前表面的来源</li><li>解析与校验</li><li>按键类型合并</li><li>保留组织锁和更严格例外</li></ul><p><span class="badge">O</span></p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="flow-node"><h3>输出面</h3><ul><li>功能可选</li><li>选择范围缩小</li><li>入口隐藏</li><li>运行被阻断</li></ul><p><span class="badge">O</span> <span class="badge">I</span></p></div>
+        </div>
+      </section>
+
+      <section id="limits" data-xray-section="limits">
+        <div class="section-head"><div class="section-no">04 · LIMITS</div><div><h2>六道门，六个停止位置</h2><p>设置优先级只负责其中一段。功能缺失时，先判断它停在哪道门，别只盯着 JSON。</p></div></div>
+        <div class="gate-grid">
+          <article class="card"><span class="tag">入口门</span><h3>登录方式决定远端策略能否拉取</h3><p>server-managed 要求 Team 或 Enterprise 组织，并直连 <code>api.anthropic.com</code>。Team 或 Enterprise OAuth 登录、<code>CLAUDE_CODE_OAUTH_TOKEN</code> 与直接配置的 API key 可以触发拉取。<code>apiKeyHelper</code> 返回的 key 不会触发。第三方 provider 或非默认 <code>ANTHROPIC_BASE_URL</code> 也会跳过拉取。 <span class="badge">O</span></p></article>
+          <article class="card"><span class="tag">来源门</span><h3>文件有没有被读</h3><p>云端不读本机 user 和 local。共享文件未被信任时，一些允许类键也会等待。 <span class="badge">O</span></p></article>
+          <article class="card warn"><span class="tag">校验门</span><h3>坏键会被丢下</h3><p>交互启动会报告 settings error 或 warning。非交互运行可能跳过坏文件，随后要用 doctor 查明。 <span class="badge">O</span></p></article>
+          <article class="card stop"><span class="tag">策略门</span><h3>组织可以锁住或隐藏</h3><p>模型 allowlist 会限制选择，空 marketplace allowlist 会封锁来源，managed 禁用的插件会从 marketplace 隐藏。 <span class="badge">O</span></p></article>
+          <article class="card warn"><span class="tag">网络门</span><h3>远端策略可能暂时没到</h3><p>首次启动无缓存且拉取失败时，默认继续运行。开启 fail-closed 后，拉取失败会让 CLI 退出。 <span class="badge">O</span></p></article>
+          <article class="card stop"><span class="tag">边界门</span><h3>客户端策略管不到别的工具</h3><p>managed settings 约束 Claude Code 客户端。未受管设备上的修改版客户端或其他 API 工具不受这层保证。 <span class="badge">O</span></p></article>
+        </div>
+      </section>
+
+      <section id="experiment" data-xray-section="experiment">
+        <div class="section-head"><div class="section-no">05 · EXPERIMENT</div><div><h2>本轮没有真实冲突实验</h2><p>这页保持 documented。没有企业 managed 环境，也不能为一次核对启动可能计费的会话。</p></div></div>
+        <div class="evidence-panel">
+          <h3>L 证据说明基线已经漂移</h3>
+          <p>只读核对发生在 2026-08-28。PATH 里的 Claude Code 已经前进一个补丁版本，在线官方索引的摘要也与给定快照不同。当前帮助只能作为相邻版本入口证据。</p>
+          <div class="drift"><div><strong>2.1.247</strong>页面固定研究基线</div><div><strong>2.1.248</strong>本轮 PATH 静态观察</div></div>
+          <p><span class="badge">L</span> 帮助中仍能看到一次性 settings 参数和来源选择参数。它没有证明五层冲突真的跑过，更没有证明 managed 已下发。</p>
+          <p><span class="badge">R</span> 本页缺失。要升为 verified，至少要在固定 2.1.247 的隔离设备上跑一轮同键冲突，再由授权管理员加入 managed 层复核。</p>
+        </div>
+      </section>
+
+      <section id="implementation" data-xray-section="implementation">
+        <div class="section-head"><div class="section-no">06 · IMPLEMENTATION</div><div><h2>五类键要分开算</h2><p>拿到一个冲突键时，先判它是哪种类型。照搬五层阶梯会把列表和安全门讲错。</p></div></div>
+        <table class="matrix">
+          <thead><tr><th>键的形态</th><th>裁决办法</th><th>结果示例</th><th>证据</th></tr></thead>
+          <tbody>
+            <tr><td>普通单值</td><td>最高作用域取值</td><td>local 可改项目值，managed 仍能压住 local</td><td>O</td></tr>
+            <tr><td>普通列表</td><td>跨层合并并去重</td><td>permission allow 等列表可同时保留多层条目</td><td>O</td></tr>
+            <tr><td>限制性整表</td><td>按专门规则取完整列表</td><td>managed availableModels 不接纳个人追加项</td><td>O</td></tr>
+            <tr><td>安全性例外</td><td>较低层的更严格值仍可生效</td><td>某些关闭、隔离、拒绝设置无法被上层放宽</td><td>O</td></tr>
+            <tr><td>环境变量</td><td>逐键查自己的覆盖契约</td><td>不能把 shell env 画成统一第六层</td><td>O</td></tr>
+          </tbody>
+        </table>
+        <div style="height:36px"></div>
+        <details open><summary>更新什么时候进入运行中会话</summary><p>用户、项目、local 和文件型 managed 的多数改动会重载。远端按启动与小时轮询到达，MDM 约每 30 分钟检查。模型、部分遥测和少数启动键要等下次启动。 <span class="badge">O</span></p></details>
+        <details><summary>怎样确认来源</summary><p>在会话里看 status 的 Setting sources。它能告诉你读了哪些层、managed 从哪条渠道到达，无法告诉你每一个键由谁提供。用 doctor 查被拒条目。 <span class="badge">O</span></p></details>
+        <details><summary>为什么管理员已经保存，客户端仍然没有策略</summary><p>先核对当前会话的认证路径。Team 或 Enterprise OAuth、<code>CLAUDE_CODE_OAUTH_TOKEN</code> 和直接配置的 API key 才会触发 Anthropic 的远端拉取。<code>apiKeyHelper</code>、第三方 provider、非默认 <code>ANTHROPIC_BASE_URL</code> 会让这条拉取路径停下。此时应改用符合条件的认证与路由，或由管理员通过 MDM、系统 managed 文件等 endpoint-managed 渠道下发。 <span class="badge">O</span></p></details>
+        <details><summary>怎样锁住功能</summary><p>设置默认值只决定起点。要限制用户切换，管理员还要部署对应 allowlist 或 only-managed 锁。官方用模型选择、permission rules、hooks、MCP 与 marketplace 分别给出了这类键。 <span class="badge">O</span></p></details>
+      </section>
+
+      <section id="unknowns" data-xray-section="unknowns">
+        <div class="section-head"><div class="section-no">07 · UNKNOWNS</div><div><h2>目前还不能写死的地方</h2><p>这些缺口会改变管理员的判断，留在页面上比假装完整更有用。</p></div></div>
+        <div class="unknown-grid">
+          <article class="card"><h3>逐键 resolved 来源</h3><p>status 只列加载层，不导出每个键的来源。复杂冲突仍需按键推导，再用行为核对。</p></article>
+          <article class="card"><h3>真实下发延迟</h3><p>文档给出轮询节奏，本轮没有真实组织、网络与多平台样本。</p></article>
+          <article class="card"><h3>组合失败分支</h3><p>部分 payload 无效、缓存陈旧、用户拒绝安全确认同时发生时，2.1.247 的全部界面分支未实测。</p></article>
+          <article class="card"><h3>账户 rollout 的先后</h3><p>feature flag、套餐门与 settings 同时作用时，没有一份公开的统一客户端状态机。</p></article>
+        </div>
+      </section>
+
+      <section class="sources" id="sources" data-xray-section="sources">
+        <div class="section-head"><div class="section-no">08 · SOURCES</div><div><h2>一手来源与复现入口</h2><p>以下链接都直达 Anthropic 官方文档或官方仓库。页面只引用能支撑主链的部分。</p></div></div>
+        <div class="source-list">
+          <a href="https://code.claude.com/docs/en/settings"><b>O-01</b><span>Settings 证明作用域、五层优先级、列表与云端差异</span></a>
+          <a href="https://code.claude.com/docs/en/settings-reference"><b>O-02</b><span>Settings reference 证明逐键 scope、锁定与隐藏效果</span></a>
+          <a href="https://code.claude.com/docs/en/managed-settings"><b>O-03</b><span>Managed settings 证明交付位置、内部来源裁决与诊断</span></a>
+          <a href="https://code.claude.com/docs/en/server-managed-settings"><b>O-04</b><span>Server-managed settings 证明角色、缓存、失败和客户端边界</span></a>
+          <a href="https://code.claude.com/docs/en/feature-availability"><b>O-05</b><span>Feature availability 证明 provider、plan 与管理员开关</span></a>
+          <a href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><b>O-06</b><span>官方 changelog 证明 2.1.247 与相邻版本变化</span></a>
+        </div>
+      </section>
+    </main>
+  </div>
+  <footer>ADM-01 · documented · Claude Code 2.1.247 · 研究日期 2026-08-28</footer>
+</body>
+</html>

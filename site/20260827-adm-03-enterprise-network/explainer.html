@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="ADM-03">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>ADM-03 企业代理、证书与网络请求链</title>
+  <style>
+    :root{--ink:#17211e;--paper:#f2efe4;--panel:#fbf8ee;--line:#263a34;--muted:#66736e;--copper:#b64e2a;--signal:#047f73;--warn:#d2a132;--dark:#101916;--ghost:#d9d8ce}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;background:var(--paper)}
+    body{margin:0;color:var(--ink);font-family:Georgia,"Noto Serif SC","Songti SC",serif;background:radial-gradient(circle at 15% 0,#fffdf4 0,transparent 32rem),linear-gradient(90deg,rgba(23,33,30,.035) 1px,transparent 1px),var(--paper);background-size:auto,26px 26px,auto;line-height:1.72}
+    a{color:inherit;text-underline-offset:.2em}
+    a:hover{color:var(--copper)}
+    a:focus-visible,summary:focus-visible{outline:3px solid var(--warn);outline-offset:4px;border-radius:2px}
+    code,.mono,.eyebrow,.tag,.legend,.step-no{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+    .topline{position:relative;z-index:2;display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1rem clamp(1rem,4vw,4.8rem);color:#edf1e9;background:var(--dark);border-bottom:5px solid var(--copper);font-size:.82rem;letter-spacing:.08em}
+    .topline a{color:#fff;text-decoration-color:var(--warn)}
+    main{overflow:hidden}
+    .hero{min-height:calc(100svh - 58px);display:grid;grid-template-columns:minmax(0,1.08fr) minmax(310px,.92fr);align-items:center;gap:clamp(2rem,6vw,7rem);padding:clamp(3.5rem,8vw,8rem) clamp(1.1rem,7vw,8rem);position:relative}
+    .hero:after{content:"";position:absolute;left:52%;top:8%;bottom:8%;width:1px;background:var(--line);opacity:.4}
+    .eyebrow{font-size:.78rem;letter-spacing:.18em;color:var(--copper);font-weight:700;text-transform:uppercase}
+    h1{font-size:clamp(3rem,7vw,7.4rem);line-height:.92;letter-spacing:-.055em;margin:.4rem 0 1.5rem;max-width:9ch;font-weight:700}
+    .lede{font-size:clamp(1.2rem,2.1vw,1.78rem);line-height:1.48;max-width:27em;margin:0}
+    .statusline{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:2rem}
+    .tag{border:1px solid var(--line);background:var(--panel);padding:.4rem .65rem;font-size:.75rem;letter-spacing:.06em;box-shadow:3px 3px 0 var(--line)}
+    .route{position:relative;padding:2rem 0 2rem 2.6rem}
+    .route:before{content:"";position:absolute;left:.6rem;top:1rem;bottom:1rem;width:3px;background:var(--line)}
+    .packet{position:relative;margin:0 0 1.25rem;padding:1rem 1rem 1rem 1.2rem;background:var(--panel);border:1px solid var(--line);box-shadow:5px 5px 0 rgba(23,33,30,.13)}
+    .packet:before{content:"";position:absolute;left:-2.52rem;top:1.35rem;width:1.15rem;height:1.15rem;border-radius:50%;background:var(--paper);border:3px solid var(--line)}
+    .packet.active:before{background:var(--signal)}
+    .packet.fail:before{background:var(--copper)}
+    .packet b{display:block;font-size:1.02rem}
+    .packet small{color:var(--muted)}
+    .section{padding:clamp(4rem,8vw,8rem) clamp(1.1rem,7vw,8rem);border-top:1px solid rgba(38,58,52,.38)}
+    .section-head{display:grid;grid-template-columns:minmax(12rem,.42fr) minmax(0,1fr);gap:2rem;margin-bottom:3rem}
+    .section h2{font-size:clamp(2rem,4vw,4.4rem);line-height:1.04;letter-spacing:-.035em;margin:0;max-width:12ch}
+    .section-head p{max-width:48rem;font-size:1.08rem;margin:.3rem 0 0}
+    .legend{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:2.3rem}
+    .legend div{background:var(--panel);padding:1rem;min-height:7rem}
+    .legend b{display:block;font-size:1.4rem;color:var(--copper);margin-bottom:.3rem}
+    .terms{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line)}
+    .term{padding:1.4rem;border-right:1px solid var(--line);background:rgba(251,248,238,.78)}
+    .term:last-child{border-right:0}
+    .term h3{margin:0 0 .6rem;font-size:1.15rem}
+    .term p{margin:0;color:#46534e}
+    .sequence{background:var(--dark);color:#eef0e8}
+    .sequence .section-head p{color:#b9c4bf}
+    .steps{counter-reset:seq;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid #4b5d56;border-left:1px solid #4b5d56}
+    .step{position:relative;padding:1.3rem;min-height:15rem;border-right:1px solid #4b5d56;border-bottom:1px solid #4b5d56}
+    .step-no{display:block;color:#e68054;font-size:.75rem;margin-bottom:3rem}
+    .step h3{font-size:1.12rem;margin:0 0 .7rem}
+    .step p{margin:0;color:#b9c4bf;font-size:.92rem}
+    .flow-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:clamp(2rem,5vw,6rem)}
+    .wire{border:1px solid var(--line);background:var(--panel);padding:1.5rem;position:relative}
+    .wire h3{margin:0 0 1.25rem}
+    .wire-line{display:grid;grid-template-columns:7.5rem 1fr;gap:1rem;padding:.8rem 0;border-top:1px dotted #87918d}
+    .wire-line:first-of-type{border-top:0}
+    .wire-line b{font-size:.84rem;color:var(--copper)}
+    .note{margin:0 0 1.2rem;border-left:6px solid var(--signal);padding:1rem 1.2rem;background:#e3eee8}
+    .failures{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+    .failure{border-top:7px solid var(--line);padding:1.2rem;background:var(--panel);box-shadow:0 0 0 1px rgba(38,58,52,.35)}
+    .failure.stop{border-color:var(--copper)}
+    .failure.retry{border-color:var(--warn)}
+    .failure h3{margin:0 0 .8rem}
+    .failure ul{margin:0;padding-left:1.1rem}
+    .experiment{background:#dce7e2}
+    .verdict{display:grid;grid-template-columns:minmax(13rem,.35fr) 1fr;border:1px solid var(--line);background:var(--panel)}
+    .verdict strong{display:grid;place-items:center;padding:2rem;background:var(--warn);font-size:clamp(1.4rem,3vw,2.8rem);text-align:center}
+    .verdict div{padding:1.5rem 2rem}
+    .verdict p{margin:.2rem 0 .8rem}
+    table{width:100%;border-collapse:collapse;background:var(--panel);font-size:.94rem}
+    th,td{text-align:left;vertical-align:top;padding:.85rem;border:1px solid var(--line)}
+    th{background:#d8ded9}
+    details{border-top:1px solid var(--line);padding:1rem 0}
+    summary{cursor:pointer;font-weight:700}
+    details p{max-width:52rem;margin:.8rem 0}
+    .unknowns{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+    .unknown{padding:1.25rem;border:1px dashed var(--line);background:rgba(251,248,238,.7)}
+    .unknown b{color:var(--copper)}
+    .sources{background:#e8e3d5}
+    .source-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+    .source-list li{display:grid;grid-template-columns:4rem 1fr;gap:1rem;padding:1.2rem 0;border-bottom:1px solid var(--line)}
+    .source-list span{font-family:"SFMono-Regular",Consolas,monospace;color:var(--copper)}
+    .foot{display:flex;justify-content:space-between;gap:1rem;align-items:center;padding:1.4rem clamp(1.1rem,7vw,8rem);background:var(--dark);color:#dbe1dc}
+    .foot a{color:#fff}
+    @media (max-width:920px){.hero{grid-template-columns:1fr;min-height:auto}.hero:after{display:none}.route{max-width:38rem}.section-head,.flow-grid{grid-template-columns:1fr}.terms{grid-template-columns:1fr 1fr}.term:nth-child(2){border-right:0}.term:nth-child(-n+2){border-bottom:1px solid var(--line)}.steps{grid-template-columns:1fr 1fr}.failures{grid-template-columns:1fr}.legend{grid-template-columns:1fr 1fr}.unknowns{grid-template-columns:1fr}}
+    @media (max-width:540px){.topline{align-items:flex-start;flex-direction:column}.hero{padding-top:3rem}.route{padding-left:2rem}.packet:before{left:-1.94rem}.section{padding-top:4rem;padding-bottom:4rem}.terms,.steps,.legend{grid-template-columns:1fr}.term,.term:nth-child(2){border-right:0;border-bottom:1px solid var(--line)}.term:last-child{border-bottom:0}.step{min-height:auto}.step-no{margin-bottom:1.5rem}.verdict{grid-template-columns:1fr}.wire-line{grid-template-columns:1fr}.source-list li{grid-template-columns:2.4rem 1fr}.foot{align-items:flex-start;flex-direction:column}}
+    @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
+  <meta name="description" content="Claude Code X-Ray：企业代理、证书与网络请求链。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-adm-03-enterprise-network/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="ADM-03 · 企业代理、证书与网络请求链">
+  <meta property="og:description" content="Claude Code X-Ray：企业代理、证书与网络请求链。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-adm-03-enterprise-network/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ADM-03 · 企业代理、证书与网络请求链">
+  <meta name="twitter:description" content="Claude Code X-Ray：企业代理、证书与网络请求链。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>ADM-03</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topline">
+    <span>CLAUDE CODE XRY / ADM-03 / DOCUMENTED</span>
+    <a href="../index.html">返回总索引</a>
+  </header>
+  <main>
+    <section class="hero" data-xray-section="answer" id="answer">
+      <div>
+        <div class="eyebrow">企业代理、证书与网络请求链</div>
+        <h1>请求先过门，再等回答</h1>
+        <p class="lede">Claude Code 在启动时装入代理、CA 和客户端证书设置。一次请求随后选择代理，完成服务器证书校验与可选的 mTLS 身份证明。握手前失败时还没有模型回答；响应流已经开始后再断开，Claude Code 会按进度重试、保留已有输出或停止。</p>
+        <div class="statusline">
+          <span class="tag">ADM-03</span>
+          <span class="tag">状态 DOCUMENTED</span>
+          <span class="tag">Claude Code 2.1.247</span>
+        </div>
+      </div>
+      <div class="route" aria-label="请求经过代理、证书和 mTLS 的简图">
+        <div class="packet active"><b>待发送</b><small>用户提交消息，请求准备离开本机</small></div>
+        <div class="packet"><b>代理选择</b><small>直连、HTTP 代理或 HTTPS 代理</small></div>
+        <div class="packet"><b>TLS 校验</b><small>信任服务端或检查代理签发的证书</small></div>
+        <div class="packet"><b>mTLS 身份</b><small>服务端需要时，客户端证明自己的身份</small></div>
+        <div class="packet fail"><b>返回或停止</b><small>响应流、可重试故障、立即失败</small></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="terms" id="terms">
+      <div class="section-head">
+        <h2>四个名词够用了</h2>
+        <div>
+          <p>我把官方网络页、错误参考与本机 2.1.247 的静态入口对了一遍。这里的 corporate proxy 负责转交 HTTP 流量，LLM Gateway 会改 API 目的地并可能承担认证与路由。两者能一起用，角色不同。</p>
+          <div class="legend" aria-label="证据图例">
+            <div><b>O</b>官方契约<br>说明公开支持什么</div>
+            <div><b>L</b>本机证据<br>说明目标二进制带有什么</div>
+            <div><b>R</b>真实实验<br>说明这次确实跑过什么</div>
+            <div><b>I</b>研究推断<br>说明证据之间怎样接起来</div>
+          </div>
+        </div>
+      </div>
+      <div class="terms">
+        <article class="term"><h3>代理</h3><p>请求先连到企业代理，再由它转发。HTTPS 常用 CONNECT 隧道。</p></article>
+        <article class="term"><h3>CA</h3><p>签发或信任证书的机构。Claude Code 默认合并内置 Mozilla CA 与系统信任库。</p></article>
+        <article class="term"><h3>TLS 检查</h3><p>企业代理终止一段 TLS，再向上游建立另一段。客户端需要信任企业根 CA。</p></article>
+        <article class="term"><h3>mTLS</h3><p>服务端出示证书以后，客户端也出示证书并证明持有对应私钥。后半句是 TLS 语义解释。<span class="mono">O + I</span></p></article>
+      </div>
+    </section>
+
+    <section class="section sequence" data-xray-section="sequence" id="sequence">
+      <div class="section-head">
+        <h2>一次请求的时间顺序</h2>
+        <p>环境变量在进程启动时进入 Claude Code。之后每个出站请求都沿着已解析的路径走。文件轮换有单独的重读时机，后改 shell 环境不会自动进入正在运行的会话。<span class="mono">O</span></p>
+      </div>
+      <div class="steps">
+        <article class="step"><span class="step-no">01 / 启动</span><h3>读网络设置</h3><p>代理 URL 会在这里检查格式。少了协议头，程序直接停在启动错误。</p></article>
+        <article class="step"><span class="step-no">02 / 选路</span><h3>决定直连或代理</h3><p>按小写 HTTPS、大写 HTTPS、小写 HTTP、大写 HTTP 的顺序取第一个值，再看 NO_PROXY。</p></article>
+        <article class="step"><span class="step-no">03 / 信任</span><h3>校验服务端证书</h3><p>默认信任内置 Mozilla CA 与系统库。企业根 CA 也可从额外 PEM 文件加入。</p></article>
+        <article class="step"><span class="step-no">04 / 身份</span><h3>按需做 mTLS</h3><p>Claude Code 读取客户端证书与私钥。服务端要求时，客户端在握手中证明身份。</p></article>
+        <article class="step"><span class="step-no">05 / 结果</span><h3>收响应或错误</h3><p>连接成功后才进入 HTTP 与响应流。连接重置、证书拒绝或替代页面会落到不同错误。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" id="flow">
+      <div class="section-head">
+        <h2>数据和文件流到哪里</h2>
+        <p>代理地址和证书路径先进入进程。CA 文件决定信任谁，客户端证书与私钥完成 mTLS。官方契约只公开文件读取与重读时机，没有公开私钥在内存里的完整生命周期。</p>
+      </div>
+      <div class="flow-grid">
+        <div class="wire">
+          <h3>本机进程边界</h3>
+          <div class="wire-line"><b>环境变量</b><span>代理地址、绕过清单、CA 来源、客户端材料路径</span></div>
+          <div class="wire-line"><b>CA 文件</b><span>追加企业根证书，用来校验代理或服务端给出的证书链</span></div>
+          <div class="wire-line"><b>客户端证书</b><span>向要求 mTLS 的服务端声明客户端身份</span></div>
+          <div class="wire-line"><b>客户端私钥</b><span>本机证明持有对应密钥。私钥内容不应作为请求正文发送，这一解释标作 I</span></div>
+        </div>
+        <div>
+          <p class="note"><b>代理能看到多少取决于 TLS 终止位置。</b> 普通 HTTPS CONNECT 代理只承载加密隧道。TLS 检查代理会解密再加密，因此客户端看到的是它签发的证书。<span class="mono">O</span></p>
+          <p class="note"><b>设置来源也有权限门。</b> 本地终端在启动前设置即可。由 Desktop 应用管理连接时，网络变量只从 managed settings 与用户 settings 进入。云会话会忽略设置文件中的客户端证书与 CA 变量。<span class="mono">O</span></p>
+          <p class="note"><b>主机清单随能力变化。</b> 模型 API、登录、OAuth、连接器、插件下载、文档查询和可选遥测不共用一个域名。防火墙只放行模型端点，登录或扩展仍可能失败。<span class="mono">O</span></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="limits" id="limits">
+      <div class="section-head">
+        <h2>失败落在哪一关</h2>
+        <p>2.1.247 会区分配置格式、连接、TLS 校验与 HTTP 返回。重试不是一个统一开关，证书校验失败立即停，瞬时网络故障才按各自预算重试。</p>
+      </div>
+      <div class="failures">
+        <article class="failure stop"><h3>启动即停</h3><ul><li>代理 URL 解析失败</li><li>错误会点名应修的变量</li><li>请求尚未发出</li></ul></article>
+        <article class="failure retry"><h3>连接级故障</h3><ul><li>DNS、拒绝连接、代理隧道失败</li><li>连接重置或 TLS 握手超时</li><li>符合条件时重试，mTLS 材料也会重读</li></ul></article>
+        <article class="failure stop"><h3>明确停止</h3><ul><li>证书校验失败从 2.1.199 起不重试</li><li>代理替换成 HTML 或空正文会报畸形响应</li><li>HTTP 拒绝不会触发连接错误式 mTLS 重读</li></ul></article>
+      </div>
+    </section>
+
+    <section class="section experiment" data-xray-section="experiment" id="experiment">
+      <div class="section-head">
+        <h2>这轮核到了哪一步</h2>
+        <p>我没有启动 Claude 会话，也没有借用现有登录态。企业代理、测试 CA 和 mTLS 服务都不在安全实验条件里，因此不能把静态入口写成一次已经跑通的请求。</p>
+      </div>
+      <div class="verdict">
+        <strong>DOCUMENTED</strong>
+        <div>
+          <p><b>L 已核</b> 归档的目标二进制返回 2.1.247，SHA-256 与给定基线一致。定向字符串能找到代理、CA、mTLS、重载开关与相关错误短语。</p>
+          <p><b>R 缺席</b> 没有代理侧计数、TLS 报文或服务端证书拒绝记录。静态字符串只能证明代码包带着这些文字，不能证明分支这次执行过。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" id="implementation">
+      <div class="section-head">
+        <h2>实现与版本边界</h2>
+        <p>下面只列会改变这条请求链的版本点。默认安装入口在研究时已更新到 2.1.250，本页所有本机证据都显式取自仍保留的 2.1.247 目标二进制。</p>
+      </div>
+      <table>
+        <thead><tr><th>版本</th><th>这条链发生的变化</th><th>证据</th></tr></thead>
+        <tbody>
+          <tr><td>2.1.199</td><td>证书校验失败改为第一次就返回，不再耗完整重试预算。</td><td>O</td></tr>
+          <tr><td>2.1.214</td><td>Windows 代理常见的 Socket is closed 进入可重试处理。</td><td>O</td></tr>
+          <tr><td>2.1.217</td><td>Desktop 应用托管连接时，网络变量的设置 scope 改变。</td><td>O</td></tr>
+          <tr><td>2.1.222</td><td>首次连通检查统一代理传输，并为探测加十秒超时。</td><td>O</td></tr>
+          <tr><td>2.1.232</td><td>连接级错误会重新读取轮换后的 mTLS 文件。</td><td>O + L</td></tr>
+          <tr><td>2.1.242</td><td>可以单独设置首字节期限。</td><td>O</td></tr>
+          <tr><td>2.1.247</td><td>强制 gateway 登录时跳过 Anthropic 端点首次连通检查。</td><td>O + L</td></tr>
+        </tbody>
+      </table>
+      <details><summary>Dev Container 与进程包装为什么没有展开</summary><p>Dev Container 改变进程运行环境，process wrapper 改变 Claude Code 怎样被企业启动器包住。它们会影响变量怎样到达进程，却各自拥有另一条部署或启动状态机。本页在这里停住，回总索引寻找相邻机制。</p></details>
+      <details><summary>Corporate proxy 与 LLM Gateway 怎样分工</summary><p>Corporate proxy 接管 HTTP 或 HTTPS 传输。LLM Gateway 改变 API 基址，还可能集中处理认证、路由与限额。两种配置可以同时存在，后者的完整状态机留给 ADM-05。</p></details>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" id="unknowns">
+      <div class="section-head">
+        <h2>仍然不知道的部分</h2>
+        <p>这些缺口会影响安全审计或跨代理复现，所以保留在页面上。它们没有被首屏改写成确定事实。</p>
+      </div>
+      <div class="unknowns">
+        <div class="unknown"><b>01</b><p>原生运行时合并 bundled 与 system CA 时怎样去重、怎样处理同名根证书，官方没有公开。</p></div>
+        <div class="unknown"><b>02</b><p>mTLS 私钥进入进程后的内存保留时间与清零方式没有公开。</p></div>
+        <div class="unknown"><b>03</b><p>代理基本认证凭据在全部 debug 与错误路径里的脱敏表现没有经本轮实验核验。</p></div>
+        <div class="unknown"><b>04</b><p>不同企业代理对长时间响应流、CONNECT 重置与证书轮换的实际表现仍缺 R。</p></div>
+      </div>
+    </section>
+
+    <section class="section sources" data-xray-section="sources" id="sources">
+      <div class="section-head">
+        <h2>一手来源与复现入口</h2>
+        <p>复现时应在隔离容器里用测试代理、测试 CA 和测试 mTLS 服务。先制造证书拒绝，再加入 CA；随后轮换客户端证书，分别制造 TLS 握手失败与握手后的 HTTP 403。只有前者应触发连接错误式重读。</p>
+      </div>
+      <ol class="source-list">
+        <li><span>O-01</span><a href="https://code.claude.com/docs/en/network-config">企业网络配置，证明代理、CA、mTLS、轮换与主机放行契约</a></li>
+        <li><span>O-02</span><a href="https://code.claude.com/docs/en/errors">错误参考，证明连接失败、证书失败、超时与重试停止条件</a></li>
+        <li><span>O-03</span><a href="https://code.claude.com/docs/en/env-vars">环境变量参考，证明证书库、重载开关与版本要求</a></li>
+        <li><span>O-04</span><a href="https://code.claude.com/docs/en/data-usage">数据使用说明，证明本地模型请求经 TLS 传输</a></li>
+        <li><span>O-05</span><a href="https://code.claude.com/docs/en/agent-sdk/secure-deployment">安全部署说明，证明 CONNECT 隧道与 TLS 终止代理能看到的数据边界</a></li>
+      </ol>
+    </section>
+  </main>
+  <footer class="foot"><span>ADM-03 / documented / Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></footer>
+</body>
+</html>

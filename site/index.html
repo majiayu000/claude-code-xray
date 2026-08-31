@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#13282d">
+  <title>Claude Code XRY · 五十项机制索引</title>
+  <style>
+    :root {
+      --ink: #13282d;
+      --ink-2: #294046;
+      --paper: #f3f0e6;
+      --panel: #fbf9f1;
+      --line: #b7bcb4;
+      --orange: #d64e2b;
+      --cyan: #00788b;
+      --green: #177357;
+      --gold: #d89c18;
+      --muted: #627075;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Noto Sans Mono CJK SC", monospace;
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      --sans: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(19,40,45,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(19,40,45,.045) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: var(--sans);
+    }
+    a { color: inherit; }
+    button, input { font: inherit; }
+    button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+    .rail {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      min-height: 47px;
+      padding: .55rem max(1rem, calc((100vw - 1240px) / 2));
+      color: #fff8df;
+      background: rgba(19,40,45,.97);
+      border-bottom: 4px solid var(--orange);
+      font: 800 .76rem/1.2 var(--mono);
+      letter-spacing: .06em;
+    }
+    .rail-mark { color: #84d2bf; }
+    .rail-spacer { flex: 1; }
+    .rail a { color: #fff8df; text-underline-offset: .2em; }
+    main { width: min(1240px, calc(100% - 32px)); margin: 0 auto; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: clamp(2rem, 7vw, 7rem);
+      align-items: end;
+      padding: clamp(4rem, 9vw, 8rem) 0 4.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow { margin: 0 0 1.25rem; color: var(--orange); font: 900 .78rem/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+    h1 { max-width: 12ch; margin: 0; font: 900 clamp(3rem, 8vw, 7rem)/.91 var(--serif); letter-spacing: -.065em; }
+    .lede { max-width: 48rem; margin: 1.7rem 0 0; color: var(--ink-2); font-size: clamp(1rem, 1.7vw, 1.28rem); line-height: 1.75; }
+    .meter {
+      position: relative;
+      min-height: 375px;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+      color: #fff8df;
+      background: var(--ink);
+      border: 1px solid #091a1e;
+      box-shadow: 18px 18px 0 rgba(214,78,43,.18);
+      overflow: hidden;
+    }
+    .meter::before, .meter::after { content: ""; position: absolute; border: 1px solid rgba(255,255,255,.11); border-radius: 50%; }
+    .meter::before { width: 310px; height: 310px; }
+    .meter::after { width: 240px; height: 240px; }
+    .meter-core { position: relative; z-index: 1; text-align: center; }
+    .meter-value { display: block; font: 900 clamp(4.5rem, 10vw, 7.5rem)/.9 var(--mono); letter-spacing: -.1em; }
+    .meter-value small { color: #83cfbd; font-size: .24em; letter-spacing: 0; }
+    .meter-label { display: block; margin-top: 1.4rem; color: #b8d2cc; font: 800 .72rem var(--mono); letter-spacing: .13em; }
+    .meter-line { width: 172px; height: 6px; margin: 1.2rem auto 0; background: #3e555a; }
+    .meter-line span { display: block; width: 100%; height: 100%; background: var(--orange); }
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 2rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .search-wrap { position: relative; }
+    .search-wrap::before { content: "⌕"; position: absolute; left: 1rem; top: 50%; transform: translateY(-53%); color: var(--cyan); font: 900 1.5rem var(--mono); }
+    #search { width: 100%; padding: .9rem 1rem .9rem 3rem; color: var(--ink); background: rgba(251,249,241,.86); border: 1px solid var(--line); border-radius: 0; }
+    #search::placeholder { color: #7c898c; }
+    .filters { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .filter { padding: .72rem .9rem; color: var(--ink); background: transparent; border: 1px solid var(--line); cursor: pointer; font: 800 .72rem var(--mono); }
+    .filter:hover, .filter[aria-pressed="true"] { color: #fff8df; background: var(--ink); border-color: var(--ink); }
+    .summary-strip { display: grid; grid-template-columns: repeat(4, 1fr); margin: 2rem 0 4rem; border: 1px solid var(--line); background: rgba(251,249,241,.66); }
+    .summary-cell { min-height: 120px; padding: 1.1rem; border-right: 1px solid var(--line); }
+    .summary-cell:last-child { border-right: 0; }
+    .summary-cell b { display: block; margin-bottom: 1.1rem; color: var(--orange); font: 900 .72rem var(--mono); letter-spacing: .08em; }
+    .summary-cell span { font-size: 1rem; line-height: 1.5; }
+    .section { margin: 0 0 4.5rem; scroll-margin-top: 5rem; }
+    .section-head { display: grid; grid-template-columns: 9rem minmax(0,1fr) auto; gap: 1rem; align-items: baseline; margin-bottom: 1.2rem; }
+    .section-kicker { color: var(--orange); font: 900 .72rem var(--mono); letter-spacing: .12em; }
+    h2 { margin: 0; font: 900 clamp(1.7rem, 4vw, 3rem)/1.05 var(--serif); letter-spacing: -.035em; }
+    .section-count { color: var(--muted); font: 800 .72rem var(--mono); }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
+    .card {
+      position: relative;
+      min-height: 205px;
+      display: flex;
+      flex-direction: column;
+      padding: 1.25rem;
+      background: rgba(251,249,241,.82);
+      border: 1px solid var(--line);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    a.card { text-decoration: none; }
+    a.card:hover { transform: translate(-4px,-4px); border-color: var(--orange); box-shadow: 8px 8px 0 rgba(214,78,43,.18); }
+    .card.queued { color: #6a777a; background: rgba(238,236,228,.56); border-style: dashed; }
+    .card-top { display: flex; justify-content: space-between; gap: .7rem; align-items: center; }
+    .card-no { color: var(--orange); font: 900 .78rem var(--mono); }
+    .status { display: inline-flex; align-items: center; gap: .4rem; font: 800 .66rem var(--mono); letter-spacing: .06em; }
+    .status::before { content: ""; width: .58rem; height: .58rem; border-radius: 50%; background: var(--line); }
+    .accepted .status { color: var(--green); }
+    .accepted .status::before { background: var(--green); box-shadow: 0 0 0 3px rgba(23,115,87,.14); }
+    .card h3 { margin: 2rem 0 1.5rem; font: 900 1.22rem/1.38 var(--sans); }
+    .card-id { margin-top: auto; color: var(--cyan); font: 800 .72rem var(--mono); letter-spacing: .06em; }
+    .queued .card-id { color: #7c888a; }
+    .card-arrow { position: absolute; right: 1.2rem; bottom: 1rem; color: var(--orange); font: 900 1.3rem var(--mono); }
+    .empty { display: none; padding: 5rem 1rem; text-align: center; border: 1px dashed var(--line); }
+    .empty strong { display: block; margin-bottom: .5rem; font: 900 1.8rem var(--serif); }
+    footer { display: grid; grid-template-columns: 1fr auto; gap: 2rem; padding: 3rem 0 5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; line-height: 1.7; }
+    footer a { color: var(--cyan); text-underline-offset: .2em; }
+    .hidden { display: none !important; }
+    @media (max-width: 950px) {
+      .hero { grid-template-columns: 1fr; align-items: start; }
+      .meter { width: min(100%, 560px); min-height: 300px; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .summary-strip { grid-template-columns: 1fr 1fr; }
+      .summary-cell:nth-child(2) { border-right: 0; }
+      .summary-cell:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    }
+    @media (max-width: 640px) {
+      main { width: min(100% - 24px, 1240px); }
+      .rail { gap: .55rem; font-size: .65rem; }
+      .rail .baseline { display: none; }
+      .hero { padding: 3.8rem 0 3rem; }
+      h1 { font-size: clamp(3.2rem, 18vw, 5rem); }
+      .meter { min-height: 270px; padding: 1rem; box-shadow: 9px 9px 0 rgba(214,78,43,.18); }
+      .toolbar { grid-template-columns: 1fr; }
+      .filters { display: grid; grid-template-columns: repeat(3,1fr); }
+      .filter { padding-inline: .4rem; }
+      .summary-strip, .grid { grid-template-columns: 1fr; }
+      .summary-cell { min-height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .summary-cell:last-child { border-bottom: 0; }
+      .section-head { grid-template-columns: 1fr auto; }
+      .section-kicker { grid-column: 1 / -1; }
+      .card { min-height: 175px; }
+      footer { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .card { transition: none; }
+    }
+  
+    .noscript-catalog{margin:2rem 0;padding:clamp(1rem,3vw,2rem);border:1px solid var(--line);background:var(--panel)}
+    .noscript-catalog ol{columns:2;column-gap:2rem;padding-left:1.5rem}.noscript-catalog li{break-inside:avoid;margin:.55rem 0}
+    @media(max-width:720px){.noscript-catalog ol{columns:1}}
+  </style>
+  <meta name="description" content="Claude Code X-Ray：50 个核心机制与 26 个扩展机制的中文证据图谱，逐项解释用户动作、状态转换、权限、失败与停止条件。">
+  <link rel="canonical" href="http://127.0.0.1:5580/">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="Claude Code X-Ray · 机制与证据图谱">
+  <meta property="og:description" content="Claude Code X-Ray：50 个核心机制与 26 个扩展机制的中文证据图谱，逐项解释用户动作、状态转换、权限、失败与停止条件。">
+  <meta property="og:url" content="http://127.0.0.1:5580/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Claude Code X-Ray · 机制与证据图谱">
+  <meta name="twitter:description" content="Claude Code X-Ray：50 个核心机制与 26 个扩展机制的中文证据图谱，逐项解释用户动作、状态转换、权限、失败与停止条件。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <nav class="rail" aria-label="主页状态">
+    <span class="rail-mark">XRY / INDEX</span>
+    <span>76 PUBLISHED</span>
+    <span class="rail-spacer"></span>
+    <span class="baseline">BASELINE · CLAUDE CODE 2.1.247</span>
+    <a href="about.html">研究方法</a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Claude Code · Mechanism Atlas</p>
+        <h1>把功能拆到看得见骨头</h1>
+        <p class="lede">五十个核心机制，加上 26 个通过验收的扩展机制；每页只讲一个主要动作、一条状态转换和自己的停止条件。页面存在不算完成，只有证据账本、宽窄屏渲染与独立审查都通过，才会在这里亮灯。</p>
+      </div>
+      <aside class="meter" aria-label="研究完成进度 50 / 50">
+        <div class="meter-core">
+          <span class="meter-value">50<small>/50</small></span>
+          <span class="meter-label">INDEPENDENTLY ACCEPTED</span>
+          <div class="meter-line" aria-hidden="true"><span></span></div>
+        </div>
+      </aside>
+    </header>
+
+    <section class="toolbar" aria-label="索引筛选">
+      <label class="search-wrap"><span class="hidden">搜索功能名称或 ID</span><input id="search" type="search" autocomplete="off" placeholder="搜索功能名称或 ID，例如 Hooks、PAR-05"></label>
+      <div class="filters" role="group" aria-label="按状态筛选">
+        <button class="filter" type="button" data-filter="all" aria-pressed="true">全部 76</button>
+        <button class="filter" type="button" data-filter="accepted" aria-pressed="false">已验收 76</button>
+        <button class="filter" type="button" data-filter="queued" aria-pressed="false">待研究 0</button>
+      </div>
+    </section>
+
+    <section class="summary-strip" aria-label="索引说明">
+      <div class="summary-cell"><b>STATUS</b><span>绿色实点代表已经通过独立验收，可直接打开页面。</span></div>
+      <div class="summary-cell"><b>EVIDENCE</b><span>每页区分官方契约、本机静态证据、真实实验与推断。</span></div>
+      <div class="summary-cell"><b>BOUNDARY</b><span>组合型功能会被拆开，避免用一个标题重复计算多套机制。</span></div>
+      <div class="summary-cell"><b>SNAPSHOT</b><span>当前停止点为 2026-08-30，研究基线固定在 2.1.247。</span></div>
+    </section>
+
+    <div id="catalog"></div><noscript><div class="noscript-catalog"><h2>全部研究页面</h2><p>当前浏览器未启用 JavaScript，以下静态目录仍可完整访问。</p><section><h2>50 个核心机制</h2><ol><li><a href="20260827-223500-claude-code-agent-loop/explainer.html"><b>CORE-01</b> 核心 Agent 循环</a></li><li><a href="20260827-core-02-built-in-tools/explainer.html"><b>CORE-02</b> 工具执行层、结果整形与失败分类</a></li><li><a href="20260827-plan-01-plan-mode/explainer.html"><b>PLAN-01</b> Plan Mode 的调研、提问、批准与执行边界</a></li><li><a href="20260827-ctx-01-context-compaction-cache/explainer.html"><b>CTX-01</b> 上下文窗口、自动压缩与提示缓存</a></li><li><a href="20260827-223501-claude-code-sessions-checkpointing/explainer.html"><b>CTX-02</b> 会话身份、恢复、分叉与导出</a></li><li><a href="20260827-ctx-03-instruction-loading/explainer.html"><b>CTX-03</b> CLAUDE.md、Rules 与指令加载顺序</a></li><li><a href="20260827-ctx-04-auto-memory/explainer.html"><b>CTX-04</b> 自动记忆的写入、加载与失效</a></li><li><a href="20260827-ctx-05-model-effort/explainer.html"><b>CTX-05</b> 模型选择、Effort 与会话中切换</a></li><li><a href="20260827-ctx-06-fast-mode/explainer.html"><b>CTX-06</b> Fast Mode 的路由、计费与回退</a></li><li><a href="20260827-ctx-07-output-styles/explainer.html"><b>CTX-07</b> Output Styles 与回复呈现</a></li><li><a href="20260827-ctx-08-checkpoints-rewind/explainer.html"><b>CTX-08</b> 文件检查点、rewind 与回退边界</a></li><li><a href="20260827-safe-01-permissions-approval/explainer.html"><b>SAFE-01</b> 权限规则、权限模式与审批</a></li><li><a href="20260827-safe-02-sandbox-network-filesystem/explainer.html"><b>SAFE-02</b> Bash 沙箱、网络隔离与文件系统边界</a></li><li><a href="20260827-safe-03-safe-clean-diagnostics/explainer.html"><b>SAFE-03</b> Safe Mode、Clean 诊断与错误恢复</a></li><li><a href="20260827-par-02-agent-view-background-sessions/explainer.html"><b>PAR-02</b> Agent View 与后台会话生命周期</a></li><li><a href="20260827-par-03-worktree-isolation/explainer.html"><b>PAR-03</b> Worktree 隔离与并行会话</a></li><li><a href="20260827-par-04-git-pr/explainer.html"><b>PAR-04</b> Git 操作、提交、分支与 Pull Request</a></li><li><a href="20260827-par-05-local-code-review/explainer.html"><b>PAR-05</b> 本地 Code Review 的差异读取与发现输出</a></li><li><a href="20260827-par-06-batch-current/explainer.html"><b>PAR-06</b> /batch 大规模迁移编排</a></li><li><a href="20260827-par-07-subagent-core-lifecycle/explainer.html"><b>PAR-07</b> 子 Agent 的前后台生命周期与停止</a></li><li><a href="20260827-par-08-agent-teams/explainer.html"><b>PAR-08</b> Agent Teams 的共享任务、消息与结束</a></li><li><a href="20260827-ext-01-skills/explainer.html"><b>EXT-01</b> Skills 的发现、加载与执行</a></li><li><a href="20260827-ext-02-commands/explainer.html"><b>EXT-02</b> 自定义斜杠命令与内置 Commands</a></li><li><a href="20260827-ext-03-hooks/explainer.html"><b>EXT-03</b> Hooks 事件、决策与生命周期</a></li><li><a href="20260827-ext-04-mcp-tool-search/explainer.html"><b>EXT-04</b> MCP 连接、工具发现与 Tool Search</a></li><li><a href="20260827-ext-05-plugin-lifecycle/explainer.html"><b>EXT-05</b> Plugin 包的发现、依赖解析、启用与卸载</a></li><li><a href="20260827-ext-06-lsp-code-intelligence/explainer.html"><b>EXT-06</b> LSP 与代码智能</a></li><li><a href="20260827-auto-01-loop/explainer.html"><b>AUTO-01</b> /loop 会话内定时器</a></li><li><a href="20260827-auto-02-goal/explainer.html"><b>AUTO-02</b> /goal 的持续目标与续跑</a></li><li><a href="20260827-auto-03-desktop-scheduled-tasks/explainer.html"><b>AUTO-03</b> Desktop Scheduled Tasks 的持久调度</a></li><li><a href="20260827-auto-04-headless-structured-io/explainer.html"><b>AUTO-04</b> Headless 模式、流式输入输出与结构化结果</a></li><li><a href="20260827-cloud-01-session-handoff-teleport/explainer.html"><b>CLOUD-01</b> Web/Cloud 与 Teleport 的会话接力</a></li><li><a href="20260827-cloud-02-routines-events/explainer.html"><b>CLOUD-02</b> Routines 与云端事件触发</a></li><li><a href="20260827-cloud-03-ci-event-execution/explainer.html"><b>CLOUD-03</b> CI 事件触发 Claude Code 与变更回写</a></li><li><a href="20260827-ui-01-cli-input-scheduling/explainer.html"><b>UI-01</b> CLI 输入调度、Queued Prompt、立即命令、/btw、中断与语音输入</a></li><li><a href="20260827-ui-02-terminal-rendering-accessibility/explainer.html"><b>UI-02</b> Fullscreen 渲染与无障碍呈现</a></li><li><a href="20260827-ui-04-ide-session-bridge/explainer.html"><b>UI-04</b> IDE 扩展的上下文、会话与 Diff 桥接</a></li><li><a href="20260827-ui-05-desktop-workspace/explainer.html"><b>UI-05</b> Desktop 项目会话与隔离工作区</a></li><li><a href="20260827-ui-06-claude-in-chrome/explainer.html"><b>UI-06</b> Claude in Chrome 的连接与页面动作</a></li><li><a href="20260827-ui-07-remote-control-mobile/explainer.html"><b>UI-07</b> Remote Control、Mobile 与跨设备接管</a></li><li><a href="20260827-ui-08-channels-runtime-injection/explainer.html"><b>UI-08</b> Channels 的运行中消息注入与回复路由</a></li><li><a href="20260827-adm-01-settings-scopes/explainer.html"><b>ADM-01</b> 配置作用域、优先级、Managed Settings 与功能可用性</a></li><li><a href="20260827-adm-02-auth-source-selection/explainer.html"><b>ADM-02</b> 认证来源选择与凭据生效</a></li><li><a href="20260827-adm-03-enterprise-network/explainer.html"><b>ADM-03</b> 企业代理、证书与网络请求链</a></li><li><a href="20260827-adm-04-cloud-session-runner/explainer.html"><b>ADM-04</b> 云会话的环境选择、Runner 执行与回收</a></li><li><a href="20260827-adm-05-gateway-routing/explainer.html"><b>ADM-05</b> Gateway、认证转发、模型路由与限额</a></li><li><a href="20260827-adm-06-otel-usage-events/explainer.html"><b>ADM-06</b> 使用事件、OpenTelemetry 与隐私边界</a></li><li><a href="20260827-adm-08-doctor-diagnostics/explainer.html"><b>ADM-08</b> Doctor 检查与本机故障诊断</a></li><li><a href="20260827-sdk-01-runtime-session-loop/explainer.html"><b>SDK-01</b> Agent SDK 的运行时消息循环与会话续接</a></li><li><a href="20260827-sdk-02-tool-governance/explainer.html"><b>SDK-02</b> Agent SDK 的工具调用、MCP 与审批拦截</a></li></ol></section><section><h2>扩展机制</h2><ol><li><a href="20260829-companion-advisor-tool/explainer.html"><b>COMP-CTX-ADVISOR</b> Advisor Tool 的升级咨询、返回与失败边界</a></li><li><a href="20260829-companion-bare-mode/explainer.html"><b>COMP-SAFE-BARE</b> Bare Mode 的最小加载面与脚本启动边界</a></li><li><a href="20260829-companion-session-recap/explainer.html"><b>COMP-PAR-RECAP</b> 后台会话回归时的 Session Recap</a></li><li><a href="20260829-companion-dynamic-workflows/explainer.html"><b>COMP-PAR-WORKFLOW</b> Dynamic Workflows 的脚本生成、阶段调度与重跑</a></li><li><a href="20260829-companion-plugin-runtime/explainer.html"><b>COMP-EXT-PLUGIN-RUNTIME</b> Plugin Executables 与 Monitors 的运行时装配</a></li><li><a href="20260829-companion-plugin-distribution/explainer.html"><b>COMP-EXT-MARKETPLACE-PUBLISH</b> Marketplace 发布、推荐与依赖政策矩阵</a></li><li><a href="20260827-auto-05-deep-links/explainer.html"><b>AUTO-05</b> Deep Links 与从链接启动会话</a></li><li><a href="20260827-ext-07-artifacts/explainer.html"><b>EXT-07</b> Artifacts 的生成、持久化与分享权限</a></li><li><a href="20260829-companion-ci-provider-matrix/explainer.html"><b>COMP-CLOUD-CI-PROVIDERS</b> CI 与云 Provider 配置差异矩阵</a></li><li><a href="20260829-companion-terminal-keymap-vim/explainer.html"><b>COMP-UI-KEYMAP</b> 终端键位、Vim 与输入模式</a></li><li><a href="20260829-companion-custom-statusline/explainer.html"><b>COMP-UI-STATUSLINE</b> Custom Status Line 的子进程协议</a></li><li><a href="20260829-companion-ide-platform-matrix/explainer.html"><b>COMP-UI-IDE-MATRIX</b> VS Code 与 JetBrains 能力差异矩阵</a></li><li><a href="20260829-companion-desktop-app-preview/explainer.html"><b>COMP-UI-DESKTOP-PREVIEW</b> Desktop App Preview 的启动与反馈回路</a></li><li><a href="20260829-companion-desktop-pr-monitor/explainer.html"><b>COMP-UI-DESKTOP-PRMON</b> Desktop PR Monitor 的远端状态跟踪</a></li><li><a href="20260829-companion-cli-computer-use/explainer.html"><b>COMP-UI-COMPUTER-USE</b> CLI Computer Use 的屏幕、动作与系统权限</a></li><li><a href="20260829-companion-slack-claude-tag/explainer.html"><b>COMP-UI-CHAT-DELEGATION</b> Slack 与 Claude Tag 的委派和退役矩阵</a></li><li><a href="20260829-companion-auth-provider-matrix/explainer.html"><b>COMP-ADM-AUTH-MATRIX</b> 订阅、Console 与第三方 Provider 可用性矩阵</a></li><li><a href="20260829-companion-devcontainer/explainer.html"><b>COMP-ADM-DEVCONTAINER</b> Dev Container 的环境构建与隔离生命周期</a></li><li><a href="20260829-companion-process-wrapper/explainer.html"><b>COMP-ADM-PROCESS-WRAPPER</b> Corporate Launcher 与 Process Wrapper</a></li><li><a href="20260829-companion-cloud-environment-authoring/explainer.html"><b>COMP-ADM-CLOUD-ENV-AUTHOR</b> Cloud Environment 的定义、缓存与版本化</a></li><li><a href="20260829-companion-self-hosted-runner-ops/explainer.html"><b>COMP-ADM-RUNNER-OPS</b> Self-hosted Runner 的部署、身份与运维</a></li><li><a href="20260829-companion-usage-consumers-data-policy/explainer.html"><b>COMP-ADM-USAGE-CONSUMERS</b> 成本、团队分析与数据政策矩阵</a></li><li><a href="20260829-companion-sdk-structured-output/explainer.html"><b>COMP-SDK-STRUCTURED-OUTPUT</b> Agent SDK Structured Output 的验证与失败</a></li><li><a href="20260829-companion-sdk-session-storage/explainer.html"><b>COMP-SDK-SESSION-STORAGE</b> Agent SDK External Session Storage</a></li><li><a href="20260829-companion-sdk-observability/explainer.html"><b>COMP-SDK-OBSERVABILITY</b> Agent SDK 成本、Tracing 与 OpenTelemetry</a></li><li><a href="20260829-companion-sdk-hosting-security/explainer.html"><b>COMP-SDK-HOSTING</b> Agent SDK Hosting 与安全部署矩阵</a></li></ol></section></div></noscript>
+    <div id="empty" class="empty"><strong>没有匹配项</strong><span>试试功能名称、斜杠命令或 XRY ID。</span></div>
+
+    <footer>
+      <span>公开版只收录账本验收通过的 50 个核心页与 26 个扩展页；运行日志、认证文件和历史草稿不会进入发布包。</span>
+      <span><a href="about.html">查看研究方法与证据等级</a></span>
+    </footer>
+  </main>
+
+  <script>
+    const items = [{"n":1,"id":"CORE-01","title":"核心 Agent 循环","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-223500-claude-code-agent-loop/explainer.html"},{"n":2,"id":"CORE-02","title":"工具执行层、结果整形与失败分类","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-core-02-built-in-tools/explainer.html"},{"n":3,"id":"PLAN-01","title":"Plan Mode 的调研、提问、批准与执行边界","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-plan-01-plan-mode/explainer.html"},{"n":4,"id":"CTX-01","title":"上下文窗口、自动压缩与提示缓存","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ctx-01-context-compaction-cache/explainer.html"},{"n":5,"id":"CTX-02","title":"会话身份、恢复、分叉与导出","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-223501-claude-code-sessions-checkpointing/explainer.html"},{"n":6,"id":"CTX-03","title":"CLAUDE.md、Rules 与指令加载顺序","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ctx-03-instruction-loading/explainer.html"},{"n":7,"id":"CTX-04","title":"自动记忆的写入、加载与失效","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ctx-04-auto-memory/explainer.html"},{"n":8,"id":"CTX-05","title":"模型选择、Effort 与会话中切换","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ctx-05-model-effort/explainer.html"},{"n":9,"id":"CTX-06","title":"Fast Mode 的路由、计费与回退","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ctx-06-fast-mode/explainer.html"},{"n":10,"id":"CTX-07","title":"Output Styles 与回复呈现","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ctx-07-output-styles/explainer.html"},{"n":11,"id":"CTX-08","title":"文件检查点、rewind 与回退边界","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ctx-08-checkpoints-rewind/explainer.html"},{"n":12,"id":"SAFE-01","title":"权限规则、权限模式与审批","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-safe-01-permissions-approval/explainer.html"},{"n":13,"id":"SAFE-02","title":"Bash 沙箱、网络隔离与文件系统边界","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-safe-02-sandbox-network-filesystem/explainer.html"},{"n":14,"id":"SAFE-03","title":"Safe Mode、Clean 诊断与错误恢复","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-safe-03-safe-clean-diagnostics/explainer.html"},{"n":15,"id":"PAR-02","title":"Agent View 与后台会话生命周期","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-par-02-agent-view-background-sessions/explainer.html"},{"n":16,"id":"PAR-03","title":"Worktree 隔离与并行会话","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-par-03-worktree-isolation/explainer.html"},{"n":17,"id":"PAR-04","title":"Git 操作、提交、分支与 Pull Request","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-par-04-git-pr/explainer.html"},{"n":18,"id":"PAR-05","title":"本地 Code Review 的差异读取与发现输出","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-par-05-local-code-review/explainer.html"},{"n":19,"id":"PAR-06","title":"/batch 大规模迁移编排","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-par-06-batch-current/explainer.html"},{"n":20,"id":"PAR-07","title":"子 Agent 的前后台生命周期与停止","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-par-07-subagent-core-lifecycle/explainer.html"},{"n":21,"id":"PAR-08","title":"Agent Teams 的共享任务、消息与结束","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-par-08-agent-teams/explainer.html"},{"n":22,"id":"EXT-01","title":"Skills 的发现、加载与执行","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ext-01-skills/explainer.html"},{"n":23,"id":"EXT-02","title":"自定义斜杠命令与内置 Commands","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ext-02-commands/explainer.html"},{"n":24,"id":"EXT-03","title":"Hooks 事件、决策与生命周期","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ext-03-hooks/explainer.html"},{"n":25,"id":"EXT-04","title":"MCP 连接、工具发现与 Tool Search","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ext-04-mcp-tool-search/explainer.html"},{"n":26,"id":"EXT-05","title":"Plugin 包的发现、依赖解析、启用与卸载","status":"accepted","evidence_status":"verified","kind":"core","page":"20260827-ext-05-plugin-lifecycle/explainer.html"},{"n":27,"id":"EXT-06","title":"LSP 与代码智能","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ext-06-lsp-code-intelligence/explainer.html"},{"n":28,"id":"AUTO-01","title":"/loop 会话内定时器","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-auto-01-loop/explainer.html"},{"n":29,"id":"AUTO-02","title":"/goal 的持续目标与续跑","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-auto-02-goal/explainer.html"},{"n":30,"id":"AUTO-03","title":"Desktop Scheduled Tasks 的持久调度","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-auto-03-desktop-scheduled-tasks/explainer.html"},{"n":31,"id":"AUTO-04","title":"Headless 模式、流式输入输出与结构化结果","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-auto-04-headless-structured-io/explainer.html"},{"n":32,"id":"CLOUD-01","title":"Web/Cloud 与 Teleport 的会话接力","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-cloud-01-session-handoff-teleport/explainer.html"},{"n":33,"id":"CLOUD-02","title":"Routines 与云端事件触发","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-cloud-02-routines-events/explainer.html"},{"n":34,"id":"CLOUD-03","title":"CI 事件触发 Claude Code 与变更回写","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-cloud-03-ci-event-execution/explainer.html"},{"n":35,"id":"UI-01","title":"CLI 输入调度、Queued Prompt、立即命令、/btw、中断与语音输入","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ui-01-cli-input-scheduling/explainer.html"},{"n":36,"id":"UI-02","title":"Fullscreen 渲染与无障碍呈现","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ui-02-terminal-rendering-accessibility/explainer.html"},{"n":37,"id":"UI-04","title":"IDE 扩展的上下文、会话与 Diff 桥接","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ui-04-ide-session-bridge/explainer.html"},{"n":38,"id":"UI-05","title":"Desktop 项目会话与隔离工作区","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ui-05-desktop-workspace/explainer.html"},{"n":39,"id":"UI-06","title":"Claude in Chrome 的连接与页面动作","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ui-06-claude-in-chrome/explainer.html"},{"n":40,"id":"UI-07","title":"Remote Control、Mobile 与跨设备接管","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ui-07-remote-control-mobile/explainer.html"},{"n":41,"id":"UI-08","title":"Channels 的运行中消息注入与回复路由","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-ui-08-channels-runtime-injection/explainer.html"},{"n":42,"id":"ADM-01","title":"配置作用域、优先级、Managed Settings 与功能可用性","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-adm-01-settings-scopes/explainer.html"},{"n":43,"id":"ADM-02","title":"认证来源选择与凭据生效","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-adm-02-auth-source-selection/explainer.html"},{"n":44,"id":"ADM-03","title":"企业代理、证书与网络请求链","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-adm-03-enterprise-network/explainer.html"},{"n":45,"id":"ADM-04","title":"云会话的环境选择、Runner 执行与回收","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-adm-04-cloud-session-runner/explainer.html"},{"n":46,"id":"ADM-05","title":"Gateway、认证转发、模型路由与限额","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-adm-05-gateway-routing/explainer.html"},{"n":47,"id":"ADM-06","title":"使用事件、OpenTelemetry 与隐私边界","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-adm-06-otel-usage-events/explainer.html"},{"n":48,"id":"ADM-08","title":"Doctor 检查与本机故障诊断","status":"accepted","evidence_status":"verified","kind":"core","page":"20260827-adm-08-doctor-diagnostics/explainer.html"},{"n":49,"id":"SDK-01","title":"Agent SDK 的运行时消息循环与会话续接","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-sdk-01-runtime-session-loop/explainer.html"},{"n":50,"id":"SDK-02","title":"Agent SDK 的工具调用、MCP 与审批拦截","status":"accepted","evidence_status":"documented","kind":"core","page":"20260827-sdk-02-tool-governance/explainer.html"},{"n":51,"id":"COMP-CTX-ADVISOR","title":"Advisor Tool 的升级咨询、返回与失败边界","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-advisor-tool/explainer.html"},{"n":52,"id":"COMP-SAFE-BARE","title":"Bare Mode 的最小加载面与脚本启动边界","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-bare-mode/explainer.html"},{"n":53,"id":"COMP-PAR-RECAP","title":"后台会话回归时的 Session Recap","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-session-recap/explainer.html"},{"n":54,"id":"COMP-PAR-WORKFLOW","title":"Dynamic Workflows 的脚本生成、阶段调度与重跑","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-dynamic-workflows/explainer.html"},{"n":55,"id":"COMP-EXT-PLUGIN-RUNTIME","title":"Plugin Executables 与 Monitors 的运行时装配","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-plugin-runtime/explainer.html"},{"n":56,"id":"COMP-EXT-MARKETPLACE-PUBLISH","title":"Marketplace 发布、推荐与依赖政策矩阵","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-plugin-distribution/explainer.html"},{"n":57,"id":"AUTO-05","title":"Deep Links 与从链接启动会话","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260827-auto-05-deep-links/explainer.html"},{"n":58,"id":"EXT-07","title":"Artifacts 的生成、持久化与分享权限","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260827-ext-07-artifacts/explainer.html"},{"n":59,"id":"COMP-CLOUD-CI-PROVIDERS","title":"CI 与云 Provider 配置差异矩阵","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-ci-provider-matrix/explainer.html"},{"n":60,"id":"COMP-UI-KEYMAP","title":"终端键位、Vim 与输入模式","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-terminal-keymap-vim/explainer.html"},{"n":61,"id":"COMP-UI-STATUSLINE","title":"Custom Status Line 的子进程协议","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-custom-statusline/explainer.html"},{"n":62,"id":"COMP-UI-IDE-MATRIX","title":"VS Code 与 JetBrains 能力差异矩阵","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-ide-platform-matrix/explainer.html"},{"n":63,"id":"COMP-UI-DESKTOP-PREVIEW","title":"Desktop App Preview 的启动与反馈回路","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-desktop-app-preview/explainer.html"},{"n":64,"id":"COMP-UI-DESKTOP-PRMON","title":"Desktop PR Monitor 的远端状态跟踪","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-desktop-pr-monitor/explainer.html"},{"n":65,"id":"COMP-UI-COMPUTER-USE","title":"CLI Computer Use 的屏幕、动作与系统权限","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-cli-computer-use/explainer.html"},{"n":66,"id":"COMP-UI-CHAT-DELEGATION","title":"Slack 与 Claude Tag 的委派和退役矩阵","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-slack-claude-tag/explainer.html"},{"n":67,"id":"COMP-ADM-AUTH-MATRIX","title":"订阅、Console 与第三方 Provider 可用性矩阵","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-auth-provider-matrix/explainer.html"},{"n":68,"id":"COMP-ADM-DEVCONTAINER","title":"Dev Container 的环境构建与隔离生命周期","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-devcontainer/explainer.html"},{"n":69,"id":"COMP-ADM-PROCESS-WRAPPER","title":"Corporate Launcher 与 Process Wrapper","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-process-wrapper/explainer.html"},{"n":70,"id":"COMP-ADM-CLOUD-ENV-AUTHOR","title":"Cloud Environment 的定义、缓存与版本化","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-cloud-environment-authoring/explainer.html"},{"n":71,"id":"COMP-ADM-RUNNER-OPS","title":"Self-hosted Runner 的部署、身份与运维","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-self-hosted-runner-ops/explainer.html"},{"n":72,"id":"COMP-ADM-USAGE-CONSUMERS","title":"成本、团队分析与数据政策矩阵","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-usage-consumers-data-policy/explainer.html"},{"n":73,"id":"COMP-SDK-STRUCTURED-OUTPUT","title":"Agent SDK Structured Output 的验证与失败","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-sdk-structured-output/explainer.html"},{"n":74,"id":"COMP-SDK-SESSION-STORAGE","title":"Agent SDK External Session Storage","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-sdk-session-storage/explainer.html"},{"n":75,"id":"COMP-SDK-OBSERVABILITY","title":"Agent SDK 成本、Tracing 与 OpenTelemetry","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-sdk-observability/explainer.html"},{"n":76,"id":"COMP-SDK-HOSTING","title":"Agent SDK Hosting 与安全部署矩阵","status":"accepted","evidence_status":"documented","kind":"companion","page":"20260829-companion-sdk-hosting-security/explainer.html"}];
+    const groups = [
+      {key:"CORE", label:"01 / CORE", title:"核心循环与上下文", match:item => item.kind === "core" && item.n <= 11},
+      {key:"SAFE", label:"02 / SAFETY + PARALLEL", title:"权限、安全与并行工作", match:item => item.kind === "core" && item.n >= 12 && item.n <= 21},
+      {key:"EXT", label:"03 / EXTENSIONS", title:"扩展系统", match:item => item.kind === "core" && item.n >= 22 && item.n <= 27},
+      {key:"AUTO", label:"04 / AUTOMATION + CLOUD", title:"自动化与云端执行", match:item => item.kind === "core" && item.n >= 28 && item.n <= 34},
+      {key:"UI", label:"05 / INTERFACES", title:"使用界面与设备", match:item => item.kind === "core" && item.n >= 35 && item.n <= 41},
+      {key:"ADM", label:"06 / ADMIN + SDK", title:"配置、部署与 Agent SDK", match:item => item.kind === "core" && item.n >= 42},
+      {key:"COMP", label:"07 / COMPANIONS", title:"扩展机制与平台差异", match:item => item.kind === "companion"}
+    ];
+    const catalog = document.querySelector("#catalog");
+    const empty = document.querySelector("#empty");
+    const search = document.querySelector("#search");
+    const filters = [...document.querySelectorAll(".filter")];
+    let activeFilter = "all";
+
+    const escapeHtml = value => value.replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[char]);
+    function card(item) {
+      const body = `<div class="card-top"><span class="card-no">${String(item.n).padStart(2,"0")}</span><span class="status">${item.evidence_status.toUpperCase()}</span></div><h3>${escapeHtml(item.title)}</h3><span class="card-id">${item.id}</span>${item.page ? '<span class="card-arrow">↗</span>' : ''}`;
+      return item.page ? `<a class="card accepted" data-status="accepted" data-search="${escapeHtml(item.id + " " + item.title)}" href="${item.page}">${body}</a>` : `<article class="card queued" data-status="queued" data-search="${escapeHtml(item.id + " " + item.title)}">${body}</article>`;
+    }
+    function render() {
+      const term = search.value.trim().toLocaleLowerCase("zh-CN");
+      let visible = 0;
+      catalog.innerHTML = groups.map(group => {
+        const rows = items.filter(group.match).filter(item => activeFilter === "all" || item.status === activeFilter).filter(item => !term || `${item.id} ${item.title}`.toLocaleLowerCase("zh-CN").includes(term));
+        if (!rows.length) return "";
+        visible += rows.length;
+        const accepted = rows.filter(item => item.status === "accepted").length;
+        return `<section class="section"><div class="section-head"><span class="section-kicker">${group.label}</span><h2>${group.title}</h2><span class="section-count">${accepted}/${rows.length} 可打开</span></div><div class="grid">${rows.map(card).join("")}</div></section>`;
+      }).join("");
+      empty.style.display = visible ? "none" : "block";
+    }
+    filters.forEach(button => button.addEventListener("click", () => {
+      activeFilter = button.dataset.filter;
+      filters.forEach(other => other.setAttribute("aria-pressed", String(other === button)));
+      render();
+    }));
+    search.addEventListener("input", render);
+    render();
+  </script>
+</body>
+</html>

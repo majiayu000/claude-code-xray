@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-SDK-SESSION-STORAGE">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>伴页 · Agent SDK External Session Storage</title>
+  <style>
+    :root {
+      --night: #07161d;
+      --panel: #0d2630;
+      --panel-2: #12333c;
+      --paper: #eef1e7;
+      --paper-2: #dce3d6;
+      --ink: #13252a;
+      --muted: #617176;
+      --line-dark: #35515a;
+      --line-light: #a9b5aa;
+      --amber: #ffb547;
+      --coral: #ff725e;
+      --mint: #72d6b5;
+      --blue: #77b9d4;
+      --white: #f8f5e9;
+      --serif: "Baskerville", "Iowan Old Style", "Songti SC", "STSong", serif;
+      --sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--sans);
+      line-height: 1.72;
+    }
+    a { color: inherit; text-underline-offset: .22em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--coral); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code, .mono { font-family: var(--mono); }
+    code { font-size: .92em; }
+    p { margin: 0 0 1rem; }
+    h1, h2, h3 { margin-top: 0; font-family: var(--serif); line-height: 1.08; }
+    h1 { margin-bottom: 1.5rem; font-size: clamp(3.15rem, 8vw, 8.5rem); letter-spacing: -.065em; }
+    h2 { max-width: 15ch; margin-bottom: 2rem; font-size: clamp(2.2rem, 4.8vw, 5rem); letter-spacing: -.045em; }
+    h3 { margin-bottom: .65rem; font-size: 1.32rem; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 1.2rem;
+      align-items: center;
+      min-height: 58px;
+      padding: .65rem clamp(1rem, 4vw, 4.5rem);
+      color: var(--white);
+      background: rgba(7, 22, 29, .97);
+      border-bottom: 1px solid var(--line-dark);
+    }
+    .folio { color: var(--amber); font-family: var(--mono); font-size: .8rem; letter-spacing: .08em; }
+    .topbar nav { display: flex; justify-content: center; flex-wrap: wrap; gap: .3rem 1rem; font-size: .78rem; }
+    .topbar .meta { color: #b8c9c9; font-family: var(--mono); font-size: .72rem; text-align: right; }
+
+    .hero {
+      position: relative;
+      min-height: 82vh;
+      overflow: hidden;
+      padding: clamp(4.5rem, 8vw, 8rem) clamp(1.1rem, 7vw, 7rem) 4rem;
+      color: var(--white);
+      background:
+        linear-gradient(90deg, rgba(114,214,181,.06) 1px, transparent 1px),
+        linear-gradient(rgba(114,214,181,.045) 1px, transparent 1px),
+        var(--night);
+      background-size: 44px 44px;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -9vw;
+      top: 12%;
+      width: min(40vw, 560px);
+      aspect-ratio: 1;
+      border: 1px solid rgba(114,214,181,.25);
+      border-radius: 50%;
+      box-shadow: 0 0 0 42px rgba(114,214,181,.025), 0 0 0 88px rgba(255,181,71,.02);
+    }
+    .hero-grid {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(280px, .82fr);
+      gap: clamp(2rem, 7vw, 8rem);
+      align-items: end;
+      width: min(1240px, 100%);
+      margin: 0 auto;
+    }
+    .kicker { margin: 0 0 1rem; color: var(--amber); font-family: var(--mono); font-size: .78rem; letter-spacing: .12em; }
+    .lead { max-width: 35ch; margin: 0; color: #e4eee8; font-family: var(--serif); font-size: clamp(1.22rem, 2.15vw, 1.8rem); line-height: 1.5; }
+    .hero-note { padding: 1.5rem; border: 1px solid var(--line-dark); background: rgba(13,38,48,.76); }
+    .hero-note strong { display: block; margin-bottom: 1rem; color: var(--mint); font-family: var(--mono); font-size: .78rem; }
+    .hero-note p { margin: 0; color: #c7d7d5; }
+    .status-line { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 1.4rem; }
+    .chip { padding: .22rem .7rem; border: 1px solid var(--line-dark); border-radius: 99px; font-family: var(--mono); font-size: .7rem; }
+    .chip.status { color: var(--night); background: var(--mint); border-color: var(--mint); }
+
+    .route-strip {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: .8rem;
+      align-items: center;
+      width: min(1240px, 100%);
+      margin: clamp(3rem, 7vw, 6rem) auto 0;
+    }
+    .route-stop { min-height: 104px; padding: 1rem; border: 1px solid var(--line-dark); background: rgba(7,22,29,.76); }
+    .route-stop span { display: block; color: var(--amber); font-family: var(--mono); font-size: .68rem; }
+    .route-stop b { display: block; margin-top: .8rem; font-family: var(--serif); font-size: 1.15rem; }
+    .route-arrow { color: var(--coral); font-size: 1.6rem; }
+
+    .section { padding: clamp(4.2rem, 8vw, 8rem) clamp(1.1rem, 7vw, 7rem); border-bottom: 1px solid var(--line-light); }
+    .shell { width: min(1180px, 100%); margin: 0 auto; }
+    .section-tag { margin: 0 0 .75rem; color: #a43f31; font-family: var(--mono); font-size: .74rem; letter-spacing: .1em; }
+
+    .terms { background: var(--paper-2); }
+    .term-line { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--ink); border-bottom: 1px solid var(--ink); }
+    .term { min-height: 220px; padding: 1.3rem; border-right: 1px solid var(--ink); }
+    .term:last-child { border-right: 0; }
+    .term small { display: block; margin-bottom: 3rem; color: #a43f31; font-family: var(--mono); }
+    .term p { color: #415357; }
+
+    .sequence { color: var(--white); background: var(--night); }
+    .sequence .section-tag { color: var(--amber); }
+    .sequence-grid { display: grid; grid-template-columns: minmax(230px, .55fr) minmax(0, 1.45fr); gap: clamp(2rem, 7vw, 7rem); }
+    .sequence aside { color: #b9cbca; font-family: var(--serif); font-size: 1.18rem; }
+    .manifest { border-top: 1px solid var(--line-dark); counter-reset: item; }
+    .manifest article {
+      counter-increment: item;
+      display: grid;
+      grid-template-columns: 3rem minmax(0, 1fr) auto;
+      gap: 1rem;
+      padding: 1.2rem 0;
+      border-bottom: 1px solid var(--line-dark);
+    }
+    .manifest article::before { content: "0" counter(item); color: var(--amber); font-family: var(--mono); font-size: .76rem; }
+    .manifest strong { display: block; margin-bottom: .25rem; color: var(--white); font-family: var(--serif); font-size: 1.15rem; }
+    .manifest p { margin: 0; color: #aebfbe; }
+
+    .e-badge { display: inline-grid; place-items: center; width: 27px; height: 27px; border: 1px solid currentColor; border-radius: 50%; font-family: var(--mono); font-size: .7rem; font-weight: 800; }
+    .o { color: var(--blue); }
+    .l { color: var(--mint); }
+    .r { color: var(--coral); }
+    .i { color: var(--amber); }
+
+    .flow-canvas { position: relative; padding: 2rem 0 0; }
+    .flow-canvas::before { content: ""; position: absolute; left: 5%; right: 5%; top: 50%; border-top: 2px dashed #788b86; }
+    .flow-row { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; }
+    .flow-node { min-height: 178px; padding: 1.25rem; border: 1px solid var(--ink); background: var(--paper); box-shadow: 8px 8px 0 var(--paper-2); }
+    .flow-node:nth-child(3) { color: var(--white); background: var(--panel); box-shadow: 8px 8px 0 #9bb0a6; }
+    .flow-node .label { display: block; margin-bottom: 3rem; color: #a43f31; font-family: var(--mono); font-size: .7rem; }
+    .flow-node:nth-child(3) .label { color: var(--amber); }
+
+    .limits { background: #f5e4da; }
+    .failure-map { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; border: 1px solid var(--ink); background: var(--ink); }
+    .failure { padding: 1.5rem; background: #f5e4da; }
+    .failure:nth-child(2), .failure:nth-child(3) { background: #f0eee2; }
+    .failure .flag { display: inline-flex; gap: .55rem; align-items: center; margin-bottom: 2rem; color: #9b3429; font-family: var(--mono); font-size: .72rem; }
+    .failure ul { margin: .8rem 0 0; padding-left: 1.2rem; }
+    .failure li { margin-bottom: .5rem; }
+    .stop-rule { margin-top: 1.4rem; padding: 1.2rem 1.4rem; color: var(--white); background: var(--panel); border-left: 7px solid var(--coral); }
+    .stop-rule b { color: var(--amber); }
+
+    .experiment { color: var(--white); background: var(--panel); }
+    .experiment .section-tag { color: var(--amber); }
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-bottom: 2rem; background: var(--line-dark); border: 1px solid var(--line-dark); }
+    .legend article { min-height: 150px; padding: 1.1rem; background: var(--panel); }
+    .legend article.missing { background: #39262a; }
+    .legend h3 { margin-top: 1.8rem; color: var(--white); font-family: var(--sans); font-size: 1rem; }
+    .legend p { color: #b6c9c7; font-size: .88rem; }
+    .obs-table { width: 100%; border-collapse: collapse; }
+    .obs-table th, .obs-table td { padding: 1rem; border: 1px solid var(--line-dark); text-align: left; vertical-align: top; }
+    .obs-table th { color: var(--amber); font-family: var(--mono); font-size: .72rem; }
+    .obs-table td { color: #cbd8d5; }
+
+    .implementation { background: var(--paper-2); }
+    .impl-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: clamp(2rem, 7vw, 7rem); }
+    .rules { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--ink); }
+    .rules li { display: grid; grid-template-columns: 7rem 1fr auto; gap: 1rem; padding: 1.1rem 0; border-bottom: 1px solid var(--line-light); }
+    .rules b { font-family: var(--mono); font-size: .78rem; }
+    .version-box { align-self: start; padding: 1.5rem; color: var(--white); background: var(--night); border-top: 7px solid var(--amber); }
+    .version-box p { color: #c5d2cf; }
+
+    .unknown-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; counter-reset: unknown; }
+    .unknown-grid article { counter-increment: unknown; min-height: 180px; padding: 1.3rem; border: 1px solid var(--ink); }
+    .unknown-grid article::before { content: "U-0" counter(unknown); display: block; margin-bottom: 2.6rem; color: #a43f31; font-family: var(--mono); font-size: .74rem; font-weight: 800; }
+
+    .sources { color: var(--white); background: var(--night); }
+    .sources .section-tag { color: var(--amber); }
+    .source-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line-dark); }
+    .source-list li { display: grid; grid-template-columns: 3rem 1fr auto; gap: 1rem; padding: 1.05rem 0; border-bottom: 1px solid var(--line-dark); }
+    .source-list span { color: var(--amber); font-family: var(--mono); font-size: .72rem; }
+    .source-list small { color: #8fa4a5; }
+    details { margin-top: 1.5rem; border-top: 1px solid var(--line-dark); border-bottom: 1px solid var(--line-dark); }
+    summary { cursor: pointer; padding: 1rem 0; color: var(--amber); font-family: var(--serif); font-weight: 700; }
+    details ol { max-width: 78ch; padding-left: 1.2rem; color: #c5d2cf; }
+
+    footer { display: flex; justify-content: space-between; gap: 1rem; padding: 2rem clamp(1.1rem, 7vw, 7rem); color: #a9b9b8; background: #030d11; font-family: var(--mono); font-size: .74rem; }
+
+    @media (max-width: 950px) {
+      .topbar { position: relative; grid-template-columns: 1fr auto; }
+      .topbar nav { display: none; }
+      .hero-grid, .sequence-grid, .impl-grid { grid-template-columns: 1fr; }
+      .route-strip { grid-template-columns: 1fr; }
+      .route-arrow { transform: rotate(90deg); text-align: center; }
+      .term-line { grid-template-columns: repeat(2, 1fr); }
+      .term:nth-child(2) { border-right: 0; }
+      .term:nth-child(-n+2) { border-bottom: 1px solid var(--ink); }
+      .flow-row { grid-template-columns: repeat(2, 1fr); }
+      .flow-canvas::before { display: none; }
+      .flow-node:nth-child(5) { grid-column: 1 / -1; }
+    }
+    @media (max-width: 560px) {
+      body { font-size: .95rem; }
+      .topbar { padding: .75rem 1rem; }
+      .topbar .meta { max-width: 18ch; }
+      .hero, .section { padding-left: 1rem; padding-right: 1rem; }
+      h1 { font-size: clamp(3rem, 16vw, 4.4rem); }
+      .term-line, .flow-row, .failure-map, .legend, .unknown-grid { grid-template-columns: 1fr; }
+      .term { min-height: 0; border-right: 0; border-bottom: 1px solid var(--ink); }
+      .term small, .flow-node .label { margin-bottom: 1.5rem; }
+      .flow-node:nth-child(5) { grid-column: auto; }
+      .manifest article { grid-template-columns: 2.3rem minmax(0, 1fr) auto; gap: .6rem; }
+      .rules li { grid-template-columns: 1fr auto; }
+      .rules li p { grid-column: 1 / -1; }
+      .obs-table, .obs-table tbody, .obs-table tr, .obs-table td { display: block; width: 100%; }
+      .obs-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .obs-table tr { margin-bottom: 1rem; border: 1px solid var(--line-dark); }
+      .obs-table td { border: 0; border-bottom: 1px solid var(--line-dark); }
+      .source-list li { grid-template-columns: 2.2rem 1fr; }
+      .source-list small { grid-column: 2; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Agent SDK External Session Storage。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-sdk-session-storage/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-SDK-SESSION-STORAGE · Agent SDK External Session Storage">
+  <meta property="og:description" content="Claude Code X-Ray：Agent SDK External Session Storage。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-sdk-session-storage/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-SDK-SESSION-STORAGE · Agent SDK External Session Storage">
+  <meta name="twitter:description" content="Claude Code X-Ray：Agent SDK External Session Storage。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-SDK-SESSION-STORAGE</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="folio">伴页 / COMP-SDK-SESSION-STORAGE</div>
+    <nav aria-label="页内导航">
+      <a href="#sequence">时序</a>
+      <a href="#flow">流向</a>
+      <a href="#limits">失败</a>
+      <a href="#experiment">证据</a>
+      <a href="#sources">来源</a>
+      <a href="../index.html">返回总索引</a>
+    </nav>
+    <div class="meta">documented · Claude Code 2.1.247</div>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div class="hero-grid">
+        <div>
+          <p class="kicker">AGENT SDK / EXTERNAL SESSION STORAGE</p>
+          <h1 id="answer-title">把会话送到另一台 host</h1>
+          <p class="lead">Claude 先在本地写 transcript，SDK 再把每批条目镜像到外部 store。另一台 host 恢复时先取回同一 session 的有序条目，随后才启动 Claude。工作目录里的文件不会跟着 transcript 回来。<span class="e-badge o" aria-label="官方证据">O</span></p>
+          <div class="status-line" aria-label="页面状态">
+            <span class="chip status">状态 documented</span>
+            <span class="chip">COMP-SDK-SESSION-STORAGE</span>
+            <span class="chip">基线 2026-08-27</span>
+            <span class="chip">Claude Code 2.1.247</span>
+          </div>
+        </div>
+        <aside class="hero-note">
+          <strong>读图时先记住</strong>
+          <p>外部 store 是 transcript 镜像。它不会替代本地首写，也不会保存文件 checkpoint。镜像可以缺段，host 必须把 <code>mirror_error</code> 当作持久化告警。</p>
+        </aside>
+      </div>
+      <div class="route-strip" aria-label="最短恢复路径">
+        <div class="route-stop"><span>HOST A</span><b>本地 JSONL 先落下</b></div>
+        <div class="route-arrow" aria-hidden="true">›</div>
+        <div class="route-stop"><span>SESSION STORE</span><b>按 session key 追加镜像</b></div>
+        <div class="route-arrow" aria-hidden="true">›</div>
+        <div class="route-stop"><span>HOST B</span><b>load 后物化并 resume</b></div>
+      </div>
+    </section>
+
+    <section class="section terms" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="shell">
+        <p class="section-tag">01 / 四个词足够读完本页</p>
+        <h2 id="terms-title">先认清镜像的边界</h2>
+        <div class="term-line">
+          <article class="term"><small>TERM 01</small><h3>transcript</h3><p>prompt、工具调用、工具结果和回复组成的会话记录。它保存对话上下文，不保存工作目录文件。</p></article>
+          <article class="term"><small>TERM 02</small><h3>SessionStore</h3><p>host 实现的适配器。必需方法只有 <code>append</code> 与 <code>load</code>，后端可以是 S3、Redis 或数据库。</p></article>
+          <article class="term"><small>TERM 03</small><h3>SessionKey</h3><p><code>projectKey</code> 与 <code>sessionId</code> 找到主记录。可选 <code>subpath</code> 指向子 agent 或 sidecar，host 应把它当作不透明值。</p></article>
+          <article class="term"><small>TERM 04</small><h3>完整性水位</h3><p>host 额外记录的批次序号、最后 UUID 或健康状态。官方接口没有这个字段，本页把它作为缺段检测建议。<span class="e-badge i" aria-label="研究推断">I</span></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section sequence" id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="shell sequence-grid">
+        <div>
+          <p class="section-tag">02 / 一次跨 host 恢复</p>
+          <h2 id="sequence-title">load 发生在子进程启动以前</h2>
+          <aside>这条时序来自官方契约。它讲清数据何时交接，也保留一处很要紧的失败分支。外部镜像写坏了，agent 仍会继续跑。</aside>
+        </div>
+        <div class="manifest">
+          <article><div><strong>Host A 发起 query</strong><p>host 把同一个 store 适配器交给 SDK。新 session 开始积累 transcript。</p></div><span class="e-badge o">O</span></article>
+          <article><div><strong>Claude 子进程先写本地批次</strong><p>镜像依赖这次本地写入，所以 store 与关闭持久化或文件 checkpointing 不能同用。</p></div><span class="e-badge o">O</span></article>
+          <article><div><strong>SDK 调用 append</strong><p>条目是 JSON-safe 对象。适配器要按收到的顺序保存，并让后续 load 返回 deep-equal 的对象。</p></div><span class="e-badge o">O</span></article>
+          <article><div><strong>Host A 保存 session id</strong><p>它还应监看 <code>mirror_error</code>。没有这一步，应用可能把一段不完整的外部记录当成健康记录。后一条是部署建议。</p></div><span class="e-badge i">I</span></article>
+          <article><div><strong>Host B 发起 resume</strong><p>工作目录要匹配原运行。SDK 在启动 Claude 以前向 store 请求这个 session。</p></div><span class="e-badge o">O</span></article>
+          <article><div><strong>SDK 物化临时配置目录</strong><p>load 命中后，SDK 写出临时 transcript，指向该目录启动子进程，运行结束再删掉临时目录。</p></div><span class="e-badge o">O</span></article>
+          <article><div><strong>会话从旧上下文继续</strong><p>新批次仍先写临时本地副本，再镜像回 store。恢复链到此闭合，工作区文件仍由 host 另行提供。</p></div><span class="e-badge o">O</span></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="flow" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="shell">
+        <p class="section-tag">03 / 数据与文件流</p>
+        <h2 id="flow-title">五个位置，各自只保一部分</h2>
+        <div class="flow-canvas">
+          <div class="flow-row">
+            <article class="flow-node"><span class="label">01 / HOST A</span><h3>应用状态</h3><p>持有 adapter、session id、持久化健康状态和后端凭据。</p></article>
+            <article class="flow-node"><span class="label">02 / LOCAL</span><h3>首写 JSONL</h3><p>Claude Code 子进程先写本地 transcript。新 session 的本地副本默认会留下。</p></article>
+            <article class="flow-node"><span class="label">03 / STORE</span><h3>外部镜像</h3><p>按 key 保存有序 opaque entries。保留、加密、访问控制由部署方管理。</p></article>
+            <article class="flow-node"><span class="label">04 / TEMP</span><h3>恢复物化</h3><p>Host B 的 SDK 在临时配置目录重建 transcript，运行结束删除这一份。</p></article>
+            <article class="flow-node"><span class="label">05 / WORKSPACE</span><h3>另行准备</h3><p>源码和改动不在 transcript 里。host 要单独提供匹配的工作目录或版本。</p></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section limits" id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="shell">
+        <p class="section-tag">04 / 权限门、缺段与停止</p>
+        <h2 id="limits-title">查询可以继续，镜像已经不完整</h2>
+        <div class="failure-map">
+          <article class="failure">
+            <div class="flag"><span class="e-badge o">O</span> 缺一批</div>
+            <h3>append 最终失败</h3>
+            <p>拒绝最多尝试三次，超时不重试。SDK 发出 <code>mirror_error</code>，丢掉这一批，agent 继续。</p>
+            <ul><li>重试可能重复送达，按 <code>entry.uuid</code> 去重。</li><li>从 store 恢复的运行结束后，临时副本也会删除。</li></ul>
+          </article>
+          <article class="failure">
+            <div class="flag"><span class="e-badge o">O</span> 并发</div>
+            <h3>summary 会竞态</h3>
+            <p>官方要求 summary 的 read-fold-write 使用事务、CAS 或每 session 锁。主 transcript 没有公开的全局单写者协议。</p>
+            <ul><li>Redis 参考实现用原子追加。</li><li>S3 参考实现警告多个写者的时钟偏差会打乱 load 次序。</li></ul>
+          </article>
+          <article class="failure">
+            <div class="flag"><span class="e-badge o">O</span> 权限</div>
+            <h3>模型与 store 各有凭据</h3>
+            <p>transcript 会保存工具调用与结果。后端 client、TLS、IAM、租户隔离和保留规则都由 host 管理。</p>
+            <ul><li>第三方开发者把 Agent SDK 放进自己的产品时，除非事先获 Anthropic 批准，必须使用 API key 或受支持的云平台凭据。不得提供 claude.ai 登录，也不得代用户转发 Free、Pro 或 Max 方案凭据。</li><li>模型用量归提供 API key 的 Claude Console 组织或相应云平台账户，并按该账户结算。SDK result 里的费用只是客户端估算，正式账单以 Console、Usage and Cost API 或云平台账单为准。store 自身的费用另算。</li><li>个人直接使用订阅凭据属于另一种身份与条款，不能把这类凭据转作第三方产品的认证来源。存储凭据仍应遵守最小权限。agent 的工具权限不等同于 store 的访问控制。<span class="e-badge i">I</span></li></ul>
+          </article>
+          <article class="failure">
+            <div class="flag"><span class="e-badge i">I</span> 版本</div>
+            <h3>没有公开兼容矩阵</h3>
+            <p>条目应按 opaque JSON 保存。官方 changelog 仍在修复恢复路径，也没有承诺任意新旧 SDK 互相读取。</p>
+            <ul><li>adapter 与 SDK 版本一起固定。</li><li>发现未知条目、乱序或水位倒退时，停止原 session 的写入。</li></ul>
+          </article>
+        </div>
+        <div class="stop-rule"><b>建议的停止线</b><p>应用一旦看见 <code>mirror_error</code>、缺失 UUID、水位倒退或并发租约冲突，就把外部 session 标为不健康。先保留脱敏诊断，再由人工决定修复、分叉或开新 session。这个策略是 I，官方 SDK 不会替 host 阻断查询。</p></div>
+      </div>
+    </section>
+
+    <section class="section experiment" id="experiment" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="shell">
+        <p class="section-tag">05 / 本机观察</p>
+        <h2 id="experiment-title">契约已核准，真实恢复没有启动</h2>
+        <div class="legend" aria-label="O L R I 证据图例">
+          <article><span class="e-badge o">O</span><h3>O 官方契约</h3><p>接口、顺序、重试、临时物化和版本记录。</p></article>
+          <article><span class="e-badge l">L</span><h3>L 本机静态</h3><p>当前 shell 的命令与包可见性。</p></article>
+          <article class="missing"><span class="e-badge r">R</span><h3>R 真实实验</h3><p>本轮缺失。没有启动模型调用或读取私人 transcript。</p></article>
+          <article><span class="e-badge i">I</span><h3>I 研究推断</h3><p>单写者、完整性水位与不兼容停止策略。</p></article>
+        </div>
+        <table class="obs-table">
+          <thead><tr><th>只读动作</th><th>结果</th><th>证据边界</th></tr></thead>
+          <tbody>
+            <tr><td><code>claude --version</code></td><td>当前 shell 找不到 <code>claude</code></td><td>只说明这次环境的 PATH，不否定给定的 2.1.247 项目基线。</td></tr>
+            <tr><td>筛选 <code>claude --help</code></td><td>命令不存在，没有帮助输出</td><td>不能证明 SessionStore 的运行协议。</td></tr>
+            <tr><td>读取 Node 包版本</td><td>Agent SDK 未安装</td><td>不能外推其他 host 的版本。</td></tr>
+            <tr><td>读取 Python 包元数据</td><td>Agent SDK 未安装</td><td>不能验证 Python adapter。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section implementation" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="shell">
+        <p class="section-tag">06 / 实现检查单与版本</p>
+        <h2 id="implementation-title">让 adapter 保持无知，让 host 保持谨慎</h2>
+        <div class="impl-grid">
+          <ul class="rules">
+            <li><b>ORDER</b><p>append 内保持条目顺序，load 按同一顺序返回。JSON 键序可以变化。</p><span class="e-badge o">O</span></li>
+            <li><b>IDEMPOTENCY</b><p>按 entry UUID 去重。被 SDK 重试的批次可能再次送达。append 超时表示结果不确定，SDK 不会重试。</p><span class="e-badge o">O</span></li>
+            <li><b>SUBKEYS</b><p>实现 listSubkeys 才能完整恢复子 agent transcript。subpath 不要解释或改写。</p><span class="e-badge o">O</span></li>
+            <li><b>CONCURRENCY</b><p>summary 更新必须串行。主 session 在应用层加租约，或让第二个写者 fork。</p><span class="e-badge i">I</span></li>
+            <li><b>RETENTION</b><p>SDK 不会自动删除外部 store。TTL、生命周期和删除级联由 adapter 负责。</p><span class="e-badge o">O</span></li>
+            <li><b>WORKSPACE</b><p>恢复前准备匹配 cwd 和源码版本。transcript 不承担文件恢复。</p><span class="e-badge o">O</span></li>
+          </ul>
+          <aside class="version-box">
+            <h3>版本边界</h3>
+            <p>本页显示 Claude Code 2.1.247 的项目基线。SessionStore 同时受 Agent SDK 包版本约束。</p>
+            <p>TypeScript 在 <code>0.2.113</code> 首次加入 alpha 接口。Python 在 <code>0.1.64</code> 加入对应能力。TypeScript <code>0.3.222</code> 修过 store resume 漏带用户 settings 的问题。</p>
+            <p>当前官方文档还标出 <code>0.3.232</code> 与 <code>0.3.234</code> 的差异。部署记录应同时写 SDK、捆绑 CLI 与 adapter schema 版本。最后一项是 I。</p>
+          </aside>
+        </div>
+        <details>
+          <summary>与 SDK-01 主页面的边界</summary>
+          <p>本页从 transcript 本地批次已经写成开始，只追踪外部镜像、另一 host 的恢复和持久化失败。普通消息循环、result、session id 与本机 resume 仍由 <a href="../20260827-sdk-01-runtime-session-loop/explainer.html">SDK-01 Agent SDK 运行时会话循环</a> 解释。</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="shell">
+        <p class="section-tag">07 / 仍然不知道</p>
+        <h2 id="unknowns-title">接口没有替部署回答这些问题</h2>
+        <div class="unknown-grid">
+          <article>2.1.247 与具体 SDK 包组合运行时，append 批次的实际边界和延迟。</article>
+          <article>两台 host 同时 resume 同一 session 时，主 transcript 的确切交错方式和冲突信号。</article>
+          <article>load 返回一段可解析却已经截断的记录时，子进程会在哪一步停止。</article>
+          <article>不同 SDK 版本之间，哪些 transcript entry 变更可以兼容，哪些必须迁移。</article>
+          <article>进程崩溃、append 超时与临时目录清理同时发生时，最后可恢复的外部水位。</article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section sources" id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="shell">
+        <p class="section-tag">08 / 一手来源与安全复现</p>
+        <h2 id="sources-title">沿官方契约重走一次</h2>
+        <ul class="source-list">
+          <li><span>O-01</span><a href="https://code.claude.com/docs/en/agent-sdk/session-storage">Session storage 证明镜像、恢复、缺段、并发 summary 与保留规则</a><small>Anthropic 官方文档</small></li>
+          <li><span>O-02</span><a href="https://code.claude.com/docs/en/agent-sdk/sessions">Sessions 证明跨 host 恢复与文件状态边界</a><small>Anthropic 官方文档</small></li>
+          <li><span>O-03</span><a href="https://github.com/anthropics/claude-agent-sdk-typescript/blob/main/CHANGELOG.md">TypeScript changelog 证明引入版本、重试与恢复修复</a><small>Anthropic 官方仓库</small></li>
+          <li><span>O-04</span><a href="https://github.com/anthropics/claude-agent-sdk-python/blob/main/CHANGELOG.md">Python changelog 证明 Python 适配器与合同测试版本</a><small>Anthropic 官方仓库</small></li>
+          <li><span>O-05</span><a href="https://github.com/anthropics/claude-agent-sdk-typescript/blob/main/examples/session-stores/README.md">参考 adapters 证明 S3、Redis、Postgres 的顺序与并发取舍</a><small>Anthropic 官方仓库</small></li>
+          <li><span>O-06</span><a href="https://code.claude.com/docs/en/claude-directory">Claude 目录说明 transcript 明文与敏感内容风险</a><small>Anthropic 官方文档</small></li>
+          <li><span>O-07</span><a href="https://code.claude.com/docs/en/agent-sdk/secure-deployment">Secure deployment 证明最小权限与凭据隔离原则</a><small>Anthropic 官方文档</small></li>
+          <li><span>O-08</span><a href="https://code.claude.com/docs/en/agent-sdk/quickstart">Agent SDK quickstart 说明 API key、云平台凭据与第三方登录限制</a><small>Anthropic 官方文档</small></li>
+          <li><span>O-09</span><a href="https://code.claude.com/docs/en/agent-sdk/cost-tracking">Cost tracking 说明每次 query 的用量、客户端估算与正式账单边界</a><small>Anthropic 官方文档</small></li>
+          <li><span>O-10</span><a href="https://code.claude.com/docs/en/legal-and-compliance">Legal and compliance 说明订阅凭据身份与第三方代用禁限</a><small>Anthropic 官方文档</small></li>
+        </ul>
+        <details open>
+          <summary>安全复现提要</summary>
+          <ol>
+            <li>固定 SDK、捆绑 CLI 与 adapter 版本，先确认模型凭据、用量归属和测试上限，再在隔离 store 上跑官方 conformance suite。</li>
+            <li>Host A 发一条无敏感信息的短会话，只记批次序号、UUID 集合和散列后的 session id。</li>
+            <li>依次制造重复 UUID、append 拒绝、超时与缺一批，核对 mirror_error 和 store 水位。</li>
+            <li>Host B 用匹配 cwd 恢复。随后让两个 host 同时尝试同一 session，对照无锁、租约与 fork。</li>
+            <li>用相邻 SDK 版本重复 load。发现未知条目或顺序异常就停止原 session，不记录 prompt 和工具内容。</li>
+          </ol>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>伴页 · COMP-SDK-SESSION-STORAGE · documented · Claude Code 2.1.247</span>
+    <span><a href="../20260827-sdk-01-runtime-session-loop/explainer.html">回到 SDK-01 主页面</a> · <a href="../index.html">返回总索引</a></span>
+  </footer>
+</body>
+</html>

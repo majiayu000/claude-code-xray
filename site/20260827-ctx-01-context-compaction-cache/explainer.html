@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CTX-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CTX-01 上下文窗口、自动压缩与提示缓存</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #ecf0e7;
+      --muted: #a8b1a5;
+      --paper: #101411;
+      --panel: #171d19;
+      --line: #344138;
+      --lime: #c6f05a;
+      --amber: #f4b65b;
+      --red: #ff6b5f;
+      --cyan: #71c9c3;
+      --blue: #7ba7ff;
+      --max: 1180px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(198, 240, 90, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(198, 240, 90, .025) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      color: var(--ink);
+      font-family: "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+      line-height: 1.72;
+    }
+    a { color: var(--lime); text-underline-offset: .22em; }
+    a:hover { color: #e1ff91; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    .rail {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
+      background: rgba(16, 20, 17, .94);
+      backdrop-filter: blur(12px);
+    }
+    .rail-inner {
+      max-width: var(--max);
+      margin: auto;
+      padding: .72rem 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .rail strong { color: var(--lime); letter-spacing: .08em; }
+    .rail nav { display: flex; gap: .9rem; font-size: .82rem; }
+    .rail nav a { color: var(--muted); text-decoration: none; }
+    .rail .back { margin-left: auto; font-size: .82rem; }
+    main { max-width: var(--max); margin: auto; padding: 0 1.2rem 5rem; }
+    section { scroll-margin-top: 5rem; }
+    .hero {
+      min-height: calc(100vh - 52px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(310px, .75fr);
+      gap: clamp(2rem, 6vw, 6rem);
+      align-items: center;
+      padding: clamp(3rem, 8vw, 7rem) 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow {
+      margin: 0 0 1rem;
+      color: var(--lime);
+      font: 700 .78rem/1.3 ui-monospace, "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { font-family: "Songti SC", "Noto Serif CJK SC", serif; }
+    h1 {
+      margin: 0;
+      max-width: 14ch;
+      font-size: clamp(2.8rem, 7.2vw, 6.6rem);
+      line-height: .98;
+      letter-spacing: -.055em;
+    }
+    .dek {
+      margin: 2rem 0 0;
+      max-width: 43rem;
+      font-size: clamp(1.08rem, 1.6vw, 1.36rem);
+      color: #d7ddd4;
+    }
+    .answer-line { color: var(--lime); }
+    .stamp-row { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 2rem; }
+    .stamp {
+      border: 1px solid var(--line);
+      padding: .38rem .62rem;
+      color: var(--muted);
+      background: var(--panel);
+      font: 650 .75rem/1.2 ui-monospace, "SFMono-Regular", Menlo, monospace;
+    }
+    .stamp.status { border-color: var(--amber); color: var(--amber); }
+    .meter-board {
+      position: relative;
+      padding: 1.2rem;
+      border: 1px solid #56664f;
+      background: #0c100d;
+      box-shadow: 16px 16px 0 rgba(0,0,0,.25);
+    }
+    .meter-board::before {
+      content: "CONTEXT REGISTER";
+      display: block;
+      margin-bottom: 1.1rem;
+      color: var(--muted);
+      font: 700 .7rem/1 ui-monospace, Menlo, monospace;
+      letter-spacing: .14em;
+    }
+    .bar {
+      display: grid;
+      grid-template-columns: 28% 62% 10%;
+      min-height: 3rem;
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+    .bar span { display: grid; place-items: center; padding: .4rem; font-size: .72rem; text-align: center; }
+    .stable { background: #26434a; }
+    .history { background: #536928; }
+    .reserve { background: repeating-linear-gradient(135deg, #2b302c 0 7px, #171c18 7px 14px); color: var(--muted); }
+    .threshold { margin: .65rem 0; border-top: 1px dashed var(--red); color: var(--red); font: .72rem ui-monospace, Menlo, monospace; padding-top: .35rem; }
+    .press {
+      margin-top: 1rem;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: .7rem;
+      align-items: center;
+      color: var(--muted);
+      font-size: .76rem;
+    }
+    .press b { color: var(--amber); font-size: 1.25rem; }
+    .bar.after { grid-template-columns: 28% 26% 46%; }
+    .summary { background: #705128; }
+    .section-grid {
+      display: grid;
+      grid-template-columns: 13rem minmax(0, 1fr);
+      gap: clamp(2rem, 6vw, 6rem);
+      padding: clamp(4rem, 8vw, 7rem) 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .section-label {
+      position: sticky;
+      top: 5.5rem;
+      align-self: start;
+    }
+    .section-no { color: var(--lime); font: 700 .72rem ui-monospace, Menlo, monospace; letter-spacing: .15em; }
+    h2 { margin: .45rem 0 0; font-size: clamp(1.7rem, 3vw, 2.55rem); line-height: 1.12; }
+    h3 { margin: 0 0 .65rem; font-size: 1.18rem; }
+    p { margin: 0 0 1.2rem; }
+    .lead { font-size: 1.18rem; color: #dfe5da; }
+    .legend, .term-grid, .limits-grid, .unknown-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .tile {
+      border-top: 3px solid var(--line);
+      padding: 1rem 0 0;
+    }
+    .tile[data-mark="O"] { border-color: var(--lime); }
+    .tile[data-mark="L"] { border-color: var(--cyan); }
+    .tile[data-mark="R"] { border-color: var(--amber); }
+    .tile[data-mark="I"] { border-color: var(--blue); }
+    .mark {
+      display: inline-grid;
+      place-items: center;
+      width: 1.65rem;
+      height: 1.65rem;
+      margin-right: .55rem;
+      border: 1px solid currentColor;
+      font: 800 .78rem ui-monospace, Menlo, monospace;
+    }
+    .tile p { color: var(--muted); font-size: .9rem; margin-top: .55rem; }
+    .timeline { counter-reset: step; display: grid; gap: 0; }
+    .step {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 3rem minmax(0, 1fr);
+      gap: 1rem;
+      padding: 1.2rem 0;
+      border-top: 1px solid var(--line);
+    }
+    .step::before {
+      content: counter(step, decimal-leading-zero);
+      color: var(--lime);
+      font: 800 .8rem ui-monospace, Menlo, monospace;
+    }
+    .step p { color: var(--muted); margin: .25rem 0 0; }
+    .flowline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+      background: #0d110e;
+    }
+    .flow-node { min-height: 10rem; padding: 1rem; border-right: 1px solid var(--line); }
+    .flow-node:last-child { border-right: 0; }
+    .flow-node small { color: var(--lime); font: .7rem ui-monospace, Menlo, monospace; }
+    .flow-node p { margin-top: .8rem; color: var(--muted); font-size: .9rem; }
+    .cache-note {
+      margin-top: 1rem;
+      padding: 1rem 1.1rem;
+      border-left: 4px solid var(--amber);
+      background: #1d1911;
+    }
+    .danger { border-top-color: var(--red); }
+    .danger h3 { color: var(--red); }
+    .command-list { display: grid; gap: .8rem; }
+    .command-row {
+      display: grid;
+      grid-template-columns: 8rem 1fr;
+      gap: 1rem;
+      padding: .9rem 0;
+      border-top: 1px solid var(--line);
+    }
+    code {
+      color: var(--lime);
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      font-size: .86em;
+    }
+    .proof {
+      padding: 1.2rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .proof strong { color: var(--cyan); }
+    .unknown-grid article { padding: 1rem; background: #131814; border: 1px dashed #566158; }
+    details { border-top: 1px solid var(--line); padding: 1rem 0; }
+    summary { cursor: pointer; color: var(--ink); font-weight: 700; }
+    details p { color: var(--muted); margin: .8rem 0 0; }
+    .sources { display: grid; gap: .8rem; }
+    .source {
+      display: grid;
+      grid-template-columns: 2rem minmax(0, 1fr);
+      gap: .8rem;
+      align-items: start;
+      padding: .9rem 0;
+      border-top: 1px solid var(--line);
+    }
+    .source span { color: var(--muted); font: .75rem ui-monospace, Menlo, monospace; }
+    .source a { font-weight: 650; }
+    footer { max-width: var(--max); margin: auto; padding: 2rem 1.2rem 3rem; color: var(--muted); font-size: .82rem; }
+    @media (max-width: 800px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .meter-board { box-shadow: 8px 8px 0 rgba(0,0,0,.25); }
+      .section-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+      .section-label { position: static; }
+      .flowline { grid-template-columns: 1fr 1fr; }
+      .flow-node:nth-child(2) { border-right: 0; }
+      .flow-node:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    }
+    @media (max-width: 500px) {
+      main { padding-inline: .9rem; }
+      .rail-inner { padding-inline: .9rem; }
+      .rail nav { display: none; }
+      .legend, .term-grid, .limits-grid, .unknown-grid { grid-template-columns: 1fr; }
+      .flowline { grid-template-columns: 1fr; }
+      .flow-node { min-height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .flow-node:last-child { border-bottom: 0; }
+      .command-row { grid-template-columns: 1fr; gap: .3rem; }
+      .bar span { font-size: .64rem; padding-inline: .2rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：上下文窗口、自动压缩与提示缓存。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ctx-01-context-compaction-cache/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CTX-01 · 上下文窗口、自动压缩与提示缓存">
+  <meta property="og:description" content="Claude Code X-Ray：上下文窗口、自动压缩与提示缓存。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ctx-01-context-compaction-cache/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CTX-01 · 上下文窗口、自动压缩与提示缓存">
+  <meta name="twitter:description" content="Claude Code X-Ray：上下文窗口、自动压缩与提示缓存。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CTX-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="rail">
+    <div class="rail-inner">
+      <strong>CTX-01</strong>
+      <nav aria-label="页内导航">
+        <a href="#sequence">顺序</a>
+        <a href="#flow">数据流</a>
+        <a href="#limits">停止点</a>
+        <a href="#sources">来源</a>
+      </nav>
+      <a class="back" href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="answer" data-xray-section="answer">
+      <div>
+        <p class="eyebrow">Claude Code XRY · 04</p>
+        <h1>会话装满以后，先减重，再改写历史。</h1>
+        <p class="dek"><span class="answer-line">同一会话会带着旧对话、文件读取和工具结果继续增长。</span>接近窗口上限时，Claude Code 先清理较旧的工具输出，空间仍不够才把较早对话换成摘要。摘要让会话继续，也会改变下一轮的缓存前缀。输入仍塞不下时，请求停止并报错。<sup>O</sup></p>
+        <div class="stamp-row" aria-label="页面基线">
+          <span class="stamp">Claude Code 2.1.247</span>
+          <span class="stamp status">当前状态 documented</span>
+          <span class="stamp">研究基线 2026-08-27</span>
+        </div>
+      </div>
+      <div class="meter-board" aria-label="上下文压缩示意">
+        <div class="bar">
+          <span class="stable">稳定前缀</span><span class="history">会话历史与工具结果</span><span class="reserve">余量</span>
+        </div>
+        <div class="threshold">接近窗口上限</div>
+        <div class="press"><span>旧工具输出先清理</span><b>↓</b><span>仍不够才生成摘要</span></div>
+        <div class="bar after">
+          <span class="stable">稳定前缀</span><span class="summary">较短摘要</span><span class="reserve">新余量</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-grid" data-xray-section="terms">
+      <div class="section-label"><span class="section-no">01 / TERMS</span><h2>四种东西别混在一起</h2></div>
+      <div>
+        <div class="term-grid">
+          <article class="tile"><h3>上下文窗口</h3><p>模型这一轮能看见的总量。会话历史、读过的文件、命令输出、项目指令和系统指令都会占位置。<sup>O</sup></p></article>
+          <article class="tile"><h3>工具输出清理</h3><p>接近上限时先处理较旧的工具结果。官方公开了先后顺序，没有公开选择算法和清理粒度。<sup>O/I</sup></p></article>
+          <article class="tile"><h3>压缩</h3><p>把原消息历史换成一份结构化摘要。它保留继续工作的线索，也可能漏掉早期细节。<sup>O</sup></p></article>
+          <article class="tile"><h3>提示缓存</h3><p>服务端按请求开头做精确匹配。命中后可少处理重复前缀；它不等于缩短上下文本身。<sup>O</sup></p></article>
+        </div>
+        <div class="legend" style="margin-top:2rem" aria-label="证据图例">
+          <article class="tile" data-mark="O"><h3><span class="mark">O</span>官方契约</h3><p>Anthropic 官方文档、帮助与仓库。</p></article>
+          <article class="tile" data-mark="L"><h3><span class="mark">L</span>本机证据</h3><p>版本、帮助、公开 schema 与安装文件。</p></article>
+          <article class="tile" data-mark="R"><h3><span class="mark">R</span>真实实验</h3><p>本轮没有启动付费会话，因此没有 R。</p></article>
+          <article class="tile" data-mark="I"><h3><span class="mark">I</span>研究者推断</h3><p>只负责串起证据，不能冒充运行事实。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-grid" id="sequence" data-xray-section="sequence">
+      <div class="section-label"><span class="section-no">02 / SEQUENCE</span><h2>一轮轮增长，直到过线</h2></div>
+      <div class="timeline">
+        <article class="step"><div><h3>会话先有固定占用</h3><p>系统提示、项目根指令、自动记忆、工具名称和 skill 描述会在用户输入前后进入上下文。不同内容的加载时机并不完全相同。<sup>O</sup></p></div></article>
+        <article class="step"><div><h3>每轮继续追加</h3><p>用户消息、Claude 回复、文件读取和工具结果进入会话历史。下一次请求会再次带上完整上下文。<sup>O</sup></p></div></article>
+        <article class="step"><div><h3>旧前缀通常命中缓存</h3><p>正常追加不会改动请求开头，服务端可读已有前缀，只处理新尾部。缓存过期或前缀变动时会重新处理。<sup>O</sup></p></div></article>
+        <article class="step"><div><h3>接近上限先清工具输出</h3><p>Claude Code 优先清理较旧的工具结果。空间仍不够，自动压缩才总结对话。<sup>O</sup></p></div></article>
+        <article class="step"><div><h3>摘要替换旧历史</h3><p>程序另发一次总结请求。压缩后的下一轮沿用稳定层，并在较短摘要上建立新的会话缓存。<sup>O</sup></p></div></article>
+        <article class="step"><div><h3>装不下就停止</h3><p>单个输入反复填满窗口时，自动压缩尝试数次后不再循环。界面会给出上下文过长或压缩失败等错误。<sup>O</sup></p></div></article>
+      </div>
+    </section>
+
+    <section class="section-grid" id="flow" data-xray-section="flow">
+      <div class="section-label"><span class="section-no">03 / FLOW</span><h2>缓存省重算，压缩省空间</h2></div>
+      <div>
+        <div class="flowline" aria-label="请求与缓存数据流">
+          <article class="flow-node"><small>A / CLIENT</small><h3>Claude Code</h3><p>把系统提示、项目上下文、会话历史与新消息排成一次请求。</p></article>
+          <article class="flow-node"><small>B / PREFIX</small><h3>稳定内容在前</h3><p>系统层和项目层先放，变化更频繁的对话层跟在后面。</p></article>
+          <article class="flow-node"><small>C / CACHE</small><h3>服务端精确匹配</h3><p>从开头逐字匹配。中间一处变化会让后续部分重新计算。</p></article>
+          <article class="flow-node"><small>D / COMPACT</small><h3>新摘要另起前缀</h3><p>旧会话层被替换，后续请求只为较短摘要重建缓存。</p></article>
+        </div>
+        <div class="cache-note"><strong>压缩会打断旧会话层的缓存连续性。</strong>生成摘要的那次请求在缓存仍热时可以沿用旧前缀；完成压缩后，下一轮面对的是新的短历史。系统提示仍可复用，项目上下文从磁盘重载后能否命中，取决于它是否变化。<sup>O</sup></div>
+      </div>
+    </section>
+
+    <section class="section-grid" id="limits" data-xray-section="limits">
+      <div class="section-label"><span class="section-no">04 / LIMITS</span><h2>三个停止位置</h2></div>
+      <div class="limits-grid">
+        <article class="tile danger"><h3>模型窗口已超</h3><p>对话和附件超过模型上下文窗口，请求会以 Prompt is too long 一类错误停止。用户可压缩、清空或退回几条消息。<sup>O</sup></p></article>
+        <article class="tile danger"><h3>摘要也无处落脚</h3><p>窗口已经太满时，压缩请求自己也可能放不下摘要。官方建议退回数条消息后再压缩，仍不够就清空。<sup>O</sup></p></article>
+        <article class="tile danger"><h3>原始请求超过 32MB</h3><p>这是 token 窗口之外的请求体限制。消息本身过大时，压缩可能也救不了。<sup>O</sup></p></article>
+        <article class="tile"><h3>权限与费用</h3><p>压缩会发模型请求，依赖当前认证、提供商和模型可用性。官方没有为它描述工具审批步骤。底层认证或模型错误仍会让自动压缩失败。<sup>O/I</sup></p></article>
+      </div>
+    </section>
+
+    <section class="section-grid" data-xray-section="experiment">
+      <div class="section-label"><span class="section-no">05 / EXPERIMENT</span><h2>这次只做只读核对</h2></div>
+      <div>
+        <p class="lead">没有启动 Claude 会话，也没有消耗模型额度。页面状态因此保持 documented。</p>
+        <div class="proof">
+          <p><strong>L</strong> 本机 <code>claude --version</code> 返回 2.1.247；可执行文件哈希与指定基线一致。</p>
+          <p><strong>L</strong> 本机帮助列出 <code>--autocompact</code>，接受 auto 或 100k 到 1M token。</p>
+          <p><strong>L</strong> 定向静态匹配只确认自动压缩、压缩禁用和缓存 TTL 的公开配置名存在，没有读取任何私人配置值。</p>
+          <p><strong>O</strong> 官方索引仍有 202 个入口，SHA-256 与指定基线一致。</p>
+          <p><strong>R</strong> 缺失。触发真实压缩需要调用模型，超出本轮免费只读实验范围。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-grid" data-xray-section="implementation">
+      <div class="section-label"><span class="section-no">06 / IMPLEMENTATION</span><h2>用户能控制哪些地方</h2></div>
+      <div>
+        <div class="command-list">
+          <div class="command-row"><code>/context</code><span>查看当前窗口由系统提示、工具、记忆文件和消息等内容占了多少。<sup>O</sup></span></div>
+          <div class="command-row"><code>/compact [focus]</code><span>手动把历史换成摘要，并告诉 Claude 重点保留什么。新会话没有足够消息时不会压缩。<sup>O</sup></span></div>
+          <div class="command-row"><code>/clear</code><span>从空上下文继续。原会话仍保存，可由会话机制恢复。<sup>O</sup></span></div>
+          <div class="command-row"><code>--autocompact</code><span>本机 2.1.247 帮助接受 auto 或 100k 到 1M token。它证明入口存在，不证明某次配置已生效。<sup>L</sup></span></div>
+        </div>
+        <details>
+          <summary>压缩以后哪些内容会回来</summary>
+          <p>项目根 CLAUDE.md、非路径限定规则、自动记忆和计划会重新注入。Claude Code 还会重读最近修改的文件，最多五个。已调用的 skill 正文也会重注入，但每个最多 5,000 token，合计最多 25,000 token。路径规则和子目录 CLAUDE.md 会随匹配文件再次读取。<sup>O</sup></p>
+        </details>
+        <details>
+          <summary>缓存能热多久</summary>
+          <p>命中会刷新闲置计时。Claude 订阅且仍在套餐用量内时，主会话默认请求一小时 TTL；API key、usage credits 或云提供商路径通常为五分钟。2.1.242 起才有两项公开 TTL 设置。<sup>O</sup></p>
+        </details>
+        <details>
+          <summary>与其他页怎样分工</summary>
+          <p>CTX-02 负责会话身份、恢复和分叉，CTX-04 负责自动记忆，CTX-03 负责 CLAUDE.md 与 Rules 加载，CORE-02 负责单次工具结果整形。本页只追踪窗口从增长到清理、压缩、改写缓存前缀和失败的链条。</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section-grid" data-xray-section="unknowns">
+      <div class="section-label"><span class="section-no">07 / UNKNOWNS</span><h2>官方没有给出全部细节</h2></div>
+      <div class="unknown-grid">
+        <article><h3>实际触发点</h3><p>不同模型、提供商与配置下的百分比和预留 token 数，本轮没有 R。</p></article>
+        <article><h3>旧输出怎样挑</h3><p>选择算法、清理粒度和必须保留的工具结果没有公开。</p></article>
+        <article><h3>尝试几次才停</h3><p>官方只写自动压缩尝试数次后停止，没有给出精确次数与退避办法。</p></article>
+        <article><h3>摘要会漏多少</h3><p>长会话里哪些细节最容易消失，focus 指令能改善多少，需要受控真实实验。</p></article>
+      </div>
+    </section>
+
+    <section class="section-grid" id="sources" data-xray-section="sources">
+      <div class="section-label"><span class="section-no">08 / SOURCES</span><h2>一手来源与复现</h2></div>
+      <div>
+        <p class="lead">我把官方上下文页、缓存页和错误参考对在一起，再用本机帮助核对入口。长日志和私人会话都没有打开。</p>
+        <div class="sources">
+          <div class="source"><span>01</span><a href="https://code.claude.com/docs/en/how-claude-code-works">How Claude Code works，证明增长、清理顺序与自动压缩停止</a></div>
+          <div class="source"><span>02</span><a href="https://code.claude.com/docs/en/context-window">Explore the context window，证明压缩后各类内容的去留</a></div>
+          <div class="source"><span>03</span><a href="https://code.claude.com/docs/en/prompt-caching">How Claude Code uses prompt caching，证明精确前缀、压缩请求与 TTL</a></div>
+          <div class="source"><span>04</span><a href="https://code.claude.com/docs/en/errors">Error reference，证明过长输入、压缩失败与 32MB 边界</a></div>
+          <div class="source"><span>05</span><a href="https://code.claude.com/docs/en/env-vars">Environment variables，证明自动压缩窗口与百分比变量</a></div>
+        </div>
+        <details>
+          <summary>安全复现办法</summary>
+          <p>先核对版本、帮助和官方索引哈希。若另行批准模型用量，可在空白临时目录启动全新会话，只使用可删除的合成文本，先看上下文占用，再手动压缩并比较前后分类。大输入实验应设置预算和更低的安全窗口，第一次出现压缩或错误就停。</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>CTX-01 · Claude Code 2.1.247 · documented · 研究日期 2026-08-27</footer>
+</body>
+</html>

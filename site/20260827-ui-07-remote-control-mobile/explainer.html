@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="UI-07">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>UI-07 Remote Control、Mobile 与跨设备接管</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #eef2e8;
+      --muted: #a8b0a5;
+      --dim: #727a72;
+      --void: #090c0b;
+      --panel: #111614;
+      --panel-2: #171d1a;
+      --line: #344039;
+      --signal: #b8f34b;
+      --cyan: #66d9d1;
+      --amber: #ffc45c;
+      --red: #ff7a68;
+      --paper: #dce1d5;
+      --max: 1180px;
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(184, 243, 75, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(184, 243, 75, .035) 1px, transparent 1px),
+        radial-gradient(circle at 74% 0%, rgba(102, 217, 209, .12), transparent 34rem),
+        var(--void);
+      background-size: 28px 28px, 28px 28px, auto, auto;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.72;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: var(--signal); text-underline-offset: .2em; }
+    a:hover { color: #d8ff8e; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 4px;
+    }
+
+    code {
+      color: #d7ff8f;
+      background: #0a100d;
+      border: 1px solid #314231;
+      border-radius: 5px;
+      padding: .12em .4em;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .9em;
+    }
+
+    .wrap { width: min(calc(100% - 40px), var(--max)); margin-inline: auto; }
+    .topbar {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font: 700 12px/1.3 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .topbar .id { color: var(--signal); }
+    .topbar nav { display: flex; gap: 18px; flex-wrap: wrap; justify-content: flex-end; }
+    .topbar a { color: inherit; text-decoration: none; }
+
+    .hero {
+      min-height: calc(100svh - 58px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.04fr) minmax(330px, .96fr);
+      gap: clamp(40px, 7vw, 90px);
+      align-items: center;
+      padding-block: 72px 80px;
+    }
+    .eyebrow {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: var(--cyan);
+      font: 700 12px/1.4 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--signal);
+      box-shadow: 0 0 0 6px rgba(184, 243, 75, .09), 0 0 22px rgba(184, 243, 75, .7);
+    }
+    h1, h2, h3 { margin: 0; text-wrap: balance; }
+    h1 {
+      margin-top: 20px;
+      max-width: 11ch;
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      font-size: clamp(48px, 7.2vw, 92px);
+      font-weight: 800;
+      line-height: .98;
+      letter-spacing: -.06em;
+    }
+    h1 em { color: var(--signal); font-style: normal; }
+    .lede {
+      max-width: 34em;
+      margin: 28px 0 0;
+      font-size: clamp(18px, 2vw, 23px);
+      line-height: 1.6;
+      color: var(--paper);
+    }
+    .lede strong { color: var(--signal); }
+    .meta-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 34px;
+    }
+    .tag {
+      border: 1px solid var(--line);
+      background: rgba(17, 22, 20, .82);
+      padding: 7px 10px;
+      color: var(--muted);
+      font: 650 11px/1.3 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .04em;
+    }
+    .tag.status { color: var(--amber); border-color: rgba(255, 196, 92, .45); }
+
+    .handoff {
+      position: relative;
+      min-height: 510px;
+      border: 1px solid #3b4841;
+      border-radius: 28px;
+      background: rgba(13, 17, 15, .92);
+      box-shadow: 0 34px 90px rgba(0, 0, 0, .42), inset 0 1px rgba(255,255,255,.03);
+      overflow: hidden;
+    }
+    .handoff::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(125deg, transparent 25%, rgba(184, 243, 75, .045) 25% 26%, transparent 26% 68%, rgba(102, 217, 209, .04) 68% 69%, transparent 69%);
+      pointer-events: none;
+    }
+    .handoff-head {
+      display: flex;
+      justify-content: space-between;
+      padding: 17px 20px;
+      border-bottom: 1px solid var(--line);
+      color: var(--dim);
+      font: 700 11px/1.2 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .1em;
+    }
+    .handoff-head span:last-child { color: var(--signal); }
+    .map { position: relative; height: 445px; }
+    .device {
+      position: absolute;
+      z-index: 2;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: #121815;
+      box-shadow: 8px 8px 0 #060806;
+    }
+    .device small {
+      display: block;
+      color: var(--dim);
+      font: 700 10px/1.2 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .12em;
+    }
+    .device b { display: block; margin-top: 7px; font-size: 17px; }
+    .device p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .host { left: 7%; top: 8%; width: 58%; border-color: rgba(184,243,75,.5); }
+    .host b { color: var(--signal); }
+    .relay { left: 33%; top: 46%; width: 45%; }
+    .phone { right: 7%; bottom: 7%; width: 43%; border-color: rgba(102,217,209,.5); }
+    .phone b { color: var(--cyan); }
+    .wire {
+      position: absolute;
+      z-index: 1;
+      height: 2px;
+      transform-origin: left center;
+      background: repeating-linear-gradient(90deg, var(--signal) 0 9px, transparent 9px 15px);
+      filter: drop-shadow(0 0 5px rgba(184,243,75,.5));
+    }
+    .wire.one { width: 175px; left: 29%; top: 39%; transform: rotate(32deg); }
+    .wire.two { width: 145px; left: 62%; top: 62%; transform: rotate(38deg); background: repeating-linear-gradient(90deg, var(--cyan) 0 9px, transparent 9px 15px); }
+    .stay {
+      position: absolute;
+      left: 8%;
+      bottom: 8%;
+      width: 42%;
+      color: var(--paper);
+      font-family: "Songti SC", "STSong", serif;
+      font-size: 25px;
+      line-height: 1.25;
+    }
+    .stay span { display: block; color: var(--signal); font-size: 12px; font-family: "SFMono-Regular", Consolas, monospace; letter-spacing: .1em; margin-bottom: 8px; }
+
+    main { padding-bottom: 80px; }
+    .section {
+      padding-block: 88px;
+      border-top: 1px solid var(--line);
+    }
+    .section-head {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: 30px;
+      margin-bottom: 42px;
+    }
+    .section-no { color: var(--signal); font: 700 12px/1.4 "SFMono-Regular", Consolas, monospace; letter-spacing: .12em; }
+    h2 {
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      font-size: clamp(31px, 4.4vw, 55px);
+      line-height: 1.12;
+      letter-spacing: -.035em;
+    }
+    .section-intro { max-width: 48em; margin: 14px 0 0; color: var(--muted); font-size: 17px; }
+
+    .answer-grid, .term-grid, .limit-grid, .unknown-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .answer-card, .term, .limit-card, .unknown-card {
+      border: 1px solid var(--line);
+      background: rgba(17, 22, 20, .88);
+      padding: 24px;
+      border-radius: var(--radius);
+    }
+    .answer-card strong, .term strong, .limit-card strong, .unknown-card strong { display: block; font-size: 18px; }
+    .answer-card p, .term p, .limit-card p, .unknown-card p { margin: 10px 0 0; color: var(--muted); }
+    .answer-card:first-child { border-top: 4px solid var(--signal); }
+    .answer-card:nth-child(2) { border-top: 4px solid var(--cyan); }
+    .answer-card:nth-child(3) { border-top: 4px solid var(--amber); }
+    .evidence {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 25px;
+      height: 25px;
+      margin-right: 7px;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      color: var(--cyan);
+      font: 800 11px/1 "SFMono-Regular", Consolas, monospace;
+      vertical-align: middle;
+    }
+    .evidence.l { color: var(--amber); }
+    .evidence.r { color: var(--red); }
+    .evidence.i { color: #c3a6ff; }
+
+    .term { min-height: 180px; }
+    .term .glyph { color: var(--signal); font: 800 27px/1 "SFMono-Regular", Consolas, monospace; margin-bottom: 28px; }
+
+    .sequence {
+      display: grid;
+      grid-template-columns: 78px minmax(0, 1fr);
+      gap: 0 26px;
+      max-width: 880px;
+      margin-inline: auto;
+    }
+    .seq-index {
+      position: relative;
+      color: var(--signal);
+      font: 800 24px/1.2 "SFMono-Regular", Consolas, monospace;
+      padding-top: 5px;
+      text-align: right;
+    }
+    .seq-index::after {
+      content: "";
+      position: absolute;
+      top: 42px;
+      bottom: -26px;
+      right: 7px;
+      width: 1px;
+      background: var(--line);
+    }
+    .seq-index.last::after { display: none; }
+    .seq-step { padding: 0 0 42px; }
+    .seq-step h3 { font-size: 21px; }
+    .seq-step p { margin: 8px 0 0; color: var(--muted); }
+    .state-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 35px;
+      color: var(--dim);
+      font: 700 11px/1.4 "SFMono-Regular", Consolas, monospace;
+    }
+    .state-line b { color: var(--ink); border: 1px solid var(--line); padding: 8px 10px; font-weight: 700; }
+    .state-line .active { color: var(--signal); border-color: rgba(184,243,75,.55); }
+
+    .flow-board {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      overflow: hidden;
+      background: #0c110e;
+    }
+    .flow-row {
+      display: grid;
+      grid-template-columns: 170px 1fr 120px;
+      gap: 22px;
+      align-items: center;
+      min-height: 104px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line);
+    }
+    .flow-row:last-child { border-bottom: 0; }
+    .flow-row strong { color: var(--cyan); }
+    .flow-row p { margin: 0; color: var(--muted); }
+    .where { text-align: right; color: var(--signal); font: 800 12px/1.4 "SFMono-Regular", Consolas, monospace; }
+    .where.cloud { color: var(--amber); }
+
+    .gate-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+    .gate { padding: 18px; border-right: 1px solid var(--line); }
+    .gate:last-child { border-right: 0; }
+    .gate small { display: block; color: var(--dim); font: 700 10px/1.2 "SFMono-Regular", Consolas, monospace; letter-spacing: .1em; }
+    .gate b { display: block; margin-top: 5px; }
+    .limit-card { border-radius: 0; }
+    .limit-card.stop { border-color: rgba(255,122,104,.4); }
+    .limit-card.wait { border-color: rgba(255,196,92,.4); }
+    .limit-card.local { border-color: rgba(102,217,209,.4); }
+
+    .lab-note {
+      display: grid;
+      grid-template-columns: 140px minmax(0, 1fr);
+      gap: 30px;
+      border: 1px solid rgba(255,196,92,.5);
+      background: rgba(255,196,92,.055);
+      border-radius: 24px;
+      padding: 30px;
+    }
+    .lab-state { color: var(--amber); font: 900 42px/1 "SFMono-Regular", Consolas, monospace; }
+    .lab-note h3 { font-size: 23px; }
+    .lab-note p { margin: 10px 0 0; color: var(--muted); }
+    .commands { margin-top: 28px; display: grid; gap: 9px; }
+    .command-row { display: grid; grid-template-columns: minmax(0, 1fr) 1.3fr; gap: 18px; border-top: 1px solid var(--line); padding-top: 13px; color: var(--muted); }
+
+    .timeline { border-left: 1px solid var(--line); margin-left: 12px; padding-left: 35px; }
+    .release { position: relative; padding: 0 0 34px; }
+    .release::before {
+      content: "";
+      position: absolute;
+      left: -42px;
+      top: 6px;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--void);
+      border: 2px solid var(--signal);
+    }
+    .release time { color: var(--signal); font: 800 12px/1.3 "SFMono-Regular", Consolas, monospace; }
+    .release h3 { margin-top: 6px; font-size: 19px; }
+    .release p { margin: 5px 0 0; color: var(--muted); }
+
+    details {
+      border-top: 1px solid var(--line);
+      padding: 17px 0;
+    }
+    summary { cursor: pointer; color: var(--paper); font-weight: 700; }
+    details p { color: var(--muted); max-width: 54em; margin: 11px 0 0; }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--line);
+      margin-top: 35px;
+    }
+    .legend div { padding: 18px; border-right: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    .legend div:last-child { border-right: 0; }
+    .legend b { display: block; color: var(--ink); margin-bottom: 5px; }
+
+    .source-list { display: grid; gap: 10px; }
+    .source-link {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) 26px;
+      gap: 16px;
+      align-items: center;
+      color: var(--ink);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 18px 20px;
+    }
+    .source-link:hover { color: var(--ink); border-color: var(--signal); transform: translateX(4px); }
+    .source-link span:first-child { color: var(--signal); font: 800 12px/1 "SFMono-Regular", Consolas, monospace; }
+    .source-link small { display: block; margin-top: 3px; color: var(--muted); }
+    .source-link .arrow { color: var(--signal); font-size: 20px; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+      padding-block: 30px 42px;
+      border-top: 1px solid var(--line);
+      color: var(--dim);
+      font-size: 13px;
+    }
+
+    @media (max-width: 850px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; padding-block: 54px 70px; }
+      .handoff { min-height: 470px; }
+      .map { height: 405px; }
+      .answer-grid, .term-grid, .limit-grid, .unknown-grid { grid-template-columns: 1fr; }
+      .section-head { grid-template-columns: 1fr; gap: 10px; }
+      .gate-strip { grid-template-columns: 1fr 1fr; }
+      .gate:nth-child(2) { border-right: 0; }
+      .gate:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .flow-row { grid-template-columns: 125px 1fr; }
+      .where { grid-column: 2; text-align: left; }
+      .legend { grid-template-columns: 1fr 1fr; }
+      .legend div:nth-child(2) { border-right: 0; }
+      .legend div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    }
+
+    @media (max-width: 520px) {
+      .wrap { width: min(calc(100% - 28px), var(--max)); }
+      .topbar { min-height: 70px; align-items: flex-start; padding-block: 15px; }
+      .topbar nav { display: none; }
+      h1 { font-size: clamp(43px, 14.5vw, 64px); max-width: 9ch; }
+      .lede { font-size: 18px; }
+      .hero { gap: 42px; }
+      .handoff { min-height: 525px; border-radius: 20px; }
+      .map { height: 462px; }
+      .host { left: 6%; top: 6%; width: 82%; }
+      .relay { left: 15%; top: 38%; width: 73%; }
+      .phone { right: 6%; bottom: 5%; width: 70%; }
+      .stay { left: 6%; bottom: 7%; width: 25%; font-size: 18px; }
+      .wire.one { width: 100px; left: 40%; top: 33%; transform: rotate(61deg); }
+      .wire.two { width: 90px; left: 56%; top: 59%; transform: rotate(52deg); }
+      .section { padding-block: 62px; }
+      .sequence { grid-template-columns: 42px minmax(0, 1fr); gap: 0 16px; }
+      .seq-index { font-size: 18px; }
+      .flow-row { grid-template-columns: 1fr; gap: 8px; padding: 19px; }
+      .where { grid-column: 1; }
+      .gate-strip, .legend { grid-template-columns: 1fr; }
+      .gate, .legend div { border-right: 0; border-bottom: 1px solid var(--line); }
+      .gate:last-child, .legend div:last-child { border-bottom: 0; }
+      .lab-note { grid-template-columns: 1fr; gap: 15px; padding: 24px; }
+      .command-row { grid-template-columns: 1fr; gap: 7px; }
+      .source-link { grid-template-columns: 32px minmax(0, 1fr) 18px; gap: 10px; padding: 16px; }
+      footer { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .eyebrow::before { animation: pulse 2.8s ease-in-out infinite; }
+      .source-link { transition: transform .2s ease, border-color .2s ease; }
+      @keyframes pulse { 50% { box-shadow: 0 0 0 10px rgba(184, 243, 75, .03), 0 0 30px rgba(184, 243, 75, .9); } }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Remote Control、Mobile 与跨设备接管。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ui-07-remote-control-mobile/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="UI-07 · Remote Control、Mobile 与跨设备接管">
+  <meta property="og:description" content="Claude Code X-Ray：Remote Control、Mobile 与跨设备接管。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ui-07-remote-control-mobile/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="UI-07 · Remote Control、Mobile 与跨设备接管">
+  <meta name="twitter:description" content="Claude Code X-Ray：Remote Control、Mobile 与跨设备接管。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>UI-07</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="wrap topbar">
+    <div><span class="id">UI-07</span> / DEVICE HANDOFF</div>
+    <nav aria-label="页内导航">
+      <a href="#sequence">时序</a>
+      <a href="#flow">数据流</a>
+      <a href="#limits">停止条件</a>
+      <a href="#sources">一手来源</a>
+    </nav>
+  </header>
+
+  <div class="wrap hero">
+    <div>
+      <div class="eyebrow">REMOTE SESSION ONLINE</div>
+      <h1>手机接手<em>操作</em>，电脑继续<em>执行</em></h1>
+      <p class="lede">开启 Remote Control 后，网页或 Claude 移动端会连到这条正在运行的本地会话。你能查看进度、发消息、回答问题、批准或停止。<strong>代码、工具和文件仍由原来的电脑处理。</strong><span class="evidence">O</span></p>
+      <div class="meta-strip" aria-label="研究元数据">
+        <span class="tag">Claude Code 2.1.247</span>
+        <span class="tag status">状态 documented</span>
+        <span class="tag">基线 2026-08-27</span>
+      </div>
+    </div>
+
+    <div class="handoff" aria-label="远程控制连接示意">
+      <div class="handoff-head"><span>CONNECTION MAP</span><span>OUTBOUND TLS</span></div>
+      <div class="map">
+        <div class="device host">
+          <small>ORIGIN HOST</small>
+          <b>本机 Claude Code 进程</b>
+          <p>文件系统、MCP、工具与代码执行</p>
+        </div>
+        <div class="wire one" aria-hidden="true"></div>
+        <div class="device relay">
+          <small>ANTHROPIC API</small>
+          <b>同步与转发</b>
+          <p>出站 HTTPS、TLS、短期凭据</p>
+        </div>
+        <div class="wire two" aria-hidden="true"></div>
+        <div class="device phone">
+          <small>REMOTE CLIENT</small>
+          <b>手机或浏览器</b>
+          <p>查看、输入、审批、停止</p>
+        </div>
+        <div class="stay"><span>EXECUTION LOCATION</span>执行地点没有移动</div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <section class="wrap section" data-xray-section="answer" id="answer">
+      <div class="section-head">
+        <div class="section-no">01 / ANSWER</div>
+        <div>
+          <h2>接管的是会话入口</h2>
+          <p class="section-intro">手机获得同一条会话的第二个操作面，可以传入消息和决定，也能接收对话、工具活动与状态；主机继续持有文件、工具和运行进程。</p>
+        </div>
+      </div>
+      <div class="answer-grid">
+        <article class="answer-card"><strong><span class="evidence">O</span>能做什么</strong><p>从终端、浏览器和手机交替发消息，处理问题与权限提示，查看进度并停止正在运行的任务。</p></article>
+        <article class="answer-card"><strong><span class="evidence">O</span>什么会同步</strong><p>对话、Claude 回复、工具活动和连接状态会经 Anthropic 服务同步。连接期间 transcript 会存到服务端。</p></article>
+        <article class="answer-card"><strong><span class="evidence">O</span>什么留在电脑</strong><p>代码执行、文件访问、本地工具、MCP 服务和项目配置仍由原主机上的 Claude Code 使用。</p></article>
+      </div>
+    </section>
+
+    <section class="wrap section" data-xray-section="terms" id="terms">
+      <div class="section-head">
+        <div class="section-no">02 / ROLES</div>
+        <div>
+          <h2>三方各做一件事</h2>
+          <p class="section-intro">角色分开，执行地点和数据去向就清楚了。</p>
+        </div>
+      </div>
+      <div class="term-grid">
+        <article class="term"><div class="glyph">⌘_</div><strong>原主机</strong><p>运行 Claude Code 进程，接触本地文件与工具，也实际启动命令。</p></article>
+        <article class="term"><div class="glyph">⇄</div><strong>Anthropic 服务</strong><p>登记远控会话，在已连接设备之间转发消息并同步 transcript。</p></article>
+        <article class="term"><div class="glyph">▯</div><strong>远端设备</strong><p>Claude 移动端或浏览器里的 Code 界面。它是客户端，不是代码运行环境。</p></article>
+      </div>
+    </section>
+
+    <section class="wrap section" data-xray-section="sequence" id="sequence">
+      <div class="section-head">
+        <div class="section-no">03 / SEQUENCE</div>
+        <div>
+          <h2>一次跨设备接管怎样发生</h2>
+          <p class="section-intro">这里沿着已经打开的交互会话往下走。独立的 server mode 留在边界说明中。</p>
+        </div>
+      </div>
+      <div class="sequence">
+        <div class="seq-index">01</div>
+        <div class="seq-step"><h3>本机先有一条运行中的会话</h3><p>工作区已经通过 trust，用户用 claude.ai 订阅账户登录。API key 不能建立 Remote Control。<span class="evidence">O</span></p></div>
+        <div class="seq-index">02</div>
+        <div class="seq-step"><h3>用户在原会话开启远控</h3><p>输入 <code>/remote-control</code> 或 <code>/rc</code>。当前对话历史继续沿用，终端给出会话入口。<span class="evidence">O</span><span class="evidence l">L</span></p></div>
+        <div class="seq-index">03</div>
+        <div class="seq-step"><h3>本机主动连接 Anthropic</h3><p>Claude Code 只发出站 HTTPS，请求短期凭据并保持流式连接。本机不开放入站端口。<span class="evidence">O</span></p></div>
+        <div class="seq-index">04</div>
+        <div class="seq-step"><h3>手机或浏览器进入同一会话</h3><p>用户扫描 QR 码、打开会话 URL，或在 Code 列表里找到它。登录账户与组织需要一致。<span class="evidence">O</span></p></div>
+        <div class="seq-index">05</div>
+        <div class="seq-step"><h3>远端输入回到原进程</h3><p>新消息、问题答案、权限决定和停止动作经服务端转发。本机 Claude Code 接着执行，并把状态同步回各个界面。<span class="evidence">O</span></p></div>
+        <div class="seq-index last">06</div>
+        <div class="seq-step"><h3>断开远控或主机离线</h3><p>主动关闭远控时，本地交互会话可以继续。Claude Code 进程停止后，远端会话下线；网络恢复时，交互模式会尝试重连。<span class="evidence">O</span></p></div>
+      </div>
+      <div class="state-line" aria-label="解释性状态转换">
+        <b>仅本机</b><span>→</span><b>连接中</b><span>→</span><b class="active">远程已连接</b><span>→</span><b>断开或离线</b><span class="evidence i">I</span>
+      </div>
+    </section>
+
+    <section class="wrap section" data-xray-section="flow" id="flow">
+      <div class="section-head">
+        <div class="section-no">04 / FLOW</div>
+        <div>
+          <h2>四种东西走不同的路</h2>
+          <p class="section-intro">“本地执行”回答工具和文件在哪里处理，连接期间的消息、回复和工具活动仍会经过并存放在 Anthropic 服务端。</p>
+        </div>
+      </div>
+      <div class="flow-board">
+        <div class="flow-row"><strong>远端消息与审批</strong><p>手机或网页发出，Anthropic 服务转发，本机 Claude Code 接收并推进同一条会话。</p><div class="where cloud">经服务端</div></div>
+        <div class="flow-row"><strong>会话 transcript</strong><p>消息、Claude 回复和工具活动在连接期间存到 Anthropic 服务器，用于同步与重连。</p><div class="where cloud">服务端留存</div></div>
+        <div class="flow-row"><strong>手机添加的附件</strong><p>照片直接成为消息的一部分，其他文件会下载到原主机，再以文件引用交给 Claude Code。大小上限与清理周期仍未知。</p><div class="where cloud">传到原主机</div></div>
+        <div class="flow-row"><strong>文件与工具调用</strong><p>Claude Code 在原主机读取项目文件、调用 MCP 与工具。远端界面看见结果。</p><div class="where">原主机</div></div>
+        <div class="flow-row"><strong>代码与命令</strong><p>命令由原主机上的进程执行。Remote Control 没有为这条会话创建云端 VM。</p><div class="where">原主机</div></div>
+      </div>
+    </section>
+
+    <section class="wrap section" data-xray-section="limits" id="limits">
+      <div class="section-head">
+        <div class="section-no">05 / GATES</div>
+        <div>
+          <h2>先过四道门，再谈接管</h2>
+          <p class="section-intro">任意一项不满足，远控入口会失败或保持不可用；Team 与 Enterprise 还受组织策略控制。</p>
+        </div>
+      </div>
+      <div class="gate-strip">
+        <div class="gate"><small>ACCOUNT</small><b>claude.ai 订阅登录</b></div>
+        <div class="gate"><small>ORG</small><b>组织已允许远控</b></div>
+        <div class="gate"><small>WORKSPACE</small><b>本机已通过 trust</b></div>
+        <div class="gate"><small>NETWORK</small><b>可出站访问 API</b></div>
+      </div>
+      <div class="limit-grid">
+        <article class="limit-card local"><strong>权限仍归原会话</strong><p>远端可选 Manual、Accept edits 和 Plan。Auto 与 Bypass permissions 不能从手机或网页端选。</p></article>
+        <article class="limit-card wait"><strong>网络中断会等待</strong><p>交互模式可以继续在本机工作并重连。同步恢复前，远端看不到新的现场状态。</p></article>
+        <article class="limit-card stop"><strong>主机进程决定在线状态</strong><p>关闭终端、退出 VS Code 或停止 Claude Code 进程，远端会话就会下线。</p></article>
+      </div>
+      <div style="margin-top:28px">
+        <details><summary>哪些命令仍要回到本地终端</summary><p><code>/plugin</code> 和 <code>/resume</code> 这类依赖终端选择器的命令只在本地 CLI 工作。移动端可以使用官方明确列出的文本输出命令，也能给 <code>/model</code>、<code>/effort</code> 等命令直接传参数。</p></details>
+        <details><summary>主动断开会发生什么</summary><p>从终端状态面板或再次运行 <code>/remote-control</code> 可以关闭远控。原来的交互会话继续留在终端。若会话被另一设备接管、归档或删除，重新开启前应先读清失败原因。</p></details>
+        <details><summary>Mobile 和 Claude Code on the web 有何区别</summary><p>Claude 移动端是多个会话来源共用的客户端。Remote Control 指向你的电脑，Claude Code on the web 指向云端运行环境。两者能出现在相似界面里，执行地点不同。</p></details>
+      </div>
+    </section>
+
+    <section class="wrap section" data-xray-section="experiment" id="experiment">
+      <div class="section-head">
+        <div class="section-no">06 / EVIDENCE</div>
+        <div>
+          <h2>本轮停在资格门前</h2>
+          <p class="section-intro">研究只做了本机版本、文件哈希与帮助入口核对。真实远控需要订阅登录和另一设备，继续会建立会话，所以本页没有 R。</p>
+        </div>
+      </div>
+      <div class="lab-note">
+        <div class="lab-state">L ✓<br>R ×</div>
+        <div>
+          <h3>2.1.247 入口存在，实际接通尚未验证</h3>
+          <p>本机留存的 2.1.247 二进制版本与冻结 SHA-256 一致。顶层帮助列出远控启动参数。用清空 API key 与 OAuth 环境变量的方式请求远控帮助时，程序在建会话前返回需要 claude.ai 订阅登录的错误。</p>
+          <div class="commands">
+            <div class="command-row"><code>claude-2.1.247 --version</code><span>得到 2.1.247</span></div>
+            <div class="command-row"><code>shasum -a 256 claude-2.1.247</code><span>得到 5086…8f7</span></div>
+            <div class="command-row"><code>claude-2.1.247 --help</code><span>出现远控参数与会话名称前缀参数</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="legend" aria-label="证据图例">
+        <div><b><span class="evidence">O</span>官方契约</b>官方文档、帮助、changelog 或仓库</div>
+        <div><b><span class="evidence l">L</span>本机证据</b>当前机器上的二进制、帮助和静态结构</div>
+        <div><b><span class="evidence r">R</span>真实实验</b>本轮实际连通、操作和前后状态，本页缺失</div>
+        <div><b><span class="evidence i">I</span>研究推断</b>从相邻证据归纳出的解释，保留不确定性</div>
+      </div>
+    </section>
+
+    <section class="wrap section" data-xray-section="implementation" id="implementation">
+      <div class="section-head">
+        <div class="section-no">07 / VERSION</div>
+        <div>
+          <h2>2.1.247 是一个修复后的截面</h2>
+          <p class="section-intro">远控入口早于本页基线出现。后续版本仍在改变服务端同步、重连和客户端显示，本页只写到 2026-08-27。</p>
+        </div>
+      </div>
+      <div class="timeline">
+        <article class="release"><time>2.1.51 · 2026-02-24</time><h3>公开子命令出现</h3><p>官方 changelog 加入 <code>claude remote-control</code>，允许本地环境为远端客户端提供服务。</p></article>
+        <article class="release"><time>2.1.110 · 2026-04-15</time><h3>手机能收到推送，也能运行更多文本命令</h3><p>长任务完成和等待决定时可以通知手机，部分斜杠命令开始支持移动端和网页端。</p></article>
+        <article class="release"><time>2.1.202 · 2026-07-06</time><h3>远端输入与显示修复</h3><p>修复远端命令被当成未知命令、无说明附件丢失，以及权限模式显示错误。</p></article>
+        <article class="release"><time>2.1.247 · 2026-08-26</time><h3>working-tree diff 上报修复</h3><p>由 <code>/remote-control</code> 启动的会话可以把工作树 diff 正确报告给连接客户端。</p></article>
+      </div>
+    </section>
+
+    <section class="wrap section" data-xray-section="unknowns" id="unknowns">
+      <div class="section-head">
+        <div class="section-no">08 / UNKNOWNS</div>
+        <div>
+          <h2>还有四处没有证实</h2>
+          <p class="section-intro">这些问题会改变弱网、附件和跨平台体验。当前只有官方描述，缺少 2.1.247 的隔离设备实验。</p>
+        </div>
+      </div>
+      <div class="unknown-grid">
+        <article class="unknown-card"><strong>弱网顺序</strong><p>重连期间消息怎样排队，重复投递怎样处理，本轮没有 R。</p></article>
+        <article class="unknown-card"><strong>移动端差异</strong><p>iOS 与 Android 当日界面、后台限制和推送延迟没有设备核验。</p></article>
+        <article class="unknown-card"><strong>重连记录</strong><p>官方没有公布完整字段、落盘位置和清理时机，本轮也没有读取私人状态。</p></article>
+        <article class="unknown-card"><strong>附件边界</strong><p>2.1.247 的大小上限、重试与本地清理周期缺少完整版本化契约。</p></article>
+      </div>
+    </section>
+
+    <section class="wrap section" data-xray-section="sources" id="sources">
+      <div class="section-head">
+        <div class="section-no">09 / SOURCES</div>
+        <div>
+          <h2>一手来源与复现入口</h2>
+          <p class="section-intro">主结论只依赖 Anthropic 官方资料和本机 2.1.247 的只读帮助证据。完整事实表、实验限制和批准后可执行的步骤见 <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>。</p>
+        </div>
+      </div>
+      <div class="source-list">
+        <a class="source-link" href="https://code.claude.com/docs/en/remote-control"><span>O1</span><span>Remote Control 官方说明<small>证明接入方式、连接、同步、停止与失败边界</small></span><span class="arrow">↗</span></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/mobile"><span>O2</span><span>Claude Code on mobile 官方说明<small>证明手机是客户端，以及本地会话怎样从 Code 列表进入</small></span><span class="arrow">↗</span></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/permission-modes"><span>O3</span><span>权限模式官方说明<small>证明远端可选模式和审批限制</small></span><span class="arrow">↗</span></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/security"><span>O4</span><span>安全边界官方说明<small>证明本地执行、TLS 和短期凭据</small></span><span class="arrow">↗</span></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/data-usage"><span>O5</span><span>数据使用官方说明<small>证明 transcript 同步与服务端留存</small></span><span class="arrow">↗</span></a>
+        <a class="source-link" href="https://code.claude.com/docs/en/changelog"><span>O6</span><span>Claude Code 官方 changelog<small>证明 2.1.51、2.1.110、2.1.202 与 2.1.247 的版本节点</small></span><span class="arrow">↗</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <span>UI-07 · documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

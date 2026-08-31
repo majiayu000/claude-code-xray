@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-SDK-STRUCTURED-OUTPUT">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>伴页 · Agent SDK Structured Output 的验证与失败</title>
+  <style>
+    :root {
+      --paper: #f3eddd;
+      --ink: #15201d;
+      --muted: #5d665f;
+      --rule: #9c9a89;
+      --green: #176b50;
+      --green-pale: #d8e7da;
+      --red: #b5362b;
+      --red-pale: #f0d8d1;
+      --amber: #cc8a1c;
+      --black: #101715;
+      --white: #fffdf5;
+      --display: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", serif;
+      --body: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        repeating-linear-gradient(0deg, transparent 0 27px, rgba(21,32,29,.045) 27px 28px),
+        var(--paper);
+      font-family: var(--body);
+      line-height: 1.72;
+    }
+
+    a { color: var(--green); text-underline-offset: .2em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code { font-family: var(--mono); font-size: .88em; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 1.2rem;
+      align-items: center;
+      min-height: 58px;
+      padding: .7rem clamp(1rem, 4vw, 4.5rem);
+      color: var(--white);
+      background: rgba(16,23,21,.97);
+      border-bottom: 4px solid var(--amber);
+    }
+    .topbar strong { color: #f4c967; font-family: var(--mono); font-size: .78rem; letter-spacing: .06em; }
+    .topbar .state { font-size: .78rem; color: #d5dbd5; }
+    .topbar nav { display: flex; justify-content: flex-end; gap: 1rem; flex-wrap: wrap; font-size: .78rem; }
+    .topbar a { color: var(--white); }
+
+    main { overflow: hidden; }
+    .hero {
+      position: relative;
+      min-height: 78vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(310px, .92fr);
+      gap: clamp(2rem, 7vw, 8rem);
+      align-items: center;
+      padding: clamp(4rem, 8vw, 8rem) clamp(1rem, 7vw, 7.5rem);
+      border-bottom: 2px solid var(--ink);
+    }
+    .hero::before {
+      content: "FINAL GATE";
+      position: absolute;
+      right: -1.5rem;
+      top: 7rem;
+      color: rgba(21,32,29,.055);
+      font-family: var(--mono);
+      font-size: clamp(4rem, 12vw, 11rem);
+      font-weight: 900;
+      letter-spacing: -.08em;
+      writing-mode: vertical-rl;
+      pointer-events: none;
+    }
+    .kicker {
+      margin: 0 0 1rem;
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: .75rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { font-family: var(--display); line-height: 1.12; }
+    h1 { max-width: 12ch; margin: 0; font-size: clamp(2.85rem, 6.8vw, 7.2rem); letter-spacing: -.055em; }
+    h2 { max-width: 15ch; margin: 0 0 2rem; font-size: clamp(2.1rem, 4.5vw, 4.7rem); letter-spacing: -.045em; }
+    h3 { margin: 0 0 .55rem; font-size: 1.23rem; }
+    p { margin: 0 0 1rem; }
+    .lede { max-width: 34ch; margin-top: 1.7rem; font-family: var(--display); font-size: clamp(1.18rem, 2vw, 1.65rem); line-height: 1.55; }
+    .meta-row { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 1.5rem; }
+    .chip { display: inline-flex; padding: .25rem .7rem; border: 1px solid var(--ink); border-radius: 999px; font-family: var(--mono); font-size: .7rem; background: rgba(255,255,255,.24); }
+    .chip.status { color: var(--white); background: var(--green); border-color: var(--green); }
+
+    .gate {
+      position: relative;
+      z-index: 2;
+      border: 2px solid var(--ink);
+      background: var(--white);
+      box-shadow: 14px 14px 0 rgba(21,32,29,.14);
+    }
+    .gate-head { padding: .75rem 1rem; color: var(--white); background: var(--black); font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; }
+    .gate-body { display: grid; grid-template-columns: 1fr 1fr; }
+    .lane { min-height: 260px; padding: 1.4rem; }
+    .lane + .lane { border-left: 2px solid var(--ink); }
+    .lane.accept { background: var(--green-pale); }
+    .lane.reject { background: var(--red-pale); }
+    .lane .mark { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 2.8rem; border: 3px solid currentColor; border-radius: 50%; font-family: var(--mono); font-weight: 900; }
+    .lane.accept .mark { color: var(--green); }
+    .lane.reject .mark { color: var(--red); }
+    .lane p { margin: .4rem 0 0; font-size: .88rem; }
+
+    .section { padding: clamp(4rem, 7vw, 7rem) clamp(1rem, 7vw, 7.5rem); border-bottom: 1px solid var(--rule); }
+    .shell { width: min(1180px, 100%); margin: 0 auto; }
+    .section-no { margin-bottom: .65rem; color: var(--red); font-family: var(--mono); font-size: .75rem; font-weight: 800; letter-spacing: .1em; }
+    .intro { max-width: 67ch; font-size: 1.05rem; }
+
+    .terms { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 2px solid var(--ink); background: var(--ink); gap: 1px; }
+    .term { min-height: 215px; padding: 1.35rem; background: var(--paper); }
+    .term span { display: block; margin-bottom: 3rem; color: var(--red); font-family: var(--mono); font-size: .7rem; }
+
+    .sequence-wrap { display: grid; grid-template-columns: minmax(200px,.48fr) minmax(0,1.52fr); gap: clamp(2rem,6vw,6rem); align-items: start; }
+    .sequence-note { position: sticky; top: 94px; padding-left: 1rem; border-left: 5px solid var(--amber); }
+    .timeline { border-top: 2px solid var(--ink); counter-reset: step; }
+    .step { counter-increment: step; display: grid; grid-template-columns: 3.8rem 1fr auto; gap: 1rem; align-items: start; padding: 1.25rem 0; border-bottom: 1px solid var(--rule); }
+    .step::before { content: "0" counter(step); color: var(--red); font-family: var(--mono); font-weight: 800; }
+    .step strong { display: block; margin-bottom: .25rem; font-family: var(--display); font-size: 1.2rem; }
+    .step p { margin: 0; color: var(--muted); }
+
+    .badge { display: inline-grid; place-items: center; width: 30px; height: 30px; border: 1px solid currentColor; border-radius: 50%; font-family: var(--mono); font-size: .72rem; font-weight: 900; }
+    .badge.o { color: #155d87; }
+    .badge.l { color: var(--green); }
+    .badge.r { color: var(--red); }
+    .badge.i { color: #8b5c0f; }
+
+    .flow-section { color: var(--white); background: var(--black); }
+    .flow-section .section-no { color: #f4c967; }
+    .flow-section h2 { color: var(--white); }
+    .conveyor { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); border: 1px solid #65716c; }
+    .station { position: relative; min-height: 215px; padding: 1.25rem; border-right: 1px solid #65716c; background: #17211e; }
+    .station:last-child { border: 0; }
+    .station:not(:last-child)::after { content: "›"; position: absolute; z-index: 2; right: -.75rem; top: 50%; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; color: #f4c967; background: var(--black); transform: translateY(-50%); font-size: 1.5rem; }
+    .station span { display: block; margin-bottom: 2.5rem; color: #f4c967; font-family: var(--mono); font-size: .69rem; }
+    .station p { color: #d0d8d2; font-size: .88rem; }
+    .station.gate-ok { border-top: 5px solid #53a57b; }
+    .station.gate-bad { border-top: 5px solid #e16958; }
+    .flow-foot { margin-top: 1.5rem; padding: 1.2rem 1.4rem; border: 1px solid #65716c; color: #dce3de; }
+
+    .limits-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1.5rem,5vw,5rem); }
+    .ledger { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--ink); }
+    .ledger li { padding: 1.1rem 0; border-bottom: 1px solid var(--rule); }
+    .ledger strong { display: block; font-family: var(--display); font-size: 1.14rem; }
+    .warning { margin-top: 1.8rem; padding: 1.3rem; border: 2px solid var(--red); background: var(--red-pale); }
+
+    .evidence-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1px; border: 2px solid var(--ink); background: var(--ink); }
+    .e-key { min-height: 190px; padding: 1.25rem; background: var(--paper); }
+    .e-key .badge { margin-bottom: 2.5rem; }
+    .e-key.missing { background: var(--red-pale); }
+    .e-key p { color: var(--muted); font-size: .9rem; }
+    .observations { width: 100%; margin-top: 2rem; border-collapse: collapse; }
+    .observations th, .observations td { padding: .9rem; border: 1px solid var(--rule); text-align: left; vertical-align: top; }
+    .observations th { color: var(--white); background: var(--black); font-family: var(--mono); font-size: .72rem; }
+
+    .impl-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: clamp(2rem,6vw,6rem); }
+    .receipt { padding: 1.35rem; color: #dfe7e1; background: var(--black); border-top: 7px solid var(--amber); font-family: var(--mono); font-size: .8rem; }
+    .receipt-row { display: grid; grid-template-columns: 6.2rem 1fr; gap: .8rem; padding: .68rem 0; border-bottom: 1px dotted #5f6b66; }
+    .receipt-row:last-child { border: 0; }
+    .receipt-row b { color: #f4c967; }
+    .version { margin-top: 2rem; padding: 1.2rem; border-left: 7px solid var(--amber); background: rgba(255,255,255,.35); }
+
+    .handoff-note {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      border: 2px solid var(--ink);
+      background: var(--green-pale);
+    }
+    .handoff-note p { max-width: 78ch; }
+    .handoff-note p:last-child { margin-bottom: 0; }
+
+    .unknowns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; padding: 0; list-style: none; counter-reset: unknown; }
+    .unknowns li { counter-increment: unknown; min-height: 170px; padding: 1.3rem; border: 1px solid var(--ink); background: rgba(255,255,255,.28); }
+    .unknowns li::before { content: "U-0" counter(unknown); display: block; margin-bottom: 2.2rem; color: var(--red); font-family: var(--mono); font-size: .72rem; font-weight: 900; }
+
+    .sources { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--ink); }
+    .sources li { display: grid; grid-template-columns: 3.2rem 1fr auto; gap: 1rem; align-items: center; padding: 1.1rem 0; border-bottom: 1px solid var(--rule); }
+    .sources .id { color: var(--red); font-family: var(--mono); font-size: .72rem; }
+    .sources small { color: var(--muted); }
+    details { margin-top: 1.2rem; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+    summary { cursor: pointer; padding: 1rem 0; font-family: var(--display); font-size: 1.12rem; font-weight: 700; }
+    details p, details ol { max-width: 75ch; }
+
+    footer { display: flex; justify-content: space-between; gap: 1rem; padding: 2rem clamp(1rem,7vw,7.5rem); color: #d1dad4; background: var(--black); font-family: var(--mono); font-size: .75rem; }
+    footer a { color: #f4c967; }
+
+    @media (max-width: 960px) {
+      .topbar { grid-template-columns: auto 1fr; }
+      .topbar nav { display: none; }
+      .hero { min-height: auto; grid-template-columns: 1fr; }
+      .gate { max-width: 650px; }
+      .terms { grid-template-columns: repeat(2,1fr); }
+      .sequence-wrap, .impl-grid { grid-template-columns: 1fr; }
+      .sequence-note { position: static; }
+      .conveyor { grid-template-columns: repeat(2,1fr); }
+      .station { border-bottom: 1px solid #65716c; }
+      .station::after { display: none !important; }
+      .evidence-grid { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width: 560px) {
+      body { font-size: .95rem; }
+      .topbar { grid-template-columns: 1fr; gap: .15rem; padding: .7rem 1rem; }
+      .topbar strong { overflow-wrap: anywhere; }
+      .hero, .section { padding-left: 1rem; padding-right: 1rem; }
+      h1 { font-size: clamp(2.7rem,14vw,4.1rem); }
+      .gate-body, .terms, .conveyor, .limits-grid, .evidence-grid, .unknowns { grid-template-columns: 1fr; }
+      .lane + .lane { border-left: 0; border-top: 2px solid var(--ink); }
+      .term, .station, .e-key { min-height: 0; }
+      .step { grid-template-columns: 2.7rem 1fr auto; gap: .55rem; }
+      .observations, .observations tbody, .observations tr, .observations td { display: block; width: 100%; }
+      .observations thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .observations tr { margin-bottom: 1rem; border: 1px solid var(--rule); }
+      .observations td { border: 0; border-bottom: 1px solid var(--rule); }
+      .sources li { grid-template-columns: 2.5rem 1fr; }
+      .sources small { grid-column: 2; }
+      .sources a { overflow-wrap: anywhere; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Agent SDK Structured Output 的验证与失败。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-sdk-structured-output/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-SDK-STRUCTURED-OUTPUT · Agent SDK Structured Output 的验证与失败">
+  <meta property="og:description" content="Claude Code X-Ray：Agent SDK Structured Output 的验证与失败。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-sdk-structured-output/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-SDK-STRUCTURED-OUTPUT · Agent SDK Structured Output 的验证与失败">
+  <meta name="twitter:description" content="Claude Code X-Ray：Agent SDK Structured Output 的验证与失败。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-SDK-STRUCTURED-OUTPUT</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <strong>COMP-SDK-STRUCTURED-OUTPUT</strong>
+    <span class="state">状态 documented · Claude Code 2.1.247</span>
+    <nav aria-label="页内导航">
+      <a href="#sequence">时序</a>
+      <a href="#flow">数据流</a>
+      <a href="#limits">失败</a>
+      <a href="#sources">来源</a>
+      <a href="../index.html">返回总索引</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <p class="kicker">伴页 · 终局验收</p>
+        <h1 id="answer-title">只有过闸的结果才能交给业务代码</h1>
+        <p class="lede">host 提交 schema 后，中间文字和工具消息仍只是过程。最终 result 同时给出 success 和 structured_output，业务代码才收件。结构一直不合格，运行以专门的重试耗尽错误收尾。</p>
+        <div class="meta-row" aria-label="页面基线">
+          <span class="chip status">documented</span>
+          <span class="chip">COMP-SDK-STRUCTURED-OUTPUT</span>
+          <span class="chip">基线 2026-08-27</span>
+          <span class="chip">Claude Code 2.1.247</span>
+        </div>
+      </div>
+      <div class="gate" aria-label="结构化结果验收门">
+        <div class="gate-head">RESULT INSPECTION · HOST SIDE</div>
+        <div class="gate-body">
+          <article class="lane accept">
+            <div class="mark">✓</div>
+            <h3>收件</h3>
+            <p><code>result</code></p>
+            <p><code>success</code></p>
+            <p><code>structured_output</code> 存在</p>
+          </article>
+          <article class="lane reject">
+            <div class="mark">×</div>
+            <h3>退件</h3>
+            <p>重试耗尽错误</p>
+            <p>success 但字段缺失</p>
+            <p>连接或进程先失败</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="shell">
+        <p class="section-no">01 · 四个词</p>
+        <h2 id="terms-title">先把契约放对位置</h2>
+        <div class="terms">
+          <article class="term"><span>TERM 01</span><h3>schema</h3><p>host 交出的 JSON Schema。固定基线采用 draft-07 验证。</p></article>
+          <article class="term"><span>TERM 02</span><h3>中间消息</h3><p>增量事件、完整回复和工具往返。它们说明过程进度，没有宣告最终对象合格。</p></article>
+          <article class="term"><span>TERM 03</span><h3>result</h3><p>一次运行的终局消息。subtype 和字段共同决定 host 怎样收尾。</p></article>
+          <article class="term"><span>TERM 04</span><h3>typed object</h3><p>先取得已验证 JSON，再用 Zod 或 Pydantic 解析成应用代码里的具体类型。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="shell sequence-wrap">
+        <div>
+          <p class="section-no">02 · 一次查询的时序</p>
+          <h2 id="sequence-title">schema 在终点验收，也会在起点挡住坏配置</h2>
+          <p class="sequence-note">语法无效的 schema 在 2.1.205 及以后会让运行启动失败。语法有效却接不住模型结果时，SDK 会让 agent 修正，直到得到合格对象或耗尽重试。</p>
+        </div>
+        <div class="timeline">
+          <article class="step"><div><strong>host 交出任务和 schema</strong><p>TypeScript 使用 outputFormat，Python 使用 output_format。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="step"><div><strong>先查 schema 本身</strong><p>无效 JSON Schema 直接阻止运行。固定版本 2.1.247 位于这条版本分界之后。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="step"><div><strong>agent 正常做事</strong><p>它可以经过多轮工具调用。普通权限门和停止条件依然生效。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="step"><div><strong>中间消息逐批到达</strong><p>打开 partial messages 后，原始增量事件与完整 assistant 消息并存。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="step"><div><strong>最终 JSON 接受 schema 检查</strong><p>不匹配会触发修正。这里的重试属于 agent 的终局输出过程。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="step"><div><strong>result 给出两条路</strong><p>合格对象进入 structured_output。多次尝试仍无有效对象，subtype 报结构化输出重试耗尽。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="step"><div><strong>host 再做一次语言级解析</strong><p>官方示例用 Zod safeParse 或 Pydantic model_validate 取得带业务类型的对象。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section flow-section" id="flow" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="shell">
+        <p class="section-no">03 · 数据怎样走</p>
+        <h2 id="flow-title">过程流与业务对象在终点分开</h2>
+        <div class="conveyor" aria-label="结构化结果数据流">
+          <article class="station"><span>HOST INPUT</span><h3>任务与 schema</h3><p>schema 只描述最后要收的形状。</p></article>
+          <article class="station"><span>AGENT LOOP</span><h3>回复与工具</h3><p>多轮执行照常推进，权限门仍能阻止工具。</p></article>
+          <article class="station"><span>STREAM</span><h3>过程消息</h3><p>增量事件和完整回复可用于界面进度。</p></article>
+          <article class="station gate-ok"><span>VALID</span><h3>通过</h3><p>result 携带 structured_output，host 继续做类型解析。</p></article>
+          <article class="station gate-bad"><span>INVALID</span><h3>未通过</h3><p>修正失败后返回专门 subtype，单次 query 随后抛错。</p></article>
+        </div>
+        <div class="flow-foot">中间文本可以展示给人，不能直接写入依赖 schema 的数据库字段。schema 契约只在最终结果的结构化字段上成立。<span class="badge i" aria-label="研究者推断">I</span></div>
+      </div>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="shell">
+        <p class="section-no">04 · 门、失败和停止</p>
+        <h2 id="limits-title">host 要检查字段，不能只看绿灯</h2>
+        <div class="limits-grid">
+          <div>
+            <h3>配置与运行</h3>
+            <ul class="ledger">
+              <li><strong>schema 无效</strong>2.1.205 以后在启动阶段失败，并指出 schema 问题。</li>
+              <li><strong>工具没有权限</strong>agent 可能无法取得 schema 要求的数据，权限决策仍按原有规则处理。</li>
+              <li><strong>连接或进程故障</strong>这类失败可能没有 result，host 只能处理抛出的异常。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>终局检查</h3>
+            <ul class="ledger">
+              <li><strong>验收成功</strong>消息类型是 result，subtype 是 success，structured_output 也确实存在。</li>
+              <li><strong>没有有效输出留下</strong>subtype 是 error_max_structured_output_retries。常见原因是 schema mismatch 反复未修好；model fallback 撤回已完成输出且没有成功重试，也会使用同一 subtype。errors 可帮助区分两者。</li>
+              <li><strong>字段缺席</strong>官方允许出现 success 但没有 structured_output。host 也要把它当作失败。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="warning"><strong>单次查询还有一次异常交接</strong><p>官方示例说明，错误 result 会先被迭代器产出，单次 query 随后抛出异常。host 应先记录 result 的 subtype 和 errors 摘要，再由外层异常处理完成清理。</p></div>
+        <div class="handoff-note">
+          <h3>运行前先确定谁的凭据、谁的账单</h3>
+          <p>官方 Quickstart 要求 Anthropic 账户，并以 Claude Console 的 API key 作为直接接入方式。Agent SDK 也支持 Amazon Bedrock、Google Cloud Agent Platform 和 Microsoft Foundry，此时要配置对应云平台的凭据。Claude Code 若已保存订阅 OAuth 登录，会在没有更高优先级凭据时采用它。</p>
+          <p>把 Agent SDK 做进第三方产品时，Anthropic 要求开发者使用 Console API key 或受支持的云平台凭据。未经批准，第三方不能向用户提供 claude.ai 登录，也不能代用户转接 Free、Pro 或 Max 凭据。平台托管未修改的 Claude Code 时，终端用户仍可走 Anthropic 自己的登录流程，并使用自己的凭据。</p>
+          <p>凭据所有者承担相应的用量。API key 归 Claude Console 账户，云平台凭据归对应提供商账户。result 里的 total_cost_usd 只是客户端估算，正式账单要看 Claude Console Usage 页面或 Usage and Cost API，不能拿这个估算字段向终端用户计费。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="shell">
+        <p class="section-no">05 · 本机证据</p>
+        <h2 id="experiment-title">官方契约已核，运行现场仍是空白</h2>
+        <div class="evidence-grid" aria-label="证据图例">
+          <article class="e-key"><span class="badge o">O</span><h3>官方契约</h3><p>schema 选项、结果字段、重试错误和流式消息边界。</p></article>
+          <article class="e-key"><span class="badge l">L</span><h3>本机静态</h3><p>当前 PATH 找不到 claude，全局 Node 与 Python 环境也没有 Agent SDK。</p></article>
+          <article class="e-key missing"><span class="badge r">R</span><h3>真实实验</h3><p>本轮缺失。没有启动新的付费 Claude 会话。</p></article>
+          <article class="e-key"><span class="badge i">I</span><h3>研究推断</h3><p>只给 host 的收件边界和版本比较，不填造事件。</p></article>
+        </div>
+        <table class="observations">
+          <thead><tr><th>只读检查</th><th>关键结果</th><th>证据边界</th></tr></thead>
+          <tbody>
+            <tr><td><code>claude --version</code></td><td>当前 shell 报 command not found</td><td>无法独立核准固定版本</td></tr>
+            <tr><td><code>claude --help</code></td><td>当前 shell 报 command not found</td><td>无法核对本机帮助面</td></tr>
+            <tr><td>全局 SDK 检查</td><td>npm 为空，Python 不可导入</td><td>不排除其他项目或虚拟环境</td></tr>
+          </tbody>
+        </table>
+        <details>
+          <summary>页面为什么保持 documented</summary>
+          <p>页面有 O 和只读 L，缺少 R。安装 SDK 后发起查询仍需凭据，并可能产生费用。手写 JSON 只能验证样例，无法证明 Claude Code 2.1.247 的重试、消息序列与异常交接。</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="shell">
+        <p class="section-no">06 · 实现切口与版本</p>
+        <h2 id="implementation-title">验证过的 JSON 仍要进入宿主类型系统</h2>
+        <div class="impl-grid">
+          <div>
+            <h3>SDK 交付 JSON</h3>
+            <p>TypeScript 参考把 structured_output 留作宽类型，Python ResultMessage 把它声明为 Any。schema 验证保证运行时形状，编译器不会凭空知道具体业务类型。</p>
+            <h3>host 建立 typed object</h3>
+            <p>官方示例再次调用 Zod safeParse 或 Pydantic model_validate。成功后的对象才带应用代码能追踪的字段类型。</p>
+            <h3>消息分支先于字段读取</h3>
+            <p>先确认 result，再确认 success，最后确认 structured_output 存在。任何一步没过，都不要把正文文本强转成业务对象。</p>
+          </div>
+          <div class="receipt" aria-label="host 收件规则示意">
+            <div class="receipt-row"><b>INPUT</b><span>outputFormat / output_format</span></div>
+            <div class="receipt-row"><b>SCHEMA</b><span>json_schema · draft-07</span></div>
+            <div class="receipt-row"><b>PASS</b><span>result + success + structured_output</span></div>
+            <div class="receipt-row"><b>TYPE</b><span>Zod safeParse / Pydantic model_validate</span></div>
+            <div class="receipt-row"><b>FAIL</b><span>error_max_structured_output_retries</span></div>
+          </div>
+        </div>
+        <div class="handoff-note">
+          <h3>收件代码要保留两道检查</h3>
+          <p>第一道检查发生在消息循环里。host 可以把 stream_event 和 assistant 消息交给界面更新进度，但这两类消息没有承诺业务对象已经过 schema 验证。读到 result 以后，host 先查看 subtype。错误 subtype 应进入失败分支，并保留经过删减的 errors 摘要供诊断。连接在 result 之前中断时，外层异常分支负责收尾，因为此时没有终局字段可查。</p>
+          <p>第二道检查发生在应用边界。success 只说明 agent loop 正常结束，host 还要确认 structured_output 存在，再交给 Zod 或 Pydantic。语言级解析成功以后，路由、持久化和后续函数才接触具体类型。若这一步失败，问题已经落到 host 的类型定义、转换选项或版本漂移上，不能退回去采用 assistant 正文。这个处理顺序让界面仍能实时显示过程，也让依赖固定字段的业务代码只接收终局对象。<span class="badge i" aria-label="研究者推断">I</span></p>
+          <p>对外报告 schema mismatch 时，host 还要保留错误来源。error_max_structured_output_retries 说明最终没有可接收的对象，但同一 subtype 也可能来自 model fallback 撤回输出后未能完成重试。errors 摘要能帮助运维区分这两种情况，subtype 本身只能确定收件失败。<span class="badge o" aria-label="官方证据">O</span></p>
+        </div>
+        <div class="version"><strong>版本边界</strong><p>固定基线是 Claude Code 2.1.247。官方把无效 schema 的启动失败分界写在 2.1.205，因此基线应当具备这项行为。这个“应当”来自官方版本说明与版本号比较，当前环境没有 R。研究日读取的官方文档也可能含有 8 月 27 日以后的补充说明。</p></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="shell">
+        <p class="section-no">07 · 未知项</p>
+        <h2 id="unknowns-title">这些空白没有用样例补齐</h2>
+        <ol class="unknowns">
+          <li>2.1.247 遇到真实 schema mismatch 时，每次修正会怎样出现在消息流里。</li>
+          <li>固定基线的精确重试次数，以及它是否有公开配置入口。</li>
+          <li>success 但 structured_output 缺失在 2.1.247 上的触发条件和发生率。</li>
+          <li>固定 TypeScript 与 Python SDK bundle 对错误 result 的异常包装和清理时机差异。</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="shell">
+        <p class="section-no">08 · 一手来源与复现</p>
+        <h2 id="sources-title">沿着官方契约重走终局</h2>
+        <ul class="sources">
+          <li><span class="id">O-01</span><a href="https://code.claude.com/docs/en/agent-sdk/structured-outputs">Structured outputs 证明 schema、验证、typed data 与失败 subtype</a><small>Anthropic 官方</small></li>
+          <li><span class="id">O-02</span><a href="https://code.claude.com/docs/en/agent-sdk/streaming-output">Streaming output 证明增量事件、完整消息与 result 分开</a><small>Anthropic 官方</small></li>
+          <li><span class="id">O-03</span><a href="https://code.claude.com/docs/en/agent-sdk/python">Python reference 证明 output_format 与 ResultMessage 字段</a><small>Anthropic 官方</small></li>
+          <li><span class="id">O-04</span><a href="https://code.claude.com/docs/en/agent-sdk/agent-loop">Agent loop 证明错误 result 产出以后单次 query 抛错</a><small>Anthropic 官方</small></li>
+          <li><span class="id">O-05</span><a href="https://code.claude.com/docs/en/agent-sdk/quickstart">Quickstart 说明账户、API key、云平台凭据与第三方登录限制</a><small>Anthropic 官方</small></li>
+          <li><span class="id">O-06</span><a href="https://code.claude.com/docs/en/authentication">Authentication 说明凭据优先级与订阅 OAuth 回退</a><small>Anthropic 官方</small></li>
+          <li><span class="id">O-07</span><a href="https://code.claude.com/docs/en/agent-sdk/cost-tracking">Cost tracking 区分客户端费用估算与正式账单</a><small>Anthropic 官方</small></li>
+          <li><span class="id">O-08</span><a href="https://code.claude.com/docs/en/legal-and-compliance">Legal and compliance 说明第三方凭据、用量归属与转售边界</a><small>Anthropic 官方</small></li>
+          <li><span class="id">ADJ</span><a href="../20260827-sdk-01-runtime-session-loop/explainer.html">返回 SDK-01 主页面查看消息循环、会话续接与流耗尽</a><small>XRY 相邻页</small></li>
+          <li><span class="id">INDEX</span><a href="../index.html">返回总索引</a><small>XRY 导航</small></li>
+        </ul>
+        <details open>
+          <summary>安全复现提要</summary>
+          <p>在临时目录固定捆绑 2.1.247 的官方 SDK，由凭据所有者确认计费账户后，用测试账户和很小的预算上限发出无敏感信息的任务。先跑一个简单 draft-07 schema，再打开 partial messages，只记消息类型、相对顺序和字段是否存在。随后分别复现无效 schema 的启动失败与 mismatch 的重试耗尽。结果正文、UUID、prompt 和工具参数都不留存。</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>COMP-SDK-STRUCTURED-OUTPUT · documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="SDK-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>SDK-01 · Agent SDK 的运行时消息循环与会话续接</title>
+  <style>
+    :root {
+      --paper: #f2ead8;
+      --paper-deep: #e5dbc5;
+      --ink: #162136;
+      --muted: #5d625f;
+      --line: #9b927f;
+      --blue: #135e96;
+      --red: #ad3024;
+      --green: #3e6b4c;
+      --gold: #78500f;
+      --black: #101722;
+      --white: #fffaf0;
+      --shadow: 0 18px 50px rgba(29, 31, 30, .12);
+      --serif: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", serif;
+      --sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(22, 33, 54, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(22, 33, 54, .025) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: var(--sans);
+      line-height: 1.75;
+    }
+
+    a { color: var(--blue); text-underline-offset: .18em; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--red);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    .masthead {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 58px;
+      padding: .65rem clamp(1rem, 4vw, 4rem);
+      color: var(--white);
+      background: rgba(16, 23, 34, .96);
+      border-bottom: 4px solid var(--red);
+      backdrop-filter: blur(10px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: .75rem;
+      font-family: var(--mono);
+      letter-spacing: .04em;
+    }
+
+    .brand strong { color: #f1b34b; }
+    .brand small { color: #d7d5ce; }
+
+    .masthead nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: .4rem 1rem;
+      font-size: .82rem;
+    }
+
+    .masthead a { color: var(--white); text-decoration-thickness: 1px; }
+
+    main { overflow: hidden; }
+
+    .hero {
+      position: relative;
+      min-height: 76vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(280px, .7fr);
+      gap: clamp(2rem, 6vw, 7rem);
+      align-items: center;
+      padding: clamp(4rem, 8vw, 8rem) clamp(1.15rem, 7vw, 7.5rem);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: min(38vw, 540px);
+      aspect-ratio: 1;
+      right: -12vw;
+      bottom: -40%;
+      border: 1px solid rgba(19, 94, 150, .25);
+      border-radius: 50%;
+      box-shadow: 0 0 0 28px rgba(19, 94, 150, .035), 0 0 0 64px rgba(195, 61, 46, .025);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .7rem;
+      margin: 0 0 1.2rem;
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 2.4rem;
+      height: 3px;
+      background: currentColor;
+    }
+
+    h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.1; }
+    h1 {
+      max-width: 14ch;
+      margin: 0;
+      font-size: clamp(2.75rem, 6.5vw, 6.8rem);
+      letter-spacing: -.055em;
+    }
+
+    .answer-line {
+      max-width: 33ch;
+      margin: 2rem 0 0;
+      font-family: var(--serif);
+      font-size: clamp(1.18rem, 2vw, 1.7rem);
+      line-height: 1.55;
+    }
+
+    .hero-trace {
+      position: relative;
+      z-index: 2;
+      padding: 1.4rem 0 1.4rem 2rem;
+      border-left: 2px solid var(--ink);
+    }
+
+    .trace-node {
+      position: relative;
+      display: grid;
+      grid-template-columns: 4.2rem 1fr;
+      gap: .7rem;
+      padding: .8rem 0;
+      border-bottom: 1px solid rgba(22, 33, 54, .18);
+    }
+
+    .trace-node::before {
+      content: "";
+      position: absolute;
+      left: calc(-2rem - 7px);
+      top: 1.35rem;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--paper);
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 0 1px var(--ink);
+    }
+
+    .trace-node:last-child::before { background: var(--red); }
+    .trace-node code { color: var(--blue); font-family: var(--mono); font-size: .78rem; }
+    .trace-node span { font-size: .92rem; }
+
+    .status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem;
+      margin-top: 1.4rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: .18rem .7rem;
+      border: 1px solid var(--ink);
+      border-radius: 999px;
+      background: rgba(255,255,255,.25);
+      font-family: var(--mono);
+      font-size: .72rem;
+    }
+
+    .pill.status { color: var(--white); background: var(--green); border-color: var(--green); }
+
+    .section {
+      position: relative;
+      padding: clamp(4rem, 7vw, 7.5rem) clamp(1.15rem, 7vw, 7.5rem);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-shell {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+    }
+
+    .section-kicker {
+      margin: 0 0 .75rem;
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .1em;
+    }
+
+    h2 {
+      max-width: 16ch;
+      margin: 0 0 2.2rem;
+      font-size: clamp(2.15rem, 4vw, 4.5rem);
+      letter-spacing: -.04em;
+    }
+
+    h3 { margin: 0 0 .65rem; font-size: 1.25rem; }
+    p { margin: 0 0 1rem; }
+
+    .terms-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .term {
+      min-height: 190px;
+      padding: 1.5rem;
+      background: var(--paper);
+    }
+
+    .term code, .mono { font-family: var(--mono); }
+    .term code { color: var(--blue); }
+    .term .num {
+      display: block;
+      margin-bottom: 2.5rem;
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: .78rem;
+    }
+
+    .sequence-layout {
+      display: grid;
+      grid-template-columns: minmax(210px, .48fr) minmax(0, 1.52fr);
+      gap: clamp(2rem, 6vw, 7rem);
+      align-items: start;
+    }
+
+    .sequence-note {
+      position: sticky;
+      top: 96px;
+      font-family: var(--serif);
+      font-size: 1.24rem;
+      line-height: 1.6;
+    }
+
+    .timeline {
+      counter-reset: event;
+      border-top: 2px solid var(--ink);
+    }
+
+    .event {
+      counter-increment: event;
+      display: grid;
+      grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+      gap: 1rem;
+      padding: 1.3rem 0;
+      border-bottom: 1px solid var(--line);
+      align-items: baseline;
+    }
+
+    .event::before {
+      content: "0" counter(event);
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: .8rem;
+      font-weight: 700;
+    }
+
+    .event strong { display: block; font-family: var(--serif); font-size: 1.22rem; }
+    .event p { margin: .35rem 0 0; color: var(--muted); }
+    .badge {
+      display: inline-grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      font-family: var(--mono);
+      font-size: .74rem;
+      font-weight: 800;
+    }
+
+    .badge.o { color: var(--blue); }
+    .badge.l { color: var(--green); }
+    .badge.r { color: var(--red); }
+    .badge.i { color: var(--gold); }
+
+    .flow-section { color: var(--white); background: var(--black); }
+    .flow-section .section-kicker { color: #f1b34b; }
+    .flow-section h2 { color: var(--white); }
+    .flow-section .callout { color: var(--ink); }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .flow-card {
+      position: relative;
+      padding: 1.4rem;
+      border: 1px solid #56606d;
+      background: #172232;
+    }
+
+    .flow-card:not(:last-child)::after {
+      content: "›";
+      position: absolute;
+      top: 50%;
+      right: -.85rem;
+      z-index: 2;
+      width: 1.6rem;
+      height: 1.6rem;
+      display: grid;
+      place-items: center;
+      color: #f1b34b;
+      background: var(--black);
+      transform: translateY(-50%);
+      font-size: 1.5rem;
+    }
+
+    .flow-card .label {
+      display: block;
+      margin-bottom: 2rem;
+      color: #f1b34b;
+      font-family: var(--mono);
+      font-size: .72rem;
+    }
+
+    .flow-card p { margin: 0; color: #d9dedf; font-size: .92rem; }
+
+    .session-rail {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 1.2rem;
+      align-items: center;
+      margin-top: 2.5rem;
+      padding: 1.4rem;
+      border: 1px solid #56606d;
+    }
+
+    .session-box { padding: 1rem; background: #0e151f; }
+    .session-box code { color: #7eb4d9; }
+    .session-arrow { color: #f1b34b; font-family: var(--mono); text-align: center; }
+
+    .limits-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(1.5rem, 4vw, 4rem);
+    }
+
+    .limit-list { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--ink); }
+    .limit-list li { padding: 1.2rem 0; border-bottom: 1px solid var(--line); }
+    .limit-list strong { display: block; margin-bottom: .25rem; font-family: var(--serif); font-size: 1.15rem; }
+
+    .callout {
+      padding: 1.4rem;
+      border-left: 6px solid var(--red);
+      background: rgba(255, 250, 240, .55);
+    }
+
+    .evidence-board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      margin-bottom: 2rem;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+    }
+
+    .evidence-key { padding: 1.25rem; background: var(--paper); }
+    .evidence-key .badge { margin-bottom: 2rem; }
+    .evidence-key p { margin: 0; color: var(--muted); font-size: .9rem; }
+    .evidence-key.missing { background: #f1ddd5; }
+
+    .experiment-table { width: 100%; border-collapse: collapse; }
+    .experiment-table th, .experiment-table td {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    .experiment-table th { color: var(--white); background: var(--ink); font-family: var(--mono); font-size: .78rem; }
+    .experiment-table td:first-child { font-family: var(--mono); font-size: .82rem; }
+
+    details {
+      margin-top: 1rem;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    summary {
+      cursor: pointer;
+      padding: 1rem 0;
+      font-family: var(--serif);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    details p, details ul { max-width: 72ch; }
+
+    .implementation-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+      gap: clamp(2rem, 6vw, 6rem);
+    }
+
+    .protocol {
+      padding: 1.4rem;
+      color: #dfe8e8;
+      background: var(--black);
+      border-top: 7px solid var(--blue);
+      box-shadow: var(--shadow);
+      font-family: var(--mono);
+      font-size: .83rem;
+    }
+    .protocol-row {
+      display: grid;
+      grid-template-columns: 2.3rem 7.5rem 1fr;
+      gap: .6rem;
+      padding: .7rem 0;
+      border-bottom: 1px solid #34404d;
+    }
+    .protocol-row:last-child { border: 0; }
+    .protocol-row b { color: #f1b34b; }
+
+    .version-note {
+      margin-top: 2rem;
+      padding: 1.2rem 1.4rem;
+      border: 1px solid var(--red);
+      background: #f0ddd3;
+    }
+
+    .unknown-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: unknown;
+    }
+    .unknown-list li {
+      counter-increment: unknown;
+      min-height: 180px;
+      padding: 1.4rem;
+      border: 1px solid var(--ink);
+      background: rgba(255, 250, 240, .4);
+    }
+    .unknown-list li::before {
+      content: "U-0" counter(unknown);
+      display: block;
+      margin-bottom: 2.4rem;
+      color: var(--red);
+      font-family: var(--mono);
+      font-size: .76rem;
+      font-weight: 800;
+    }
+
+    .sources-list { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--ink); }
+    .sources-list li {
+      display: grid;
+      grid-template-columns: 3rem 1fr auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 1.1rem 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .sources-list .src-id { color: var(--red); font-family: var(--mono); font-size: .78rem; }
+    .sources-list small { color: var(--muted); }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2rem clamp(1.15rem, 7vw, 7.5rem);
+      color: #d7d5ce;
+      background: var(--black);
+      font-family: var(--mono);
+      font-size: .76rem;
+    }
+    footer a { color: #f1b34b; }
+
+    @media (max-width: 900px) {
+      .masthead { position: relative; align-items: flex-start; }
+      .masthead nav { display: none; }
+      .hero { min-height: auto; grid-template-columns: 1fr; }
+      .hero-trace { max-width: 520px; }
+      .sequence-layout, .implementation-grid { grid-template-columns: 1fr; }
+      .sequence-note { position: static; }
+      .flow-grid { grid-template-columns: repeat(2, 1fr); }
+      .flow-card:nth-child(2)::after { display: none; }
+      .evidence-board { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 560px) {
+      body { font-size: .96rem; }
+      .masthead { padding: .7rem 1rem; }
+      .brand { flex-direction: column; gap: 0; }
+      .hero, .section { padding-left: 1rem; padding-right: 1rem; }
+      h1 { font-size: clamp(2.55rem, 14vw, 4rem); }
+      .terms-grid, .limits-grid, .flow-grid, .evidence-board, .unknown-list { grid-template-columns: 1fr; }
+      .term { min-height: 0; }
+      .flow-card::after { display: none; }
+      .session-rail { grid-template-columns: 1fr; }
+      .session-arrow { transform: rotate(90deg); }
+      .event { grid-template-columns: 3.2rem minmax(0, 1fr) auto; gap: .65rem; }
+      .experiment-table, .experiment-table tbody, .experiment-table tr, .experiment-table td { display: block; width: 100%; }
+      .experiment-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .experiment-table tr { margin-bottom: 1rem; border: 1px solid var(--line); }
+      .experiment-table td { border: 0; border-bottom: 1px solid var(--line); }
+      .sources-list li { grid-template-columns: 2.5rem 1fr; }
+      .sources-list small { grid-column: 2; }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Agent SDK 的运行时消息循环与会话续接。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-sdk-01-runtime-session-loop/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="SDK-01 · Agent SDK 的运行时消息循环与会话续接">
+  <meta property="og:description" content="Claude Code X-Ray：Agent SDK 的运行时消息循环与会话续接。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-sdk-01-runtime-session-loop/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="SDK-01 · Agent SDK 的运行时消息循环与会话续接">
+  <meta name="twitter:description" content="Claude Code X-Ray：Agent SDK 的运行时消息循环与会话续接。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>SDK-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="masthead">
+    <div class="brand"><strong>SDK-01</strong><small>状态 documented · Claude Code 2.1.247</small></div>
+    <nav aria-label="页内导航">
+      <a href="#sequence">时序</a>
+      <a href="#flow">数据流</a>
+      <a href="#limits">停止位置</a>
+      <a href="#evidence">证据</a>
+      <a href="#sources">来源</a>
+      <a href="../index.html">返回总索引</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <p class="eyebrow">Host 到 session 的一程</p>
+        <h1 id="answer-title">一次调用怎样变成可续接的会话</h1>
+        <p class="answer-line">host 发出任务以后，消息会分批到达。它沿着消息流看见初始化、多轮回复和最终结果，再从结果里保存会话编号。下一次调用带回这个编号，旧对话便接着走。</p>
+        <div class="status-strip" aria-label="页面基线">
+          <span class="pill status">documented</span>
+          <span class="pill">SDK-01</span>
+          <span class="pill">基线 2026-08-27</span>
+          <span class="pill">Claude Code 2.1.247</span>
+        </div>
+      </div>
+      <div class="hero-trace" aria-label="最短消息轨迹">
+        <div class="trace-node"><code>T+00</code><span>host 交出一个任务</span></div>
+        <div class="trace-node"><code>T+01</code><span>会话完成初始化</span></div>
+        <div class="trace-node"><code>T+02…N</code><span>回复与工具回合向前推进</span></div>
+        <div class="trace-node"><code>T+END</code><span>结果封口并给出 session id</span></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-shell">
+        <p class="section-kicker">01 · 四个词已经够用</p>
+        <h2 id="terms-title">先分清消息和会话</h2>
+        <div class="terms-grid">
+          <article class="term"><span class="num">TERM 01</span><h3>查询</h3><p>host 交给 SDK 的一次运行。TypeScript 调用返回可异步迭代的消息对象。</p></article>
+          <article class="term"><span class="num">TERM 02</span><h3>消息</h3><p>运行过程中的一帧。初始化、完整回复、工具结果和最终结果各有自己的类型。</p></article>
+          <article class="term"><span class="num">TERM 03</span><h3>session id</h3><p>会话的稳定标识。成功或错误 result 都携带它，连接在 result 之前断掉时可能拿不到。</p></article>
+          <article class="term"><span class="num">TERM 04</span><h3>resume</h3><p>下一次查询指定某个 session id，SDK 便从那段对话历史继续。文件是否还在原样，属于另一件事。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-shell sequence-layout">
+        <div>
+          <p class="section-kicker">02 · 一次调用的时间</p>
+          <h2 id="sequence-title">result 是终态标记，流耗尽才算收完</h2>
+          <p class="sequence-note">这条时序来自官方契约。启动 hook 的消息可能早于 init，少量系统事件也可能晚于 result。host 因此要把迭代器读完。</p>
+        </div>
+        <div class="timeline">
+          <article class="event"><div><strong>host 发起查询</strong><p>输入可以是一个字符串，也可以是异步消息流。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="event"><div><strong>SDK 拉起 CLI 子进程</strong><p>子进程拥有工作目录、shell 和本地 session transcript，host 与它通过 stdio 通信。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="event"><div><strong>收到初始化</strong><p>system init 带来 session 元数据。TypeScript 可在这里先读到 session id。启动 hook 事件可能排在它前面。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="event"><div><strong>进入多轮循环</strong><p>assistant 消息带文字或工具请求。工具结果以 user 消息送回，模型再决定下一步。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="event"><div><strong>最后一轮不再请求工具</strong><p>SDK 产出一条完整的 text-only assistant 消息。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="event"><div><strong>result 给出终态</strong><p>subtype 说明正常结束、命中上限或执行错误，session id 也在这里。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <article class="event"><div><strong>继续读到流耗尽</strong><p>prompt suggestion 等少量系统事件可以尾随。迭代结束后，这次调用才完整收束。</p></div><span class="badge o" aria-label="官方证据">O</span></article>
+          <div class="callout" style="margin-top:2rem">
+            <strong>host 要守住两次交接</strong>
+            <p>把 result 当作 break 条件，是这里最容易出现的误读。它宣告 agent loop 已有终态，却不等于消息通道已经关闭。host 可以在看见 result 时记录 subtype 与 session id，但仍要继续消费，直到异步迭代自然结束；随后才把这次调用视为收束。</p>
+            <p>会话续接发生在下一次 query。host 把保存的 ID 放进 resume，新进程据此载入原来的对话历史，再产生一条新的消息流。这个动作不会让上一个消息迭代器“复活”，也不保证工作目录里的文件回到上次状态。若故障发生在 result 之前，host 没有可靠 ID，此时只能报告失败，不能猜测某个会话。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section flow-section" id="flow" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-shell">
+        <p class="section-kicker">03 · 进程和数据去哪里</p>
+        <h2 id="flow-title">host 读消息，CLI 持有运行现场</h2>
+        <div class="flow-grid" aria-label="进程数据流">
+          <article class="flow-card"><span class="label">HOST</span><h3>应用代码</h3><p>送入 prompt，消费异步消息，保存截断或安全存放的 session id。</p></article>
+          <article class="flow-card"><span class="label">SDK</span><h3>进程监管</h3><p>创建查询对象，管理 stdio 通道，把协议帧整理成 SDK 消息。</p></article>
+          <article class="flow-card"><span class="label">CLAUDE</span><h3>CLI 子进程</h3><p>驱动 agent 循环、工具回合与终止判断，并把 transcript 写到本地状态。</p></article>
+          <article class="flow-card"><span class="label">API</span><h3>模型请求</h3><p>CLI 通过网络请求模型。用量归当前选中的凭据来源。API key 与云平台凭据走相应账户，订阅 OAuth 可计入 Claude 方案用量限额。</p></article>
+        </div>
+        <div class="session-rail" aria-label="会话续接流">
+          <div class="session-box"><code>result.session_id</code><p>第一次运行结束后由 host 保存</p></div>
+          <div class="session-arrow">resume ›</div>
+          <div class="session-box"><code>options.resume</code><p>下一次查询用它找回同一段对话历史</p></div>
+        </div>
+        <div class="callout" style="margin-top:1.5rem">
+          <strong>凭据来源决定用量归属</strong>
+          <p>Agent SDK 拉起 Claude CLI，CLI 会按认证优先级选择凭据。现有 <span class="mono">claude login</span> 的 OAuth 凭据能被自动采用。没有更高优先级凭据时，Pro、Max、Team 或 Enterprise 订阅登录是默认回退。API key 与云平台凭据仍排在它前面。</p>
+          <p>第三方不能擅自替用户提供订阅登录。Anthropic 要求第三方在提供 claude.ai 登录或使用限额前先取得批准。用订阅 OAuth 发出的 Agent SDK 请求可计入对应 Claude 方案的用量限额；用 API key 发出的请求继续按 Claude Platform 的随用随付方式计费。</p>
+          <p>每次 query 的 result 会给出费用估算。这个数字由客户端计算，正式账单要以 Claude Console 或 Usage and Cost API 为准。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-shell">
+        <p class="section-kicker">04 · 门、失败和停止</p>
+        <h2 id="limits-title">结束有几种，续接也有前提</h2>
+        <div class="limits-grid">
+          <div>
+            <h3>运行途中</h3>
+            <ul class="limit-list">
+              <li><strong>权限门</strong>工具请求先经过允许、拒绝或回调决策。本页只画出这道门，规则细节留给 SDK-02。</li>
+              <li><strong>主动中断</strong>流式输入模式可调用 interrupt。TypeScript 的 abort controller 和 close 也能停止运行，close 会强制结束底层进程。</li>
+              <li><strong>持久化门</strong>TypeScript 关闭 session persistence 后，对话不会写盘，也就不能留给后续 resume。</li>
+            </ul>
+          </div>
+          <div>
+            <h3>result 所报的终态</h3>
+            <ul class="limit-list">
+              <li><strong>success</strong>任务正常完成，result 字段含最终文本。</li>
+              <li><strong>error_max_turns</strong>工具回合碰到上限，仍可取得 session id。</li>
+              <li><strong>error_max_budget_usd</strong>客户端费用估算碰到上限，仍可保存会话编号。</li>
+              <li><strong>error_during_execution</strong>API 失败、取消或进程崩溃等中断了循环。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout" style="margin-top:2rem"><strong>一次性查询的异常顺序</strong><p>错误 result 会先进入消息流，随后查询抛错，底层进程以非零状态退出。流式输入会话通常还能继续，进程崩溃例外。</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="evidence" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-shell">
+        <p class="section-kicker">05 · 本机证据到哪里为止</p>
+        <h2 id="experiment-title">静态核准完成，真实会话没有启动</h2>
+        <div class="evidence-board" aria-label="证据图例">
+          <div class="evidence-key"><span class="badge o">O</span><h3>官方契约</h3><p>消息类型、时序、resume 与终态。</p></div>
+          <div class="evidence-key"><span class="badge l">L</span><h3>本机静态</h3><p>固定版本文件、摘要和只读帮助。</p></div>
+          <div class="evidence-key missing"><span class="badge r">R</span><h3>真实实验</h3><p>本轮缺失。没有启动付费 Claude 会话。</p></div>
+          <div class="evidence-key"><span class="badge i">I</span><h3>研究推断</h3><p>只用于连接契约，不替代事件轨迹。</p></div>
+        </div>
+        <table class="experiment-table">
+          <thead><tr><th>只读动作</th><th>本机结果</th><th>证据边界</th></tr></thead>
+          <tbody>
+            <tr><td>固定文件 --version</td><td>Claude Code 2.1.247</td><td>只证明基线文件存在</td></tr>
+            <tr><td>固定文件 SHA-256</td><td>与指定基线完全一致</td><td>不代表 SDK 消息已经运行</td></tr>
+            <tr><td>固定文件 --help</td><td>可见 stream-json、partial messages、resume 和关闭持久化</td><td>帮助入口只能旁证协议面</td></tr>
+            <tr><td>SDK 依赖检查</td><td>本目录没有 Node SDK，Python SDK 未安装</td><td>不能外推到其他宿主</td></tr>
+          </tbody>
+        </table>
+        <details>
+          <summary>为什么状态是 documented</summary>
+          <p>页面拥有 O 和 L，缺少 R。为了得到真实事件顺序而临时安装 SDK 仍会遇到凭据和付费调用，安全约束不允许启动这类会话。页面没有用模拟 JSON 冒充真实结果。</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-shell">
+        <p class="section-kicker">06 · 实现切口与版本</p>
+        <h2 id="implementation-title">两条流别混在一起</h2>
+        <div class="implementation-grid">
+          <div>
+            <h3>输入模式</h3>
+            <p>字符串 prompt 是一次性输入。异步消息输入让 host 在同一运行中继续送消息，并支持排队和实时中断。</p>
+            <h3>输出粒度</h3>
+            <p>默认只收完整 assistant。打开 partial messages 后，原始增量事件会插进消息流，完整 assistant 和 result 仍然保留。</p>
+            <h3>会话续接</h3>
+            <p>resume 按 ID 载入指定会话的对话历史。它不会复制或还原工作目录里的文件。</p>
+          </div>
+          <div class="protocol" aria-label="协议轨迹示意">
+            <div class="protocol-row"><b>01</b><span>system/init</span><span>会话元数据与 ID</span></div>
+            <div class="protocol-row"><b>02</b><span>stream_event</span><span>仅在 partial 模式出现</span></div>
+            <div class="protocol-row"><b>03</b><span>assistant</span><span>完整回复或工具请求</span></div>
+            <div class="protocol-row"><b>04</b><span>user</span><span>工具结果或流式用户输入</span></div>
+            <div class="protocol-row"><b>05</b><span>result</span><span>终态、费用摘要与 session id</span></div>
+            <div class="protocol-row"><b>06</b><span>system?</span><span>可能存在少量尾随事件</span></div>
+          </div>
+        </div>
+        <div class="version-note"><strong>版本边界</strong><p>本机固定文件 2.1.247 已核准，默认入口已更新到 2.1.250。官方 Python SDK 0.2.145 changelog 记载它捆绑 2.1.247。8 月 30 日的官方文档索引摘要也已不同于 8 月 27 日基线，本文没有把后续附加字段写成基线必要条件。</p></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-shell">
+        <p class="section-kicker">07 · 仍未验证</p>
+        <h2 id="unknowns-title">空白要留在图上</h2>
+        <ol class="unknown-list">
+          <li>2.1.247 在本机由真实 SDK 调用时，启动 hooks、普通消息和尾随事件会组成哪一种具体序列。</li>
+          <li>中断恰好落在 init 后、工具执行中或 result 后时，消息尾序和可续接状态怎样变化。</li>
+          <li>本机现有 session 的跨目录查找没有验证，私人 transcript 也没有读取。</li>
+          <li>TypeScript 与 Python SDK 在不同宿主上的进程退出时机、stdio 缓冲和异常包装差异。</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-shell">
+        <p class="section-kicker">08 · 一手来源与复现</p>
+        <h2 id="sources-title">从契约重走这条路</h2>
+        <ul class="sources-list">
+          <li><span class="src-id">O-01</span><a href="https://code.claude.com/docs/en/agent-sdk/agent-loop">Agent loop 证明消息生命周期、result 终态与错误顺序</a><small>Anthropic 官方</small></li>
+          <li><span class="src-id">O-02</span><a href="https://code.claude.com/docs/en/agent-sdk/sessions">Sessions 证明 session id 与 resume</a><small>Anthropic 官方</small></li>
+          <li><span class="src-id">O-03</span><a href="https://code.claude.com/docs/en/agent-sdk/streaming-vs-single-mode">Streaming input 证明两种输入模式与中断能力</a><small>Anthropic 官方</small></li>
+          <li><span class="src-id">O-04</span><a href="https://code.claude.com/docs/en/agent-sdk/streaming-output">Streaming output 证明 partial events 与完整消息并存</a><small>Anthropic 官方</small></li>
+          <li><span class="src-id">O-05</span><a href="https://code.claude.com/docs/en/agent-sdk/typescript">TypeScript 参考证明 query、Options、Query 和消息类型</a><small>Anthropic 官方</small></li>
+          <li><span class="src-id">O-06</span><a href="https://code.claude.com/docs/en/agent-sdk/hosting">Hosting 证明 CLI 子进程、stdio 与本地状态</a><small>Anthropic 官方</small></li>
+          <li><span class="src-id">O-07</span><a href="https://github.com/anthropics/claude-agent-sdk-python/blob/v0.2.145/CHANGELOG.md">Python SDK changelog 证明 0.2.145 捆绑 CLI 2.1.247</a><small>Anthropic 官方仓库</small></li>
+          <li><span class="src-id">O-08</span><a href="https://code.claude.com/docs/en/agent-sdk/quickstart">Quickstart 说明账户、API key、云平台凭据与第三方登录限制</a><small>Anthropic 官方</small></li>
+          <li><span class="src-id">O-09</span><a href="https://code.claude.com/docs/en/agent-sdk/cost-tracking">Cost tracking 说明 result 费用估算与正式账单的边界</a><small>Anthropic 官方</small></li>
+          <li><span class="src-id">O-10</span><a href="https://code.claude.com/docs/en/authentication">Authentication 说明凭据优先级与订阅 OAuth 回退</a><small>Anthropic 官方</small></li>
+          <li><span class="src-id">O-11</span><a href="https://github.com/anthropics/claude-agent-sdk-demos/blob/main/ask-user-question-previews/README.md">官方 Agent SDK 示例说明已有 Claude 登录会被自动采用</a><small>Anthropic 官方仓库</small></li>
+          <li><span class="src-id">O-12</span><a href="https://code.claude.com/docs/en/legal-and-compliance">Legal and compliance 说明订阅凭据、用量限额与第三方登录边界</a><small>Anthropic 官方</small></li>
+        </ul>
+        <details open>
+          <summary>安全复现提要</summary>
+          <p>使用空白配置目录和临时项目，固定 SDK bundle，再发出一条无敏感信息的短请求。只记消息类型、相对顺序和散列后的 session id。第二次查询带 resume，随后用极小轮数上限复现错误 result。最后打开 partial messages 核对增量事件与完整消息并存，并把迭代器读到耗尽。</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>SDK-01 · documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

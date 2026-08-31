@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-SDK-OBSERVABILITY">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>伴页 Agent SDK 成本、Tracing 与 OpenTelemetry</title>
+  <style>
+    :root {
+      --night: #07131a;
+      --deep: #0b2029;
+      --panel: #102a34;
+      --paper: #edf1e8;
+      --ink: #132229;
+      --mist: #a9bbc0;
+      --grid: rgba(162, 196, 196, .13);
+      --pulse: #ff6b45;
+      --lime: #c9ef62;
+      --cyan: #72d6dd;
+      --amber: #f1bd58;
+      --line: rgba(237, 241, 232, .26);
+      --serif: "Songti SC", "STSong", "SimSun", Georgia, serif;
+      --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --mono: "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--paper);
+      background:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+        var(--night);
+      background-size: 32px 32px;
+      font-family: var(--sans);
+      line-height: 1.72;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 20;
+      height: 4px;
+      background: linear-gradient(90deg, var(--pulse) 0 19%, var(--lime) 19% 51%, var(--cyan) 51% 100%);
+    }
+    a { color: inherit; text-underline-offset: .22em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--lime); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--lime);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      padding: .08em .35em;
+      border: 1px solid rgba(114, 214, 221, .36);
+      background: rgba(7, 19, 26, .7);
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: .86em;
+      overflow-wrap: anywhere;
+    }
+    h1, h2, h3 { margin-top: 0; font-family: var(--serif); text-wrap: balance; }
+    h1 { margin-bottom: 22px; font-size: clamp(3.15rem, 8.2vw, 7.6rem); line-height: .91; letter-spacing: -.075em; }
+    h2 { margin-bottom: 18px; font-size: clamp(2.2rem, 5vw, 4.6rem); line-height: 1; letter-spacing: -.045em; }
+    h3 { margin-bottom: 8px; font-size: 1.18rem; }
+    p { margin: 0 0 1em; }
+
+    .topbar {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 22px 34px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .serial { display: flex; align-items: baseline; gap: 12px; font-family: var(--mono); }
+    .serial strong { color: var(--lime); font-size: .92rem; }
+    .serial span { color: var(--mist); font-size: .72rem; letter-spacing: .08em; }
+    .badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+    .badge { padding: 4px 9px; border: 1px solid var(--line); font: 700 .72rem/1.45 var(--mono); }
+    .badge.status { color: var(--night); background: var(--amber); border-color: var(--amber); }
+
+    .nav {
+      display: flex;
+      gap: 20px;
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 11px 34px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      color: var(--mist);
+      font-size: .78rem;
+      white-space: nowrap;
+      scrollbar-width: thin;
+    }
+    main { overflow: hidden; }
+    section { max-width: 1240px; margin: 0 auto; padding: 92px 34px; border-bottom: 1px solid var(--line); }
+    .kicker { margin-bottom: 17px; color: var(--pulse); font: 800 .73rem/1.3 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+    .section-lead { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, .7fr); gap: 48px; align-items: end; margin-bottom: 42px; }
+    .section-lead p { color: var(--mist); }
+
+    .hero {
+      position: relative;
+      min-height: min(790px, calc(100vh - 95px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(340px, .88fr);
+      align-items: center;
+      gap: clamp(42px, 8vw, 112px);
+      padding-top: 58px;
+      padding-bottom: 58px;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -190px;
+      top: 50%;
+      width: 500px;
+      height: 500px;
+      border: 1px solid rgba(114, 214, 221, .15);
+      border-radius: 50%;
+      box-shadow: 0 0 0 80px rgba(114,214,221,.025), 0 0 0 160px rgba(114,214,221,.018);
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .hero-copy { max-width: 760px; color: #dce6df; font-size: clamp(1.08rem, 1.55vw, 1.34rem); }
+    .hero-note { max-width: 660px; color: var(--mist); font-size: .88rem; }
+    .scope-link { display: inline-block; margin-top: 8px; color: var(--lime); font-weight: 800; }
+
+    .scope {
+      position: relative;
+      z-index: 2;
+      padding: 22px;
+      border: 1px solid var(--cyan);
+      background: rgba(11, 32, 41, .88);
+      box-shadow: 13px 13px 0 rgba(255,107,69,.18);
+    }
+    .scope-head { display: flex; justify-content: space-between; gap: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--line); font: 700 .72rem/1.4 var(--mono); }
+    .scope-head span:last-child { color: var(--lime); }
+    .wave { height: 86px; margin: 20px 0 14px; background:
+      linear-gradient(90deg, transparent 0 7%, var(--cyan) 7% 7.4%, transparent 7.4% 14%, var(--cyan) 14% 14.4%, transparent 14.4% 25%, var(--pulse) 25% 26%, transparent 26% 42%, var(--cyan) 42% 42.4%, transparent 42.4% 58%, var(--lime) 58% 60%, transparent 60% 74%, var(--cyan) 74% 74.4%, transparent 74.4% 100%),
+      linear-gradient(180deg, transparent 48%, rgba(114,214,221,.25) 48% 50%, transparent 50%);
+      border-block: 1px solid var(--line);
+    }
+    .readout { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .readout div { padding: 13px; border: 1px solid var(--line); background: rgba(7,19,26,.62); }
+    .readout b { display: block; color: var(--cyan); font: 800 1.08rem/1.2 var(--mono); }
+    .readout small { color: var(--mist); }
+    .drop { grid-column: 1 / -1; border-color: rgba(255,107,69,.55) !important; }
+    .drop b { color: var(--pulse); }
+
+    .term-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; padding: 1px; background: var(--line); }
+    .term { min-height: 240px; padding: 23px 20px; background: var(--deep); }
+    .term .n { display: block; margin-bottom: 38px; color: var(--pulse); font: 800 1.45rem/1 var(--mono); }
+    .term p { color: var(--mist); font-size: .9rem; }
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 24px; }
+    .legend div { padding: 15px; border: 1px solid var(--line); color: var(--mist); font-size: .78rem; }
+    .legend b { display: inline-grid; place-items: center; width: 29px; height: 29px; margin-right: 8px; color: var(--night); background: var(--lime); font: 900 .86rem/1 var(--mono); border-radius: 50%; }
+    .legend .muted b { background: var(--amber); }
+
+    .sequence { position: relative; display: grid; grid-template-columns: 76px 1fr; border: 1px solid var(--line); background: rgba(11,32,41,.75); }
+    .sequence::before { content: ""; position: absolute; left: 75px; top: 0; bottom: 0; width: 1px; background: var(--line); }
+    .seq-no, .seq-body { padding: 19px 22px; border-bottom: 1px solid var(--line); }
+    .seq-no { display: grid; place-items: center; color: var(--cyan); font: 800 .84rem/1 var(--mono); }
+    .seq-body { position: relative; }
+    .seq-body::before { content: ""; position: absolute; left: -6px; top: 26px; width: 11px; height: 11px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 5px var(--deep); }
+    .seq-body.result::before { background: var(--lime); }
+    .seq-body.fail::before { background: var(--pulse); }
+    .seq-body p { margin: 0; color: var(--mist); }
+    .sequence > :nth-last-child(-n+2) { border-bottom: 0; }
+    .mark { color: var(--lime); font: 800 .76rem/1 var(--mono); }
+
+    .dual { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .rail { padding: 24px; border: 1px solid var(--line); background: var(--deep); }
+    .rail.stream { border-top: 7px solid var(--lime); }
+    .rail.otel { border-top: 7px solid var(--cyan); }
+    .rail-label { margin-bottom: 22px; color: var(--mist); font: 700 .72rem/1.4 var(--mono); letter-spacing: .1em; }
+    .rail-item { position: relative; margin-left: 12px; padding: 0 0 24px 22px; border-left: 1px solid var(--line); }
+    .rail-item:last-child { padding-bottom: 0; }
+    .rail-item::before { content: ""; position: absolute; left: -5px; top: 7px; width: 9px; height: 9px; background: var(--paper); border-radius: 50%; }
+    .rail-item p { margin: 0; color: var(--mist); font-size: .88rem; }
+    .join-table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: .88rem; }
+    .join-table th, .join-table td { padding: 13px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .join-table th { color: var(--lime); font-family: var(--mono); font-size: .76rem; }
+    .join-table td { color: var(--mist); }
+
+    .limit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+    .limit { min-height: 245px; padding: 22px; color: var(--ink); background: var(--paper); border-top: 7px solid var(--amber); }
+    .limit:nth-child(2) { border-color: var(--pulse); }
+    .limit:nth-child(3) { border-color: var(--cyan); }
+    .limit ul { margin: 12px 0 0; padding-left: 1.1em; }
+    .limit li + li { margin-top: 8px; }
+    .callout { margin-top: 22px; padding: 18px 20px; border-left: 5px solid var(--pulse); background: rgba(255,107,69,.08); color: var(--mist); }
+
+    .experiment { display: grid; grid-template-columns: .74fr 1.26fr; gap: 1px; padding: 1px; background: var(--line); }
+    .experiment > div { padding: 28px; background: var(--deep); }
+    .stamp { display: inline-block; margin-bottom: 24px; padding: 7px 10px; border: 2px solid var(--amber); color: var(--amber); font: 900 .76rem/1 var(--mono); letter-spacing: .12em; transform: rotate(-2deg); }
+    .checks { margin: 0; padding-left: 1.15em; color: var(--mist); }
+    .checks li + li { margin-top: 11px; }
+    .checks strong { color: var(--paper); }
+
+    .impl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+    .impl { padding: 23px; border: 1px solid var(--line); background: rgba(11,32,41,.78); }
+    .impl.wide { grid-column: 1 / -1; }
+    .impl p { color: var(--mist); }
+    .version-line { display: grid; grid-template-columns: 140px 1fr; gap: 18px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+    .version-line:last-child { border-bottom: 0; }
+    .version-line b { color: var(--cyan); font-family: var(--mono); }
+    .version-line span { color: var(--mist); }
+
+    details { border-top: 1px solid var(--line); background: rgba(11,32,41,.55); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 18px 5px; font-weight: 800; }
+    details p { padding: 0 5px 18px; color: var(--mist); }
+
+    .sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 0; padding: 0; list-style: none; }
+    .sources a { display: block; height: 100%; padding: 18px; border: 1px solid var(--line); background: var(--deep); text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+    .sources a:hover { color: var(--paper); border-color: var(--lime); transform: translateY(-2px); }
+    .sources small { display: block; margin-top: 7px; color: var(--mist); }
+    .repro { margin-top: 26px; padding: 22px; border: 1px solid var(--line); background: rgba(7,19,26,.72); }
+    .repro ol { margin-bottom: 0; padding-left: 1.2em; color: var(--mist); }
+    .repro li + li { margin-top: 9px; }
+
+    footer { display: flex; justify-content: space-between; gap: 20px; max-width: 1240px; margin: 0 auto; padding: 30px 34px 52px; color: var(--mist); font-size: .82rem; }
+    footer p { margin: 0; }
+    .back { color: var(--lime); font-weight: 800; }
+
+    @media (max-width: 900px) {
+      .hero { min-height: auto; grid-template-columns: 1fr; }
+      .scope { max-width: 610px; }
+      .term-grid, .legend { grid-template-columns: repeat(2, 1fr); }
+      .limit-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 660px) {
+      .topbar { display: block; padding: 18px 18px 12px; }
+      .serial { display: block; }
+      .serial span { display: block; margin-top: 4px; }
+      .badges { justify-content: flex-start; margin-top: 11px; }
+      .nav { padding-inline: 18px; }
+      section { padding: 66px 18px; }
+      .hero { padding-top: 48px; }
+      h1 { font-size: clamp(3rem, 16vw, 5rem); }
+      .section-lead, .dual, .experiment, .impl-grid, .sources { grid-template-columns: 1fr; }
+      .section-lead { gap: 7px; }
+      .term-grid, .legend { grid-template-columns: 1fr; }
+      .term { min-height: 0; }
+      .sequence { grid-template-columns: 52px 1fr; }
+      .sequence::before { left: 51px; }
+      .seq-no, .seq-body { padding: 17px 14px; }
+      .impl.wide { grid-column: auto; }
+      .version-line { grid-template-columns: 1fr; gap: 4px; }
+      .join-table { display: block; overflow-x: auto; white-space: normal; }
+      footer { display: block; padding: 25px 18px 44px; }
+      footer p { margin-bottom: 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .sources a { transition: none; }
+      .sources a:hover { transform: none; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Agent SDK 成本、Tracing 与 OpenTelemetry。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-sdk-observability/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-SDK-OBSERVABILITY · Agent SDK 成本、Tracing 与 OpenTelemetry">
+  <meta property="og:description" content="Claude Code X-Ray：Agent SDK 成本、Tracing 与 OpenTelemetry。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-sdk-observability/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-SDK-OBSERVABILITY · Agent SDK 成本、Tracing 与 OpenTelemetry">
+  <meta name="twitter:description" content="Claude Code X-Ray：Agent SDK 成本、Tracing 与 OpenTelemetry。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-SDK-OBSERVABILITY</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="serial"><strong>COMP-SDK-OBSERVABILITY</strong><span>伴页 · 遥测工作台</span></div>
+    <div class="badges" aria-label="研究状态">
+      <span class="badge status">状态 documented</span>
+      <span class="badge">Claude Code 2.1.247</span>
+    </div>
+  </header>
+  <nav class="nav" aria-label="页内导航">
+    <a href="#terms">名词</a>
+    <a href="#sequence">顺序</a>
+    <a href="#flow">关联</a>
+    <a href="#limits">失败</a>
+    <a href="#experiment">本机核对</a>
+    <a href="#implementation">版本</a>
+    <a href="#unknowns">未知项</a>
+    <a href="#sources">来源</a>
+  </nav>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <p class="kicker">Agent SDK · Cost · Trace · OTel</p>
+        <h1 id="answer-title">一条运行<br>两路记账</h1>
+        <p class="hero-copy">宿主从 SDK 消息流读取 usage 和每次 query 的估算成本。与此同时，Claude Code 子进程生成 metrics、events 与 traces，再用会话、提示和工具调用身份把记录送往 OpenTelemetry 收集端。导出失败默认只丢遥测，Agent 任务仍可继续。 <span class="mark">O</span></p>
+        <p class="hero-note">成本字段用于开发观察和近似预算。权威账单仍要查 Usage and Cost API 或 Console。本页没有付费运行证据，状态保持 documented。</p>
+        <a class="scope-link" href="../20260827-sdk-02-tool-governance/explainer.html">回到 SDK-02 工具治理主页面</a>
+      </div>
+      <div class="scope" aria-label="双路观测示意">
+        <div class="scope-head"><span>RUN 021247</span><span>DOCUMENTED</span></div>
+        <div class="wave" aria-hidden="true"></div>
+        <div class="readout">
+          <div><b>STREAM</b><small>step usage 与 result cost</small></div>
+          <div><b>OTLP</b><small>metrics、events 与 traces</small></div>
+          <div class="drop"><b>EXPORT DROP</b><small>默认不改 Agent 结果</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="terms" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-lead">
+        <div><p class="kicker">读图前的四个词</p><h2 id="terms-title">先把两路数据分开</h2></div>
+        <p>消息流给宿主做逐次核算，OTel 给收集端做运行观察。两路都带身份字段，口径和停止位置各不相同。</p>
+      </div>
+      <div class="term-grid">
+        <article class="term"><span class="n">01</span><h3>step</h3><p>一次模型请求与响应。一个 step 可因并行工具调用产生多条共享 message ID 的 assistant message。</p></article>
+        <article class="term"><span class="n">02</span><h3>result</h3><p>普通 query 只发一个。流式输入每个用户 turn 都发一个，其中 usage 只算当前 turn 的主 Agent，成本和 modelUsage 则保留本次 call 的运行累计。</p></article>
+        <article class="term"><span class="n">03</span><h3>telemetry</h3><p>CLI 产生的 metrics、log events 与 beta traces。SDK 传入配置，CLI 直接导出。</p></article>
+        <article class="term"><span class="n">04</span><h3>关联身份</h3><p>session.id 串会话，prompt.id 串一次用户动作，tool_use_id 串起工具 span、decision 与 result。Hook span 还要另开详细 beta tracing。</p></article>
+      </div>
+      <div class="legend" aria-label="证据图例">
+        <div><b>O</b>官方契约<br>官方文档、帮助或仓库</div>
+        <div class="muted"><b>L</b>本机静态证据<br>本轮没有正向版本输出</div>
+        <div class="muted"><b>R</b>真实实验<br>本轮没有启动付费调用</div>
+        <div><b>I</b>研究者推断<br>只连接公开事实</div>
+      </div>
+    </section>
+
+    <section id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-lead">
+        <div><p class="kicker">一次 query 的时间顺序</p><h2 id="sequence-title">消息先到，批次后送</h2></div>
+        <p>图里每一步都保留证据身份。OTel exporter 的异步批次不能被画成与 result 同时完成。</p>
+      </div>
+      <div class="sequence">
+        <div class="seq-no">01</div><div class="seq-body"><h3>宿主配置并发起 query</h3><p>开发者在进程环境或本次调用的 env 中选择 exporter。TypeScript 的 env 会替换继承环境，Python 会覆盖到继承环境之上。 <span class="mark">O</span></p></div>
+        <div class="seq-no">02</div><div class="seq-body"><h3>SDK 启动 CLI 子进程</h3><p>SDK 通过本地 pipe 与 Claude Code 通信，并把 OTel 配置传给子进程。调用方已有活跃 span 时，SDK 可把 W3C trace context 一并传入。 <span class="mark">O</span></p></div>
+        <div class="seq-no">03</div><div class="seq-body"><h3>会话与提示取得身份</h3><p>SDK init 和最终 result 暴露 session ID。OTel 默认在记录上带 session.id，events 用 prompt.id 关联这次用户动作触发的 API 和工具事件。 <span class="mark">O</span></p></div>
+        <div class="seq-no">04</div><div class="seq-body"><h3>每个 step 交出 usage</h3><p>assistant message 带输入与缓存 token。逐步核算只取没有 parent_tool_use_id 的主 Agent message，再按 message ID 去重。此处的输出 token 仍是占位数。 <span class="mark">O</span></p></div>
+        <div class="seq-no">05</div><div class="seq-body"><h3>工具进入 span 与 event</h3><p>tool span 包住权限等待和执行。tool_use_id 同时出现在 span、tool_result 与 tool_decision；拒绝调用只有 decision。普通 beta traces 不含 Hook span，后者还要设置 ENABLE_BETA_TRACING_DETAILED 和 BETA_TRACING_ENDPOINT。 <span class="mark">O</span></p></div>
+        <div class="seq-no">06</div><div class="seq-body result"><h3>result 按输入模式结账</h3><p>普通 query 的 total_cost_usd 和 modelUsage 是本次 call 合计，多轮 session 要由应用累加各次 call。流式输入每个 turn 的 usage 只含本 turn 主 Agent，total_cost_usd 和 modelUsage 是当前 call 的运行累计，不能逐条相加。所有模式下 usage 都排除子 Agent，另两项包含子 Agent。 <span class="mark">O</span></p></div>
+        <div class="seq-no">07</div><div class="seq-body"><h3>CLI 按间隔导出批次</h3><p>默认 metrics 每 60 秒发送一次，traces 与 logs 每 5 秒发送一次。干净退出会尝试 flush，短超时仍可能丢数据。 <span class="mark">O</span></p></div>
+        <div class="seq-no">08</div><div class="seq-body fail"><h3>collector 失败时丢遥测</h3><p>endpoint 不可达或拒绝数据，CLI 默认不把错误交给应用，Agent 继续运行。开启 OTel stderr 诊断后，宿主才能从回调读取 exporter 错误。 <span class="mark">O</span></p></div>
+      </div>
+    </section>
+
+    <section id="flow" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-lead">
+        <div><p class="kicker">数据流与关联键</p><h2 id="flow-title">两条轨道在后端会合</h2></div>
+        <p>宿主可只读消息流，不启用 OTel。也可只开某一种遥测信号。三种 exporter 彼此独立。</p>
+      </div>
+      <div class="dual">
+        <article class="rail stream">
+          <p class="rail-label">宿主消息流</p>
+          <div class="rail-item"><h3>assistant message</h3><p>用 parent tool use identity 排除子 Agent，再按 message ID 去重</p></div>
+          <div class="rail-item"><h3>result message</h3><p>usage 只覆盖主 Agent，model breakdown 与估算成本覆盖整棵 Agent 树</p></div>
+          <div class="rail-item"><h3>应用自己的账</h3><p>普通多次 query 相加；流式输入保留每次重置前和最终的运行累计</p></div>
+        </article>
+        <article class="rail otel">
+          <p class="rail-label">CLI OpenTelemetry</p>
+          <div class="rail-item"><h3>metrics</h3><p>token、cost、session 和工具决策等计数</p></div>
+          <div class="rail-item"><h3>events</h3><p>API、工具结果与权限决定等结构化记录</p></div>
+          <div class="rail-item"><h3>beta traces</h3><p>普通 beta 开关产生 interaction、模型请求与工具 span；详细 beta 开关才增加 Hook span</p></div>
+        </article>
+      </div>
+      <table class="join-table">
+        <thead><tr><th>关联键</th><th>覆盖范围</th><th>使用提醒</th><th>证据</th></tr></thead>
+        <tbody>
+          <tr><td><code>session.id</code></td><td>会话里的 metrics、events 与 spans</td><td>metrics 可关闭此属性来控制基数</td><td>O</td></tr>
+          <tr><td><code>prompt.id</code></td><td>一次 prompt 触发的 API 与工具 events</td><td>下一次 prompt 会换新值</td><td>O</td></tr>
+          <tr><td><code>tool_use_id</code></td><td>tool span、execution、decision 与 result</td><td>被拒调用没有 tool_result；Hook span 另受详细 tracing 开关控制</td><td>O</td></tr>
+          <tr><td><code>trace_id</code></td><td>宿主父 span、interaction 与其子 spans</td><td>固定基线晚于 event 关联修复边界</td><td>O</td></tr>
+          <tr><td>SDK result session ID</td><td>应用里的会话续接和本次结果</td><td>与 OTel session.id 逐字相等仍缺 R</td><td>I</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-lead">
+        <div><p class="kicker">权限、失败与停止</p><h2 id="limits-title">三处最容易算错</h2></div>
+        <p>Agent 结果和 telemetry 送达各有状态。Agent 失败以前产生的消耗仍要入账。</p>
+      </div>
+      <div class="limit-grid">
+        <article class="limit"><h3>usage 口径混用</h3><ul><li>逐步主链先排除子 Agent 再按 ID 去重</li><li>流式 turn usage 不能充当 call 累计</li><li>整棵 Agent 树读取 modelUsage 或总成本</li></ul></article>
+        <article class="limit"><h3>错误 result 仍有成本</h3><ul><li>成功和错误 result 都要读取</li><li>预算错误的 usage 可能少算越界响应</li><li>进程 crash 可能把成本字段归零</li></ul></article>
+        <article class="limit"><h3>遥测独立失败</h3><ul><li>三个信号分别开关</li><li>SDK 不能使用 console exporter</li><li>进程被杀会丢缓冲批次</li></ul></article>
+      </div>
+      <div class="callout"><strong>内容权限门</strong>　默认 telemetry 只记录结构。prompt、工具参数、工具正文与原始 API body 都要显式开启。原始 body 含完整会话，只应进入经过批准的观测管道。 <span class="mark">O</span></div>
+    </section>
+
+    <section id="experiment" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-lead">
+        <div><p class="kicker">本机观察</p><h2 id="experiment-title">停在只读边界</h2></div>
+        <p>本页没有用空进程或文档示例冒充真实 Agent。状态因此是 documented。</p>
+      </div>
+      <div class="experiment">
+        <div><span class="stamp">NO R</span><h3>没有启动付费调用</h3><p>验证消息、成本和 OTLP 双路关联需要模型真正运行。任务禁止开启新的付费 Claude 会话，所以没有 collector 样本，也没有真实 exporter 故障注入。</p></div>
+        <div><h3>实际做过的只读核对</h3><ul class="checks"><li><strong>CLI 入口不可用</strong>　本轮非登录 shell 中 <code>claude</code> 不在 PATH，版本与帮助命令返回 command not found。</li><li><strong>固定二进制未取得</strong>　常见安装根目录中的限定查找没有给出可核匹配，不能证明机器未安装。</li><li><strong>官方契约已互核</strong>　成本指南、SDK observability 与 Monitoring 对消息口径、span 层级和导出失败的描述能够互相对上。</li><li><strong>隐私边界保持</strong>　没有读取 transcript、真实 cwd、prompt、工具内容、token、cookie 或完整 UUID。</li></ul></div>
+      </div>
+    </section>
+
+    <section id="implementation" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-lead">
+        <div><p class="kicker">实现与版本</p><h2 id="implementation-title">固定在 2.1.247</h2></div>
+        <p>live 文档可以继续变化。这里把会改变观测结果的版本门槛单独列出。</p>
+      </div>
+      <div class="impl-grid">
+        <article class="impl"><h3>费用口径</h3><p>SDK 用构建时价格表计算 total cost，也可采用 modelPricing。价格变化、未知模型和客户端无法表达的账单规则都会造成偏差。这个字段适合开发观察，不适合终端计费。</p></article>
+        <article class="impl"><h3>信号开关</h3><p>telemetry 总开关之外，每种信号还要选择 exporter。CLAUDE_CODE_ENHANCED_TELEMETRY_BETA 产生普通 beta traces。Hook span 还需要 ENABLE_BETA_TRACING_DETAILED 和 BETA_TRACING_ENDPOINT。SDK 下不能选 console exporter，因为 stdout 正在承载消息通道。</p></article>
+        <article class="impl wide"><h3>身份与付费边界</h3><p>官方 Quickstart 的常规路径要求 Anthropic 账户，并从运行 Agent 的进程环境读取 ANTHROPIC_API_KEY。模型请求产生 API 用量，费用归认证所对应的账户或云提供商。本页的成本字段只是客户端估值。第三方产品没有得到 Anthropic 事先批准时，不得向自己的 Agent SDK 用户提供 claude.ai 登录或额度，应使用官方列出的 API key 或云提供商认证。 <span class="mark">O</span></p></article>
+        <article class="impl wide"><h3>关键版本门槛</h3>
+          <div class="version-line"><b>2.1.179</b><span>exporter 错误可经 stderr 诊断送给 SDK 宿主</span></div>
+          <div class="version-line"><b>2.1.212</b><span>脱离活跃 span 的 event record 获得更完整的 trace 关联</span></div>
+          <div class="version-line"><b>2.1.214</b><span>内容截断长度可配置，部分 trace 与 event 关联继续修正</span></div>
+          <div class="version-line"><b>2.1.246</b><span>官方成本指南所述 modelUsage 最低版本</span></div>
+          <div class="version-line"><b>2.1.247</b><span>本页固定基线，traces 仍为 beta，字段以后仍可能变化</span></div>
+        </article>
+        <article class="impl wide"><h3>相邻机制留在相邻页</h3><p>工具注册、MCP 连接、审批顺序和 Hook 改写由 <a href="../20260827-sdk-02-tool-governance/explainer.html">SDK-02 工具治理主页面</a> 解释。会话如何 resume 或 fork 属于 SDK-01。组织级 collector 锁定、团队分析与数据政策属于 ADM-06。本页只跟消息和遥测怎样被核算、关联、导出与丢失。</p></article>
+      </div>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-lead">
+        <div><p class="kicker">证据缺口</p><h2 id="unknowns-title">还欠一轮双路实测</h2></div>
+        <p>下面几处会影响实际对账或故障判断，页面没有用肯定语气补齐。</p>
+      </div>
+      <details open><summary>两个 session 字段能否直接 join</summary><p>官方分别把 SDK result 的 session ID 和 telemetry 的 session.id 解释为会话身份。本轮没有 2.1.247 的同次运行样本，无法证明两处值逐字相等。 <span class="mark">I</span></p></details>
+      <details><summary>主 Agent 与子 Agent 怎样逐项对账</summary><p>官方提供 query_source、agent identity、modelUsage 和成本 metric。本轮没有混合模型与子 Agent 的双路样本，无法给出固定版本的完整核算矩阵。</p></details>
+      <details><summary>exporter 到底重试多久</summary><p>官方说明默认静默失败、批量发送和有界 flush，没有公布 2.1.247 的完整重试次数、退避和退出超时。</p></details>
+      <details><summary>断线恢复会不会重复投递</summary><p>collector 断开再恢复时的批次边界、丢失窗口和重复语义没有做真实故障注入。</p></details>
+      <details><summary>固定本机二进制在哪里</summary><p>任务给定版本和 SHA-256，本轮 shell 没有解析到 claude，也没有取得匹配安装文件，因此缺少正向 L 证据。</p></details>
+    </section>
+
+    <section id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-lead">
+        <div><p class="kicker">一手来源与复现</p><h2 id="sources-title">沿两条轨道重做</h2></div>
+        <p>链接直达 Anthropic 官方契约。详细事实表、命令与限制见 evidence.md。</p>
+      </div>
+      <ul class="sources">
+        <li><a href="https://code.claude.com/docs/en/agent-sdk/cost-tracking">Agent SDK 成本与用量<small>证明 step、result、去重、估值和 crash 恢复</small></a></li>
+        <li><a href="https://code.claude.com/docs/en/agent-sdk/observability">Agent SDK 的 OpenTelemetry 观测<small>证明子进程数据流、trace context 与 exporter 失败</small></a></li>
+        <li><a href="https://code.claude.com/docs/en/monitoring-usage">Claude Code Monitoring 参考<small>证明 metrics、events、span 层级与关联字段</small></a></li>
+        <li><a href="https://code.claude.com/docs/en/agent-sdk/agent-loop">Agent SDK 循环<small>证明消息顺序、result 与 session 身份</small></a></li>
+        <li><a href="https://code.claude.com/docs/en/agent-sdk/sessions">Agent SDK 会话<small>证明 session 跨 query 的续接范围</small></a></li>
+        <li><a href="https://platform.claude.com/docs/en/manage-claude/usage-cost-api">Usage and Cost API<small>证明权威账单查询边界</small></a></li>
+        <li><a href="https://code.claude.com/docs/en/agent-sdk/overview">Agent SDK 概览<small>证明第三方产品的 claude.ai 登录与额度限制</small></a></li>
+        <li><a href="https://code.claude.com/docs/en/agent-sdk/quickstart">Agent SDK Quickstart<small>证明账户、API key 与云提供商认证路径</small></a></li>
+      </ul>
+      <div class="repro"><h3>获准付费实验以后</h3><ol><li>固定捆绑 Claude Code 2.1.247 的 SDK 版本，启动只写临时目录的本地 collector。</li><li>分别运行普通 query 和含两个 turn 的流式输入，并让只读子 Agent 执行一个可辨认步骤。</li><li>排除带 parent tool use identity 的 message 后按 ID 核主链 step usage。普通 query 读取一次 result；流式输入保留最新运行累计，不把各 turn 的 total cost 相加。</li><li>先开普通 beta traces，确认没有 Hook span；再加详细 beta tracing 的开关和 endpoint，核对 Hook span 与 tool use identity。</li><li>把 OTLP endpoint 换成本机拒绝端口，确认 Agent result、stderr 诊断和 telemetry 丢失各自的状态。恢复后比较正常退出与提前终止，结束时删除全部临时数据。</li></ol></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>COMP-SDK-OBSERVABILITY　状态 documented　Claude Code 2.1.247</p>
+    <a class="back" href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

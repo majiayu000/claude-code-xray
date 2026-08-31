@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="PAR-04">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>PAR-04 Git 操作、提交、分支与 Pull Request</title>
+  <style>
+    :root {
+      --ink: #171b1d;
+      --paper: #f3efe4;
+      --paper-2: #e8e1d1;
+      --signal: #e5482a;
+      --signal-dark: #a72b17;
+      --steel: #536069;
+      --line: #9d9789;
+      --green: #1d684c;
+      --amber: #bd7b00;
+      --blue: #245e82;
+      --shadow: 6px 6px 0 rgba(23, 27, 29, .15);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(23,27,29,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23,27,29,.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.72;
+    }
+    a { color: var(--signal-dark); text-underline-offset: .2em; }
+    a:hover { color: var(--signal); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    .topbar {
+      border-bottom: 2px solid var(--ink);
+      background: rgba(243,239,228,.96);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+    .topbar-inner {
+      width: min(1180px, calc(100% - 32px));
+      margin: auto;
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .stamp {
+      font: 800 .78rem/1 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .topbar nav { display: flex; gap: 15px; flex-wrap: wrap; font-size: .85rem; }
+    .topbar nav a { color: var(--ink); text-decoration: none; border-bottom: 1px solid transparent; }
+    .topbar nav a:hover { border-color: var(--ink); }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    .hero {
+      min-height: 78vh;
+      padding: clamp(58px, 9vw, 120px) 0 64px;
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: clamp(36px, 7vw, 90px);
+      align-items: center;
+      border-bottom: 2px solid var(--ink);
+    }
+    .eyebrow {
+      margin: 0 0 18px;
+      font: 800 .78rem/1.5 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .16em;
+      color: var(--signal-dark);
+    }
+    h1, h2, h3 {
+      font-family: "Noto Serif SC", "Songti SC", STSong, serif;
+      line-height: 1.12;
+      letter-spacing: -.02em;
+    }
+    h1 { margin: 0; font-size: clamp(3rem, 7.6vw, 7.2rem); font-weight: 900; }
+    h1 span { display: block; color: var(--signal); }
+    .lede {
+      max-width: 770px;
+      margin: 28px 0 0;
+      font-size: clamp(1.14rem, 2vw, 1.48rem);
+      font-weight: 650;
+      line-height: 1.65;
+    }
+    .hero-note {
+      border: 2px solid var(--ink);
+      box-shadow: var(--shadow);
+      background: var(--paper-2);
+      padding: 25px;
+      transform: rotate(1.1deg);
+    }
+    .hero-note strong { display: block; font-size: 1.1rem; margin-bottom: 10px; }
+    .hero-note p { margin: 0; }
+    .route-mini { margin-top: 24px; display: grid; gap: 8px; }
+    .route-mini span {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font: 700 .82rem/1.4 "SFMono-Regular", Consolas, monospace;
+    }
+    .route-mini span::before { content: ""; width: 18px; height: 18px; background: var(--ink); }
+    .route-mini .remote::before { background: var(--signal); border-radius: 50%; }
+    .status-row { margin-top: 28px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .chip { border: 1.5px solid var(--ink); padding: 6px 10px; background: var(--paper); font: 700 .77rem/1.2 "SFMono-Regular", Consolas, monospace; }
+    .chip.status { background: var(--ink); color: var(--paper); }
+    section { padding: clamp(62px, 9vw, 110px) 0; border-bottom: 1.5px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: 120px 1fr; gap: 24px; margin-bottom: 42px; align-items: start; }
+    .section-no { font: 800 .8rem/1 "SFMono-Regular", Consolas, monospace; color: var(--signal-dark); letter-spacing: .1em; }
+    h2 { margin: 0; font-size: clamp(2rem, 4.4vw, 4rem); }
+    .section-intro { max-width: 780px; margin: 18px 0 0; font-size: 1.08rem; }
+    .terms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .term { border-top: 7px solid var(--ink); background: rgba(255,255,255,.35); padding: 22px 18px 24px; min-height: 185px; }
+    .term:nth-child(2) { border-color: var(--signal); }
+    .term:nth-child(3) { border-color: var(--blue); }
+    .term:nth-child(4) { border-color: var(--green); }
+    .term h3 { margin: 0 0 12px; font-size: 1.3rem; }
+    .term p { margin: 0; font-size: .94rem; }
+    .sequence { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); gap: 9px; }
+    .sequence::before { content: ""; position: absolute; left: 3%; right: 3%; top: 27px; border-top: 4px solid var(--ink); z-index: -1; }
+    .step { min-width: 0; }
+    .step b { display: grid; place-items: center; width: 56px; height: 56px; margin: 0 auto 18px; border: 3px solid var(--ink); border-radius: 50%; background: var(--paper); font: 800 .92rem/1 "SFMono-Regular", Consolas, monospace; }
+    .step.remote b { color: white; background: var(--signal); border-color: var(--signal-dark); }
+    .step strong { display: block; text-align: center; line-height: 1.35; }
+    .step small { display: block; margin-top: 8px; color: var(--steel); text-align: center; line-height: 1.45; }
+    .callout { margin-top: 36px; border-left: 9px solid var(--signal); padding: 18px 22px; background: rgba(255,255,255,.42); max-width: 850px; }
+    .callout p { margin: 0; }
+    .flow-grid { display: grid; grid-template-columns: 1fr 76px 1fr; gap: 26px; align-items: stretch; }
+    .yard { border: 2px solid var(--ink); background: rgba(255,255,255,.32); padding: 28px; box-shadow: var(--shadow); }
+    .yard.remote-yard { background: #20272a; color: var(--paper); }
+    .yard h3 { margin: 0 0 18px; font-size: 1.65rem; }
+    .yard ul { margin: 0; padding-left: 1.2em; }
+    .yard li + li { margin-top: 9px; }
+    .gate { display: grid; place-items: center; position: relative; }
+    .gate::before { content: ""; width: 100%; border-top: 5px solid var(--signal); }
+    .gate span { position: absolute; writing-mode: vertical-rl; background: var(--signal); color: white; padding: 12px 7px; font: 800 .72rem/1 "SFMono-Regular", Consolas, monospace; letter-spacing: .08em; }
+    .limits-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .limit { border: 1.5px solid var(--ink); padding: 24px; background: rgba(255,255,255,.28); }
+    .limit h3 { margin: 0 0 10px; font-size: 1.32rem; }
+    .limit p { margin: 0; }
+    .limit .tag { display: inline-block; margin-bottom: 14px; padding: 3px 8px; color: white; background: var(--signal-dark); font: 700 .72rem/1.4 "SFMono-Regular", Consolas, monospace; }
+    .experiment-box { display: grid; grid-template-columns: .8fr 1.2fr; gap: 28px; border: 2px solid var(--ink); padding: 28px; background: var(--paper-2); }
+    .big-mark { font: 900 clamp(4rem, 11vw, 9rem)/.85 Georgia, serif; color: var(--signal); }
+    .experiment-box h3 { margin: 0 0 12px; font-size: 1.6rem; }
+    .experiment-box p { margin: 0 0 13px; }
+    .implementation-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 34px; }
+    .evidence-legend { display: grid; gap: 10px; }
+    .evidence-item { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: start; }
+    .evidence-item b { display: grid; place-items: center; height: 40px; border: 2px solid var(--ink); font: 900 1rem/1 Georgia, serif; }
+    .evidence-item:nth-child(1) b { background: var(--green); color: white; }
+    .evidence-item:nth-child(2) b { background: var(--blue); color: white; }
+    .evidence-item:nth-child(3) b { background: var(--signal); color: white; }
+    .evidence-item:nth-child(4) b { background: var(--amber); color: white; }
+    .evidence-item p { margin: 0; }
+    .version-card { border-left: 2px solid var(--ink); padding-left: 26px; }
+    .version-card h3 { margin: 0 0 14px; }
+    .version-card p { margin: 0 0 14px; }
+    details { border-top: 1.5px solid var(--ink); padding: 17px 0; }
+    details:last-child { border-bottom: 1.5px solid var(--ink); }
+    summary { cursor: pointer; font-weight: 750; }
+    details p { max-width: 850px; margin: 12px 0 4px 24px; }
+    .sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+    .source { display: block; min-height: 145px; border: 2px solid var(--ink); padding: 20px; background: rgba(255,255,255,.3); color: var(--ink); text-decoration: none; box-shadow: 4px 4px 0 rgba(23,27,29,.12); }
+    .source:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 rgba(23,27,29,.16); color: var(--ink); }
+    .source b { display: block; margin-bottom: 8px; font-family: "Noto Serif SC", "Songti SC", serif; font-size: 1.17rem; }
+    .source span { font-size: .9rem; color: var(--steel); }
+    footer { padding: 38px 0 56px; display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; font-size: .88rem; }
+    @media (max-width: 900px) {
+      .topbar nav { display: none; }
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .hero-note { transform: none; }
+      .terms { grid-template-columns: repeat(2, 1fr); }
+      .sequence { grid-template-columns: 1fr; gap: 0; }
+      .sequence::before { top: 0; bottom: 0; left: 27px; right: auto; height: 100%; border-top: 0; border-left: 4px solid var(--ink); }
+      .step { display: grid; grid-template-columns: 56px 1fr; gap: 16px; margin-bottom: 18px; align-items: center; }
+      .step b { margin: 0; }
+      .step strong, .step small { text-align: left; }
+      .step small { grid-column: 2; margin-top: -15px; }
+      .flow-grid { grid-template-columns: 1fr; }
+      .gate { min-height: 70px; }
+      .gate::before { width: 5px; height: 100%; border: 0; background: var(--signal); }
+      .gate span { writing-mode: horizontal-tb; }
+      .implementation-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      main, .topbar-inner { width: min(100% - 24px, 1180px); }
+      h1 { font-size: clamp(2.7rem, 15vw, 4.5rem); }
+      .hero { padding-top: 48px; }
+      section { padding: 58px 0; }
+      .section-head { grid-template-columns: 1fr; gap: 11px; }
+      .terms, .limits-grid, .sources, .experiment-box { grid-template-columns: 1fr; }
+      .term { min-height: 0; }
+      .hero-note, .yard, .experiment-box, .limit { padding: 20px; }
+      .big-mark { font-size: 5rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .source:hover { transform: none; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Git 操作、提交、分支与 Pull Request。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-par-04-git-pr/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="PAR-04 · Git 操作、提交、分支与 Pull Request">
+  <meta property="og:description" content="Claude Code X-Ray：Git 操作、提交、分支与 Pull Request。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-par-04-git-pr/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="PAR-04 · Git 操作、提交、分支与 Pull Request">
+  <meta name="twitter:description" content="Claude Code X-Ray：Git 操作、提交、分支与 Pull Request。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>PAR-04</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="stamp">PAR-04 · XRY 17</div>
+      <nav aria-label="页内导航">
+        <a href="#route">时间顺序</a>
+        <a href="#gates">两道权限门</a>
+        <a href="#scope">使用边界</a>
+        <a href="#unknowns">未知项</a>
+        <a href="#sources">一手来源</a>
+      </nav>
+      <a href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">CLAUDE CODE XRY · 2026-08-27 基线</p>
+        <h1 id="page-title">改动要过<span>两道闸</span></h1>
+        <p class="lede">Claude Code 可以看 Git 状态、改文件、跑测试并做本地提交。提交还留在你的机器上。推送分支和创建 PR 会碰到第二道闸，远端认证、仓库写权限和服务端规则都得放行。</p>
+        <div class="status-row" aria-label="页面状态">
+          <span class="chip status">当前状态 documented</span>
+          <span class="chip">Claude Code 2.1.247</span>
+          <span class="chip">无远端写入实验</span>
+          <span class="chip">首屏结论 O + I</span>
+        </div>
+      </div>
+      <aside class="hero-note" aria-label="最短结论">
+        <strong>一次请求没有自动变成一笔原子事务。</strong>
+        <p>检查、编辑、测试、提交、推送和建 PR 是相邻步骤。后一步失败，前一步可能已经留下文件、提交或远端分支。</p>
+        <div class="route-mini" aria-hidden="true">
+          <span>工作树与本地 Git</span>
+          <span class="remote">远端分支与 Pull Request</span>
+        </div>
+      </aside>
+    </section>
+
+    <section data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head">
+        <div class="section-no">01 / TERMS</div>
+        <div><h2 id="terms-title">先认清四份状态</h2><p class="section-intro">它们分别写入，可以同时存在，也不会被一次失败统一回滚。读懂这四份状态，失败停在哪里就很清楚。</p></div>
+      </div>
+      <div class="terms">
+        <article class="term"><h3>工作树</h3><p>磁盘上的当前文件。Claude 的 Edit、Write 或 shell 命令会改这里，尚未必进入暂存区。</p></article>
+        <article class="term"><h3>暂存区与提交</h3><p>Git 选择要进入提交的内容，再把快照和消息写进本地仓库。提交成功仍然不等于已经上传。</p></article>
+        <article class="term"><h3>远端分支</h3><p><code>git push</code> 把本地提交送到仓库 remote。网络、凭据、写权限和分支规则会在这里介入。</p></article>
+        <article class="term"><h3>Pull Request</h3><p><code>gh pr create</code> 在 GitHub 建一条协作记录，带上 head、base、标题与说明。它是远端对象。</p></article>
+      </div>
+    </section>
+
+    <section id="route" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head">
+        <div class="section-no">02 / SEQUENCE</div>
+        <div><h2 id="sequence-title">一条常见路线</h2><p class="section-intro">官方材料确认这些能力，也给出一条打包命令路线。普通自然语言请求仍由 Claude 按仓库现状选命令，官方没有公开固定的规划算法。</p></div>
+      </div>
+      <div class="sequence" aria-label="从状态检查到 Pull Request 的七步流程">
+        <div class="step"><b>01</b><strong>读状态</strong><small>status · diff · log</small></div>
+        <div class="step"><b>02</b><strong>改文件</strong><small>Edit · Write · Bash</small></div>
+        <div class="step"><b>03</b><strong>跑测试</strong><small>仓库脚本与退出码</small></div>
+        <div class="step"><b>04</b><strong>暂存</strong><small>选择进入提交的文件</small></div>
+        <div class="step"><b>05</b><strong>本地提交</strong><small>新 HEAD 与 hooks</small></div>
+        <div class="step remote"><b>06</b><strong>推送分支</strong><small>remote · auth · rules</small></div>
+        <div class="step remote"><b>07</b><strong>创建 PR</strong><small>gh · base · head · URL</small></div>
+      </div>
+      <div class="callout"><p><strong>O</strong> 官方 <code>/commit-push-pr</code> 命令集把后半程写得很具体。处在主分支时建新分支，随后暂存和提交，推送到 <code>origin</code>，用 <code>gh pr create</code> 建 PR，最后给出 URL。它要求 GitHub CLI 已安装并认证，仓库也要有 remote。</p></div>
+      <div class="callout"><p><strong>O + I</strong> 用户仍然握着两个分开的决定。一个决定 Claude Code 可以在本机执行哪些 Bash 命令，另一个决定当前认证身份能否写入目标仓库。在本地权限提示里放行 <code>git push</code> 之后，远端仍会核对凭据和仓库权限。<code>gh</code> 已经登录也不会让本地 deny 规则失效。</p></div>
+    </section>
+
+    <section id="gates" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head">
+        <div class="section-no">03 / FLOW</div>
+        <div><h2 id="flow-title">两道闸检查不同的东西</h2><p class="section-intro">本地允许执行一条命令，不能替代远端对身份和仓库的判断。两道闸都放行，数据才会从工作树走到 PR。</p></div>
+      </div>
+      <div class="flow-grid">
+        <article class="yard">
+          <h3>本地场 <small>O</small></h3>
+          <ul>
+            <li>只读形式的 Git 通常无需提示</li>
+            <li>文件编辑受当前 permission mode 控制</li>
+            <li>测试、暂存与提交走 Bash 权限</li>
+            <li>deny 规则会压过 ask 与 allow</li>
+          </ul>
+        </article>
+        <div class="gate" aria-label="远端边界"><span>REMOTE GATE</span></div>
+        <article class="yard remote-yard">
+          <h3>远端场 <small>O + I</small></h3>
+          <ul>
+            <li>Git 或 gh 要有可用认证</li>
+            <li>当前身份要能写目标仓库</li>
+            <li>remote、head 与 base 必须成立</li>
+            <li>服务端规则、CI 和分支保护继续生效</li>
+          </ul>
+        </article>
+      </div>
+      <div id="scope" class="limits-grid" style="margin-top: 36px">
+        <article class="limit">
+          <span class="tag">O + I · CLAUDE ACCESS</span>
+          <h3>先登录，Claude 的用量也要有出处</h3>
+          <p>终端版 Claude Code 首次使用前要完成认证。官方列出的入口包括 Pro、Max、Team 或 Enterprise 订阅，带预付费额度的 Console 账户，以及受支持的云提供商。它们承担 Claude Code 本身的访问与计费。GitHub CLI 的登录是另一件事，只负责后面的 GitHub 身份。</p>
+        </article>
+        <article class="limit">
+          <span class="tag">O · SURFACE SCOPE</span>
+          <h3>本页只核对 CLI 与 GitHub 路线</h3>
+          <p>页面里的权限参数、Bash 命令和 <code>gh pr create</code> 都来自终端 CLI 路线。官方还提供 Desktop、VS Code、JetBrains 和 Web，各处的执行环境与交互方式会变。本轮没有逐项验证这些界面，也没有验证 GitLab 的 MR 与 CI/CD 路线，不能把这里的提示位置和命令顺序原样外推。</p>
+        </article>
+      </div>
+    </section>
+
+    <section data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head">
+        <div class="section-no">04 / STOP POINTS</div>
+        <div><h2 id="limits-title">失败会把状态留在原地</h2><p class="section-intro">最实用的排查办法是看最后成功的是哪一步。那一步以前的状态通常还在。</p></div>
+      </div>
+      <div class="limits-grid">
+        <article class="limit"><span class="tag">O · LOCAL PERMISSION</span><h3>编辑或 Bash 被拒绝</h3><p>工具调用不执行。官方说明，主会话的权限提示若选择拒绝且不加说明，本轮会停；加上说明后 Claude 可以收到原因再继续。</p></article>
+        <article class="limit"><span class="tag">O + I · TESTS &amp; HOOKS</span><h3>测试或提交钩子失败</h3><p>修改仍在工作树或暂存区。官方只承诺在可用时运行测试，具体脚本、签名与 hook 都由仓库决定。</p></article>
+        <article class="limit"><span class="tag">O + I · REMOTE AUTH</span><h3>推送失败</h3><p>本地提交仍可存在。常见关口落在凭据、remote、网络、仓库写权限和远端分支规则。</p></article>
+        <article class="limit"><span class="tag">O + I · PR CREATE</span><h3>建 PR 失败</h3><p>远端分支可能已经推上去。官方工作流要求 gh 已认证，官方也没有承诺在建 PR 失败时自动删掉远端分支。</p></article>
+      </div>
+      <div class="callout"><p><strong>I</strong> 排查时可以依次查工作树、暂存区、本地 HEAD、远端分支和 PR 列表。测试失败常会留下未提交的修改，提交 hook 失败时暂存内容可能还在。推送失败一般不会撤销本地提交，建 PR 失败也可能保留已推送的分支。这是根据分步顺序得到的排查方法。官方没有承诺自动恢复这些状态。</p></div>
+    </section>
+
+    <section data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head">
+        <div class="section-no">05 / EXPERIMENT</div>
+        <div><h2 id="experiment-title">本轮停在只读核对</h2></div>
+      </div>
+      <div class="experiment-box">
+        <div class="big-mark">L</div>
+        <div>
+          <h3>页面状态维持 documented</h3>
+          <p>固定安装文件返回 Claude Code 2.1.247，SHA-256 与基线一致。帮助里可见权限参数、插件管理、<code>--from-pr</code>，以及默认动态提示可能包含 git status。</p>
+          <p>本机有 Git 2.50.1 和 gh 2.92.0。没有检查 gh 账号、token、remote 或私人仓库权限。</p>
+          <p>本轮没有启动付费 Claude 会话，也没有提交、推送或创建 PR。这样没有 R，不能把官方说明写成一次已经跑通的真实流程。</p>
+          <p>因此，本页可以证明入口和约束，还不能证明 Claude 面对某个仓库时会把图中七步全部执行。页面要升为 verified，需要在隔离的测试仓库里记录真实工具调用、权限提示和 Git 前后状态。推送与建 PR 还要等测试远端获得明确授权后再验证。</p>
+        </div>
+      </div>
+    </section>
+
+    <section data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head">
+        <div class="section-no">06 / EVIDENCE</div>
+        <div><h2 id="implementation-title">证据怎样落到结论</h2><p class="section-intro">同一句话若混入推断，页面就明确标 I。版本帮助只能证明入口存在，不能证明一次会话真的调用过它。</p></div>
+      </div>
+      <div class="implementation-grid">
+        <div class="evidence-legend" aria-label="O L R I 证据图例">
+          <div class="evidence-item"><b>O</b><p><strong>官方契约</strong><br>Anthropic 文档、帮助与官方仓库。证明公开能力和要求。</p></div>
+          <div class="evidence-item"><b>L</b><p><strong>本机静态证据</strong><br>固定版本文件、散列和帮助。证明本机 2.1.247 带有什么入口。</p></div>
+          <div class="evidence-item"><b>R</b><p><strong>真实运行</strong><br>本轮没有。没有付费会话，也没有远端写入。</p></div>
+          <div class="evidence-item"><b>I</b><p><strong>研究者推断</strong><br>用于说明分步失败后的残留状态，不冒充产品承诺。</p></div>
+        </div>
+        <aside class="version-card">
+          <h3>版本漂移已经出现</h3>
+          <p>研究时系统默认命令已指向 2.1.248。页面仍固定在 2026-08-27 的 2.1.247，所有 L 结论都来自保留的 2.1.247 安装文件。</p>
+          <p>在线官方网页和官方仓库读取于次日，可能继续更新。官方 <code>commit-commands</code> 当前说明清楚，2.1.247 私人会话里是否已启用这组命令仍是未知项。</p>
+          <p>完整事实表、命令摘要和散列见 <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>。</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head">
+        <div class="section-no">07 / UNKNOWNS</div>
+        <div><h2 id="unknowns-title">还不能写死的地方</h2><p class="section-intro">这些缺口会改变你能不能把流程跑到最后，留着比猜一个答案更有用。</p></div>
+      </div>
+      <details open><summary>具体仓库里会选哪些命令</summary><p>官方给出能力和配方，没有公开一个对所有提示都不变的命令规划算法。Claude 可能按仓库脚本、已有修改和你的要求调整检查与测试。</p></details>
+      <details><summary>2.1.247 会话里是否启用了 commit-commands</summary><p>固定二进制带有插件管理入口，官方仓库也有这组命令。本轮没有启动会话或读取私人插件配置，实际启用状态未知。</p></details>
+      <details><summary>远端身份与仓库规则会怎样回应</summary><p>本轮没有查看 gh 登录、仓库 remote、可见性、写权限或分支保护。安装了 gh 只说明命令存在。</p></details>
+      <details><summary>其他界面的权限与 Git 路线是否相同</summary><p>官方说明各界面共用底层 agent 循环，但 Desktop、IDE 与 Web 的执行位置和交互方式并不相同。GitLab 走 MR 与 CI/CD 集成。本页没有验证这些界面的具体提示、认证或回滚行为。</p></details>
+      <details><summary>后一步失败后会不会自动清理</summary><p>官方材料把提交、推送和建 PR 分步列出，没有给出跨 Git 与 GitHub 的原子回滚承诺。</p></details>
+    </section>
+
+    <section id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head">
+        <div class="section-no">08 / SOURCES</div>
+        <div><h2 id="sources-title">一手资料与复现入口</h2><p class="section-intro">先在无敏感文件的测试仓库复现。远端写入要由仓库所有者明确批准。</p></div>
+      </div>
+      <div class="sources">
+        <a class="source" href="https://code.claude.com/docs/en/quickstart"><b>Quickstart</b><span>证明自然语言 Git、分支、冲突处理与可用时运行测试</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/tutorials"><b>Common workflows</b><span>证明 PR 创建路线、人工复查提醒和 PR 会话关联</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/permissions"><b>Configure permissions</b><span>证明只读 Git、Bash 权限、deny 优先与提交推送分开授权</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/sessions"><b>Manage sessions</b><span>证明 <code>--from-pr</code> 如何找回关联会话</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/platforms"><b>Platforms and integrations</b><span>界定 CLI、Desktop、IDE 与 Web 的界面和执行环境差异</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/gitlab-ci-cd"><b>GitLab CI/CD</b><span>界定 GitLab 的 MR 与 CI/CD 路线，不把 GitHub 命令直接外推</span></a>
+        <a class="source" href="https://github.com/anthropics/claude-code/blob/main/plugins/commit-commands/README.md"><b>官方 commit-commands</b><span>证明状态检查、暂存、提交、推送与 <code>gh pr create</code> 的打包顺序和前提</span></a>
+        <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+      </div>
+    </section>
+
+    <footer>
+      <span>PAR-04 · 当前状态 documented · Claude Code 2.1.247</span>
+      <a href="../index.html">返回总索引</a>
+    </footer>
+  </main>
+</body>
+</html>

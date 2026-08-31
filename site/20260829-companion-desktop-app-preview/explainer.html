@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-UI-DESKTOP-PREVIEW">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>Desktop App Preview 的启动与反馈回路</title>
+  <style>
+    :root {
+      --night: #07110f;
+      --panel: #0d1c18;
+      --panel-2: #12251f;
+      --paper: #f2ecd9;
+      --muted: #9aaca4;
+      --line: #29453b;
+      --green: #78f7a8;
+      --amber: #ffc45f;
+      --red: #ff745f;
+      --blue: #77c8ff;
+      --violet: #c3a7ff;
+      --mono: "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+      --body: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", serif;
+      --sans: "PingFang SC", "Hiragino Sans GB", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--night); }
+    body {
+      margin: 0;
+      color: var(--paper);
+      font-family: var(--body);
+      line-height: 1.72;
+      background:
+        linear-gradient(rgba(120,247,168,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(120,247,168,.035) 1px, transparent 1px),
+        var(--night);
+      background-size: 34px 34px;
+    }
+    a { color: var(--green); text-underline-offset: .24em; }
+    a:hover { color: #c6ffd9; }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; }
+    .wrap { width: min(1220px, calc(100% - 42px)); margin: 0 auto; }
+    .mast {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      border-bottom: 1px solid var(--line);
+      background: rgba(7,17,15,.94);
+      backdrop-filter: blur(10px);
+    }
+    .mast .wrap { min-height: 58px; display: flex; align-items: center; gap: 18px; }
+    .id {
+      padding: 5px 9px;
+      color: var(--night);
+      background: var(--green);
+      font: 800 .72rem var(--mono);
+      letter-spacing: .08em;
+    }
+    nav { display: flex; flex-wrap: wrap; gap: 8px 15px; font: .78rem var(--sans); }
+    nav a { color: var(--muted); text-decoration: none; }
+    .back { margin-left: auto; white-space: nowrap; font-family: var(--sans); }
+    main { overflow: hidden; }
+    section { scroll-margin-top: 78px; }
+    .hero {
+      min-height: calc(100svh - 58px);
+      display: grid;
+      grid-template-columns: minmax(0, .92fr) minmax(480px, 1.08fr);
+      align-items: center;
+      gap: 58px;
+      padding: 72px 0;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; }
+    .chip { border: 1px solid var(--line); padding: 5px 9px; color: var(--muted); font: .72rem var(--mono); }
+    .chip.live { border-color: var(--amber); color: var(--amber); }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 760px;
+      margin-bottom: 24px;
+      font-family: var(--sans);
+      font-size: clamp(3.1rem, 7.4vw, 7.2rem);
+      line-height: .93;
+      letter-spacing: -.07em;
+      text-wrap: balance;
+    }
+    .lead { max-width: 680px; font-size: clamp(1.12rem, 2vw, 1.38rem); color: #d9e2dc; }
+    .note { max-width: 680px; color: var(--muted); font-size: .92rem; }
+    .e { color: var(--green); font: 800 .67rem var(--mono); letter-spacing: .04em; white-space: nowrap; }
+    .console { border: 1px solid #49685d; background: #091411; box-shadow: 13px 13px 0 #030807; transform: rotate(.45deg); }
+    .console-bar { display: flex; align-items: center; gap: 7px; padding: 11px 13px; border-bottom: 1px solid var(--line); }
+    .lamp { width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
+    .lamp:nth-child(2) { background: var(--amber); }
+    .lamp:nth-child(3) { background: var(--green); box-shadow: 0 0 16px rgba(120,247,168,.75); }
+    .console-title { margin-left: auto; color: var(--muted); font: .68rem var(--mono); }
+    .viewport { position: relative; min-height: 310px; padding: 23px; background: #e9e3d2; color: #0b1512; overflow: hidden; }
+    .address { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid #a9ae9f; background: #f7f4e8; font: .72rem var(--mono); }
+    .secure { width: 8px; height: 8px; border-radius: 50%; background: #1a9d5d; }
+    .mock-page { display: grid; grid-template-columns: .72fr 1.28fr; gap: 18px; margin-top: 25px; }
+    .mock-copy { padding-top: 10px; }
+    .mock-kicker { width: 72px; height: 7px; background: #f08b3e; }
+    .mock-line { height: 12px; margin-top: 13px; background: #223d34; }
+    .mock-line.s { width: 61%; }
+    .mock-button { width: 98px; margin-top: 24px; padding: 8px; border: 2px solid #0b1512; font: 700 .66rem var(--sans); text-align: center; }
+    .dom-box { min-height: 170px; border: 2px dashed #1a9d5d; display: grid; place-items: center; background: #d4e2d7; }
+    .dom-box b { padding: 8px 12px; color: #f7f4e8; background: #153a2c; font: .7rem var(--mono); }
+    .signal { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
+    .signal div { min-height: 74px; padding: 12px; border-right: 1px solid var(--line); }
+    .signal div:last-child { border-right: 0; }
+    .signal b { display: block; color: var(--green); font: .65rem var(--mono); }
+    .signal span { display: block; margin-top: 6px; color: var(--muted); font: .76rem var(--sans); }
+    .section { padding: 92px 0; border-top: 1px solid var(--line); }
+    .head { display: grid; grid-template-columns: 142px minmax(0, 1fr); gap: 30px; margin-bottom: 36px; }
+    .kicker { color: var(--amber); font: 800 .72rem var(--mono); letter-spacing: .12em; }
+    h2 { max-width: 840px; font-family: var(--sans); font-size: clamp(2rem, 4.6vw, 4.5rem); line-height: 1.04; letter-spacing: -.045em; }
+    h3 { font-family: var(--sans); font-size: 1.05rem; }
+    .deck { max-width: 810px; color: var(--muted); font-size: 1.03rem; }
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
+    .legend article { min-height: 166px; padding: 22px; border-right: 1px solid var(--line); }
+    .legend article:last-child { border-right: 0; }
+    .badge { display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 16px; border: 1px solid currentColor; color: var(--green); font: 800 .8rem var(--mono); }
+    .badge.l { color: var(--amber); }
+    .badge.r { color: var(--red); }
+    .badge.i { color: var(--violet); }
+    .legend p, .card p, .card li { color: var(--muted); }
+    .timeline { display: grid; grid-template-columns: repeat(6, 1fr); }
+    .step { position: relative; min-height: 255px; padding: 24px 18px; border: 1px solid var(--line); border-right: 0; background: var(--panel); }
+    .step:last-child { border-right: 1px solid var(--line); }
+    .step-no { display: block; margin-bottom: 42px; color: var(--amber); font: 800 1.45rem var(--mono); }
+    .step::after { content: "→"; position: absolute; top: 23px; right: -13px; z-index: 2; padding: 0 3px; color: var(--amber); background: var(--night); }
+    .step:last-child::after { display: none; }
+    .step p { margin-bottom: 0; color: var(--muted); font-size: .88rem; }
+    .flow { display: grid; grid-template-columns: .85fr 1.3fr .85fr; gap: 16px; align-items: stretch; }
+    .card { border: 1px solid var(--line); padding: 24px; background: var(--panel); }
+    .card ul { padding-left: 1.1em; margin-bottom: 0; }
+    .card li + li { margin-top: 9px; }
+    .loop { position: relative; display: grid; grid-template-rows: repeat(4, 1fr); gap: 8px; }
+    .loop div { display: grid; grid-template-columns: 108px 1fr; align-items: center; min-height: 73px; border: 1px solid var(--line); background: var(--panel-2); }
+    .loop b { height: 100%; display: grid; place-items: center; color: var(--night); background: var(--green); font: 800 .68rem var(--mono); }
+    .loop span { padding: 13px 16px; font-size: .9rem; }
+    .branch { display: grid; grid-template-columns: 1.08fr .92fr; gap: 18px; margin-top: 18px; }
+    .notice { border-left: 5px solid var(--amber); padding: 23px; color: #16241f; background: var(--paper); }
+    .notice p { color: #43514c; }
+    .notice .e { color: #11663b; }
+    .notice.alert { border-left-color: var(--red); }
+    .gates { display: grid; gap: 10px; }
+    .gate { display: grid; grid-template-columns: 148px 1fr; border: 1px solid var(--line); }
+    .gate b { padding: 15px; color: var(--night); background: var(--amber); font: 800 .7rem var(--mono); }
+    .gate span { padding: 15px; color: #d8e1dc; }
+    .surface-table { margin-top: 22px; }
+    .surface-table table { min-width: 900px; }
+    .surface-table td:first-child { color: var(--paper); font-family: var(--sans); font-weight: 700; }
+    .status-o { color: var(--green); font: 800 .67rem var(--mono); white-space: nowrap; }
+    .status-u { color: var(--amber); font: 800 .67rem var(--mono); white-space: nowrap; }
+    .status-r0 { color: var(--red); font: 800 .67rem var(--mono); white-space: nowrap; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    th, td { padding: 15px 17px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--amber); font: 800 .72rem var(--mono); }
+    td { color: #d8e1dc; }
+    tr:last-child td { border-bottom: 0; }
+    code { color: #d7ffd9; font-family: var(--mono); overflow-wrap: anywhere; }
+    .cols { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    details { border-top: 1px solid var(--line); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 20px 7px; font-family: var(--sans); }
+    details p { max-width: 830px; padding: 0 7px 20px; color: var(--muted); }
+    .sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .source { min-height: 150px; display: block; padding: 22px; border: 1px solid var(--line); background: var(--panel); text-decoration: none; }
+    .source:hover { border-color: var(--green); }
+    .source b { display: block; margin-bottom: 10px; color: var(--paper); font-family: var(--sans); }
+    .source span { color: var(--muted); }
+    .foot { margin-top: 30px; color: var(--muted); font-family: var(--sans); }
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .console { max-width: 720px; transform: none; }
+      .timeline { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .step { border-right: 1px solid var(--line); min-height: 210px; }
+      .step::after { display: none; }
+      .flow { grid-template-columns: 1fr; }
+      .branch { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 660px) {
+      .wrap { width: min(100% - 24px, 1220px); }
+      .mast { position: static; }
+      .mast .wrap { padding: 11px 0; align-items: flex-start; }
+      nav { display: none; }
+      .back { font-size: .78rem; }
+      .hero { padding: 48px 0 62px; gap: 36px; }
+      h1 { font-size: clamp(3rem, 16vw, 4.7rem); }
+      .mock-page { grid-template-columns: 1fr; }
+      .signal { grid-template-columns: repeat(2, 1fr); }
+      .signal div:nth-child(2) { border-right: 0; }
+      .signal div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .section { padding: 66px 0; }
+      .head { grid-template-columns: 1fr; gap: 10px; }
+      .legend, .timeline, .cols, .sources { grid-template-columns: 1fr; }
+      .legend article { min-height: 0; border-right: 0; border-bottom: 1px solid var(--line); }
+      .legend article:last-child { border-bottom: 0; }
+      .step { min-height: 0; }
+      .step-no { margin-bottom: 15px; }
+      .loop div { grid-template-columns: 84px 1fr; }
+      .gate { grid-template-columns: 1fr; }
+      .gate b, .gate span { padding: 12px 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Desktop App Preview 的启动与反馈回路。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-desktop-app-preview/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-UI-DESKTOP-PREVIEW · Desktop App Preview 的启动与反馈回路">
+  <meta property="og:description" content="Claude Code X-Ray：Desktop App Preview 的启动与反馈回路。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-desktop-app-preview/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-UI-DESKTOP-PREVIEW · Desktop App Preview 的启动与反馈回路">
+  <meta name="twitter:description" content="Claude Code X-Ray：Desktop App Preview 的启动与反馈回路。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-UI-DESKTOP-PREVIEW</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="mast">
+    <div class="wrap">
+      <span class="id">COMP-UI-DESKTOP-PREVIEW</span>
+      <nav aria-label="页内导航">
+        <a href="#sequence">启动顺序</a>
+        <a href="#flow">反馈回路</a>
+        <a href="#limits">权限与停止</a>
+        <a href="#unknowns">未知项</a>
+      </nav>
+      <a class="back" href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="wrap hero" data-xray-section="answer">
+      <div>
+        <p class="chips">
+          <span class="chip live">当前状态 documented</span>
+          <span class="chip">Claude Code 2.1.247</span>
+          <span class="chip">基线 2026-08-27</span>
+          <span class="chip">非计数 companion</span>
+        </p>
+        <h1>让页面跑起来，再把问题送回来</h1>
+        <p class="lead">Desktop 会启动项目的开发服务器，也能接到一个已经运行的地址。页面进入内嵌预览后，Claude 读取截图、DOM 和服务器日志，用户可以直接操作页面，再把看到的问题写进同一会话。下拉菜单负责停掉单个或全部预览服务器。 <span class="e">O＋I</span></p>
+        <p class="note">本页有官方契约，没有付费 Desktop 会话的真实运行证据。反馈回路里，页面观察与提示框纠正各有官方依据；两者之间的内部载荷没有公开，所以状态保持 documented。</p>
+      </div>
+      <div class="console" aria-label="开发服务器与预览反馈回路示意">
+        <div class="console-bar"><i class="lamp"></i><i class="lamp"></i><i class="lamp"></i><span class="console-title">APP PREVIEW / CONNECTED</span></div>
+        <div class="viewport">
+          <div class="address"><i class="secure"></i><span>localhost / assigned port</span></div>
+          <div class="mock-page">
+            <div class="mock-copy"><div class="mock-kicker"></div><div class="mock-line"></div><div class="mock-line s"></div><div class="mock-button">TRY ACTION</div></div>
+            <div class="dom-box"><b>DOM TARGET SELECTED</b></div>
+          </div>
+        </div>
+        <div class="signal">
+          <div><b>SERVER</b><span>启动或连接</span></div>
+          <div><b>STATE</b><span>DOM 与日志</span></div>
+          <div><b>HUMAN</b><span>操作与纠正</span></div>
+          <div><b>STOP</b><span>单个或全部</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="terms">
+      <div class="wrap">
+        <div class="head"><p class="kicker">EVIDENCE</p><div><h2>四种证据各守一条线</h2><p class="deck">标记贴在结论旁边。公开承诺和推断不混写，本轮没有把只读命令包装成真实 Preview 运行。</p></div></div>
+        <div class="legend">
+          <article><span class="badge">O</span><h3>官方契约</h3><p>Anthropic 官方文档与帮助。</p></article>
+          <article><span class="badge l">L</span><h3>本机静态</h3><p>命令帮助与安装文件。本轮入口不可用，只留下阴性结果。</p></article>
+          <article><span class="badge r">R</span><h3>真实运行</h3><p>隔离项目里实际启动 Preview。本页没有这一层。</p></article>
+          <article><span class="badge i">I</span><h3>研究推断</h3><p>连接两段公开动作时保留的解释。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence">
+      <div class="wrap">
+        <div class="head"><p class="kicker">SEQUENCE</p><div><h2>六步走完一次预览</h2><p class="deck">起点是已有 Desktop 会话与项目目录。工作区怎样建立留给 UI-05，本页从用户要求预览或自动核验开始。</p></div></div>
+        <div class="timeline">
+          <article class="step"><span class="step-no">01</span><h3>触发预览</h3><p>Claude 改完文件后通常自动启动。用户也能随时要求预览，或从下拉菜单手动启动。 <span class="e">O</span></p></article>
+          <article class="step"><span class="step-no">02</span><h3>读取配置</h3><p>Desktop 在项目根目录探测并保存 <code>.claude/launch.json</code>。自定义命令与端口可在这里改。 <span class="e">O</span></p></article>
+          <article class="step"><span class="step-no">03</span><h3>启动或接入</h3><p>有命令就启动开发服务器。配置只写 URL 时，Preview 接入用户已经运行的服务。 <span class="e">O</span></p></article>
+          <article class="step"><span class="step-no">04</span><h3>等待页面</h3><p>默认地址指向 localhost 与配置端口。端口冲突会自动换、直接失败，或先问用户。 <span class="e">O</span></p></article>
+          <article class="step"><span class="step-no">05</span><h3>读取状态</h3><p>Claude 可看截图、DOM 与服务器日志，也能点击元素和填写表单。用户仍可直接操作页面。 <span class="e">O</span></p></article>
+          <article class="step"><span class="step-no">06</span><h3>反馈或停止</h3><p>用户把观察写进同一提示框，Claude 下一步再修。下拉菜单可停止单个或全部服务器。 <span class="e">O＋I</span></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="flow" data-xray-section="flow">
+      <div class="wrap">
+        <div class="head"><p class="kicker">FLOW</p><div><h2>代码改动和页面状态绕回同一会话</h2><p class="deck">公开资料能确认参与者与动作，未公开 Desktop 内部事件总线。图中只画用户能看到的边界。 <span class="e">O＋I</span></p></div></div>
+        <div class="flow">
+          <article class="card"><h3>项目侧</h3><ul><li>改动后的源文件</li><li>预览启动配置</li><li>开发服务器进程</li><li>服务器日志与端口</li></ul></article>
+          <div class="loop" aria-label="预览反馈回路">
+            <div><b>START</b><span>Desktop 按配置启动命令，或接入 URL</span></div>
+            <div><b>OBSERVE</b><span>预览展示页面，Claude 读取 DOM、截图与错误</span></div>
+            <div><b>RESPOND</b><span>Claude 修复发现的问题，autoVerify 再次核验</span></div>
+            <div><b>STEER</b><span>用户操作页面，把具体纠正发回当前提示框</span></div>
+          </div>
+          <article class="card"><h3>会话侧</h3><ul><li>Claude 的自动核验</li><li>用户的页面操作</li><li>元素选择快捷键</li><li>下一轮纠正消息</li></ul></article>
+        </div>
+        <div class="branch">
+          <article class="notice"><h3>配置留在项目里</h3><p><code>.claude/launch.json</code> 记录运行命令、端口与相对 cwd。官方提醒不要把秘密写进它，因为文件会进入仓库。预览服务器要用秘密时，应放进 Desktop 的本地环境编辑器。 <span class="e">O</span></p></article>
+          <article class="notice"><h3>浏览状态可以另存</h3><p>Persist sessions 会让 cookie 与 local storage 跨服务器重启保留。用户可从设置清除保存状态。具体存储位置与隔离键仍未公开。 <span class="e">O＋I</span></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits">
+      <div class="wrap">
+        <div class="head"><p class="kicker">LIMITS</p><div><h2>先过账号门槛，再看预览能否接通</h2><p class="deck">Code tab 要求登录 Anthropic 账号并使用付费计划。进入会话以后，服务器命令、目标地址和端口还会分别让流程停住。停止 Preview 服务器也不等于结束整个 Claude 会话。</p></div></div>
+        <div class="branch">
+          <div class="gates">
+            <div class="gate"><b>ACCESS</b><span>先登录 Anthropic 账号。Code tab 若提示升级，用户还要先订阅 Pro、Max、Team 或 Enterprise 计划。 <span class="e">O</span></span></div>
+            <div class="gate"><b>COMMAND</b><span>权限模式控制 Claude 是否要先询问再运行命令。工具不在 PATH 时，开发服务器无法启动。 <span class="e">O</span></span></div>
+            <div class="gate"><b>ADDRESS</b><span>localhost 与项目文件无需外站许可。外部地址第一次打开要用户批准，组织策略仍可拦截。 <span class="e">O</span></span></div>
+            <div class="gate"><b>PORT</b><span><code>autoPort</code> 开启后改用空闲端口，关闭后直接失败，未设置时先问用户。 <span class="e">O</span></span></div>
+          </div>
+          <aside class="notice alert"><h3>停止分成三件事</h3><p>下拉菜单能停止选中的服务器，也能一次停止全部服务器。设置里还能关闭整个 Preview 功能。只写 URL 接入外部服务时，停止动作是否会尝试影响那个外部进程，官方没有说明。稳妥复现时要另查端口和进程。 <span class="e">O＋I</span></p></aside>
+        </div>
+        <div class="table-wrap surface-table">
+          <table aria-label="不同环境和桌面平台的 Preview 证据状态">
+            <thead><tr><th>环境或平台</th><th>官方资料写到哪里</th><th>Preview 判断</th><th>本轮 R</th></tr></thead>
+            <tbody>
+              <tr><td>Local</td><td>官方入门先让用户选择 Local，随后把预览列为下一步可用动作。</td><td><span class="status-o">O 已记录</span></td><td><span class="status-r0">没有验证</span></td></tr>
+              <tr><td>Cloud</td><td>官方列为 Desktop 环境选项，Preview 段没有逐项说明是否适用。</td><td><span class="status-u">支持范围未知</span></td><td><span class="status-r0">没有验证</span></td></tr>
+              <tr><td>SSH</td><td>官方列为 Desktop 环境选项，Preview 段没有逐项说明是否适用。</td><td><span class="status-u">支持范围未知</span></td><td><span class="status-r0">没有验证</span></td></tr>
+              <tr><td>WSL</td><td>官方列为 Windows 环境选项，Preview 段没有逐项说明是否适用。</td><td><span class="status-u">支持范围未知</span></td><td><span class="status-r0">没有验证</span></td></tr>
+              <tr><td>macOS Desktop</td><td>官方入门提供 macOS 客户端，参考页列出 Browser pane 的 macOS 快捷键。</td><td><span class="status-o">O 已记录</span></td><td><span class="status-r0">没有验证</span></td></tr>
+              <tr><td>Windows Desktop</td><td>官方入门提供 Windows 客户端，参考页列出 Browser pane 的 Windows 快捷键。</td><td><span class="status-o">O 已记录</span></td><td><span class="status-r0">没有验证</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="deck" style="margin-top:18px">表中的 O 只说明官方资料公开了入口或动作。所有行都没有 R，Cloud、SSH 与 WSL 也没有足够公开文字把 Preview 支持写成肯定结论。</p>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment">
+      <div class="wrap">
+        <div class="head"><p class="kicker">EXPERIMENT</p><div><h2>这次没有启动付费会话</h2><p class="deck">只读检查遇到两个明确边界，命令入口不在当前 shell 的 PATH，系统也拒绝读取 Desktop 应用包。</p></div></div>
+        <div class="cols">
+          <article class="notice"><h3>实际执行的只读检查</h3><p><code>claude --version</code>、<code>claude --help</code> 和登录 shell 重试都返回 command not found。标准应用候选路径可解析，读取可执行文件与 Info.plist 时被系统拒绝。 <span class="e">L</span></p></article>
+          <article class="notice alert"><h3>它不能证明 Preview 跑过</h3><p>阴性结果只说明研究 shell 无法复核固定基线。进入 Code tab 必须登录 Anthropic 账号并使用 Pro、Max、Team 或 Enterprise 计划。本轮没有检查登录态或订阅状态，也没有新建可能消耗额度的会话，因此 Local、Cloud、SSH、WSL、macOS 与 Windows 都没有 R。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation">
+      <div class="wrap">
+        <div class="head"><p class="kicker">IMPLEMENTATION</p><div><h2>配置决定启动，页面决定下一轮</h2><p class="deck">这些字段足够复现公开行为，也暴露出最常见的失败位置。</p></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>位置</th><th>写入或读取</th><th>失败与边界</th><th>证据</th></tr></thead>
+            <tbody>
+              <tr><td>项目根目录</td><td><code>.claude/launch.json</code> 保存多个服务器配置</td><td>会话选了父目录时，子目录服务不会自动探测</td><td>O</td></tr>
+              <tr><td>启动进程</td><td>命令、参数、cwd、端口与环境变量</td><td>命令缺失、cwd 错误或固定端口占用都会阻断</td><td>O</td></tr>
+              <tr><td>预览地址</td><td>默认 localhost，也可使用指定 URL</td><td>本地 URL 的路径、查询或端口不匹配会报配置错</td><td>O</td></tr>
+              <tr><td>页面核验</td><td>截图、DOM、点击、表单与服务器日志</td><td>公开资料未列完健康检查和日志截断规则</td><td>O＋I</td></tr>
+              <tr><td>用户反馈</td><td>页面操作、元素选择、提示框纠正</td><td>元素选择结果的精确载荷未知</td><td>O＋I</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="branch">
+          <article class="card"><h3>自动核验</h3><p>默认每次编辑后运行。项目可在配置里写 <code>autoVerify false</code>，也可从菜单关闭。关掉以后，用户仍能要求 Claude 手动核验。 <span class="e">O</span></p></article>
+          <article class="card"><h3>版本名称漂移</h3><p>固定基线使用 App Preview。2026-08-30 的英文参考已把部分界面称为 Browser pane，配置节仍叫 Preview。复现时应同时记下页面日期和界面用词。 <span class="e">O</span></p></article>
+        </div>
+        <p class="deck" style="margin-top:24px">项目如何进入会话、worktree 怎样隔离、pane 怎样布置，都由 <a href="../20260827-ui-05-desktop-workspace/explainer.html">UI-05 Desktop 项目会话与隔离工作区</a> 说明。本页只接住它留出的 App Preview 边界。</p>
+      </div>
+    </section>
+
+    <section class="section" id="unknowns" data-xray-section="unknowns">
+      <div class="wrap">
+        <div class="head"><p class="kicker">UNKNOWNS</p><div><h2>公开资料留下五个缺口</h2><p class="deck">它们会改变停止与反馈的精确解释，页面没有用示意图替它们作答。</p></div></div>
+        <details open><summary>元素选择怎样进入会话</summary><p>官方只列出选择元素快捷键，没有公开 DOM 路径、坐标、截图或序列化字段。</p></details>
+        <details><summary>URL-only 服务怎样停止</summary><p>只写 URL 时，Desktop 连接用户已经运行的服务。停止菜单会断开视图还是影响外部进程，公开资料没有说明。</p></details>
+        <details><summary>自动探测采用什么判定</summary><p>官方说明会自动探测并写配置，没有给出候选命令顺序、冲突规则与刷新时机。</p></details>
+        <details><summary>异常退出怎样呈现</summary><p>服务器崩溃、健康检查超时和日志过长是否进入不同错误状态，目前没有完整公开表。</p></details>
+        <details><summary>Persist sessions 存在哪里</summary><p>官方保证 cookie 与 local storage 可以跨重启保留，也提供清理开关。存储位置、加密与隔离粒度没有公开。</p></details>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sources">
+      <div class="wrap">
+        <div class="head"><p class="kicker">SOURCES</p><div><h2>沿这些一手页面重做核对</h2><p class="deck">直达 Anthropic 官方资料。命令、限制、未知项与建议实验另见本目录 evidence.md。</p></div></div>
+        <div class="sources">
+          <a class="source" href="https://code.claude.com/docs/en/desktop"><b>Desktop 参考</b><span>证明 Preview、启动配置、自动核验、端口与停止</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/desktop-quickstart"><b>Desktop 入门</b><span>证明用户从 Preview 菜单启动服务并继续同一会话</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/platforms"><b>平台对照</b><span>证明 App Preview 属于 Desktop 的能力面</span></a>
+          <a class="source" href="https://code.claude.com/docs/llms.txt"><b>官方文档索引</b><span>复核固定基线中的官方入口集合</span></a>
+        </div>
+        <p class="foot">COMP-UI-DESKTOP-PREVIEW · 当前状态 documented · Claude Code 2.1.247 · <a href="../20260827-ui-05-desktop-workspace/explainer.html">回到 UI-05 主页面</a> · <a href="../index.html">返回总索引</a></p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

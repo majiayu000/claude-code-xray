@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CTX-08">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CTX-08 文件检查点、rewind 与回退边界</title>
+  <style>
+    :root {
+      --ink: #20221e;
+      --muted: #686b62;
+      --paper: #f1eddf;
+      --paper-hi: #faf7ec;
+      --line: #9e9a88;
+      --red: #b6432d;
+      --red-dark: #7b2c20;
+      --green: #1f6957;
+      --blue: #315a71;
+      --amber: #9b671d;
+      --shadow: rgba(31, 33, 28, .16);
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      --mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(72, 71, 61, .05) 1px, transparent 1px) 0 0 / 22px 22px,
+        linear-gradient(rgba(72, 71, 61, .035) 1px, transparent 1px) 0 0 / 22px 22px,
+        var(--paper);
+      font-family: var(--serif);
+      line-height: 1.72;
+    }
+    a { color: var(--red-dark); text-underline-offset: .18em; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 54px;
+      padding: .55rem clamp(1rem, 4vw, 4.5rem);
+      border-bottom: 1px solid var(--ink);
+      background: rgba(241, 237, 223, .94);
+      backdrop-filter: blur(10px);
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .04em;
+    }
+    .stamp-row { display: flex; flex-wrap: wrap; gap: .45rem; }
+    .stamp {
+      padding: .16rem .45rem;
+      border: 1px solid currentColor;
+      background: var(--paper-hi);
+    }
+    .stamp.status { color: var(--red-dark); transform: rotate(-1deg); }
+    main { overflow: hidden; }
+    .hero {
+      min-height: calc(100svh - 54px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(310px, .82fr);
+      align-items: center;
+      gap: clamp(2rem, 7vw, 8rem);
+      padding: clamp(3rem, 8vw, 8rem) clamp(1rem, 7vw, 8rem);
+      border-bottom: 2px solid var(--ink);
+      background:
+        radial-gradient(circle at 82% 17%, rgba(182, 67, 45, .13), transparent 28%),
+        linear-gradient(128deg, transparent 69%, rgba(32,34,30,.055) 69.2%, transparent 69.5%);
+    }
+    .kicker {
+      margin: 0 0 1rem;
+      color: var(--red-dark);
+      font-family: var(--mono);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { line-height: 1.17; text-wrap: balance; }
+    h1 {
+      max-width: 12ch;
+      margin: 0;
+      font-size: clamp(2.65rem, 6.6vw, 6.8rem);
+      font-weight: 800;
+      letter-spacing: -.055em;
+    }
+    .lede {
+      max-width: 41rem;
+      margin: 2rem 0 0;
+      font-size: clamp(1.08rem, 1.6vw, 1.38rem);
+    }
+    .hero-note {
+      margin-top: 1.8rem;
+      padding-left: 1rem;
+      border-left: 4px solid var(--red);
+      color: var(--muted);
+      font-size: .96rem;
+    }
+    .claim-id {
+      display: inline-grid;
+      place-items: center;
+      min-width: 1.55rem;
+      height: 1.55rem;
+      margin-right: .45rem;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: .7rem;
+      font-weight: 800;
+      vertical-align: .1em;
+    }
+    .claim-id.l { color: var(--blue); }
+    .claim-id.r { color: var(--red-dark); }
+    .claim-id.i { color: var(--amber); }
+    .reel {
+      position: relative;
+      min-height: 440px;
+      display: grid;
+      align-content: center;
+      padding: 2.4rem 1.2rem;
+      border-block: 2px solid var(--ink);
+      background: rgba(250,247,236,.58);
+    }
+    .reel::before, .reel::after {
+      content: "";
+      position: absolute;
+      left: -1.25rem;
+      right: -1.25rem;
+      height: 14px;
+      background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 28px);
+    }
+    .reel::before { top: -8px; }
+    .reel::after { bottom: -8px; }
+    .track {
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      gap: .8rem;
+      align-items: start;
+      padding: 1.1rem 0;
+      border-bottom: 1px dashed var(--line);
+    }
+    .track:last-child { border-bottom: 0; }
+    .track b {
+      width: 42px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      font-family: var(--mono);
+    }
+    .track p { margin: 0; }
+    .track small { display: block; color: var(--muted); }
+    .track.safe b { color: var(--green); }
+    .track.keep b { color: var(--red); }
+    .section {
+      padding: clamp(4rem, 8vw, 8rem) clamp(1rem, 7vw, 8rem);
+      border-bottom: 1px solid var(--line);
+    }
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(160px, .38fr) minmax(0, 1fr);
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+    .section-no {
+      color: var(--red-dark);
+      font-family: var(--mono);
+      font-size: .74rem;
+      letter-spacing: .12em;
+    }
+    h2 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 4rem);
+      letter-spacing: -.035em;
+    }
+    h3 { margin: 0 0 .7rem; font-size: 1.16rem; }
+    p { max-width: 72ch; }
+    .terms-grid, .limits-grid, .unknown-grid, .source-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+    }
+    .term, .limit, .unknown, .source-card {
+      padding: clamp(1.25rem, 3vw, 2.2rem);
+      background: var(--paper-hi);
+    }
+    .term p, .limit p, .unknown p, .source-card p { margin: 0; color: var(--muted); }
+    .term code, .mono { font-family: var(--mono); }
+    .timeline {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      overflow-x: auto;
+      padding: 1.1rem 0 1.5rem;
+      scrollbar-color: var(--red) transparent;
+    }
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 36px;
+      left: 4%;
+      right: 4%;
+      height: 2px;
+      background: var(--ink);
+    }
+    .moment { position: relative; min-width: 150px; padding: 0 1rem; }
+    .dot {
+      position: relative;
+      z-index: 1;
+      width: 18px;
+      height: 18px;
+      margin: 18px 0 1.2rem;
+      border: 3px solid var(--paper-hi);
+      outline: 2px solid var(--ink);
+      border-radius: 50%;
+      background: var(--red);
+    }
+    .moment .when { font-family: var(--mono); font-size: .72rem; color: var(--red-dark); }
+    .moment p { margin: .4rem 0 0; color: var(--muted); font-size: .93rem; }
+    .dual-flow {
+      display: grid;
+      grid-template-columns: 1fr 80px 1fr;
+      align-items: stretch;
+      border-block: 2px solid var(--ink);
+    }
+    .lane { padding: clamp(1.4rem, 4vw, 3.2rem); }
+    .lane.convo { background: #e0e6df; }
+    .lane.files { background: #eee0d5; }
+    .lane-label { font-family: var(--mono); font-size: .74rem; letter-spacing: .12em; }
+    .lane ol { padding-left: 1.2rem; }
+    .lane li { margin: .8rem 0; }
+    .spindle {
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: var(--paper);
+      writing-mode: vertical-rl;
+      font-family: var(--mono);
+      letter-spacing: .14em;
+    }
+    .choice-table {
+      width: 100%;
+      margin-top: 2rem;
+      border-collapse: collapse;
+      font-size: .96rem;
+    }
+    .choice-table th, .choice-table td { padding: 1rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .choice-table th { font-family: var(--mono); font-size: .74rem; letter-spacing: .06em; }
+    .choice-table caption { padding: 0 0 1rem; text-align: left; color: var(--muted); }
+    .yes { color: var(--green); font-weight: 700; }
+    .no { color: var(--red-dark); font-weight: 700; }
+    .limit { position: relative; padding-top: 3rem; }
+    .limit::before {
+      content: "OUT";
+      position: absolute;
+      top: .85rem;
+      right: 1rem;
+      color: var(--red);
+      font-family: var(--mono);
+      font-weight: 800;
+      font-size: .72rem;
+      letter-spacing: .16em;
+    }
+    .warning-strip {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 1rem;
+      margin-top: 2rem;
+      padding: 1.25rem;
+      border: 2px solid var(--red-dark);
+      background: rgba(182,67,45,.08);
+    }
+    .warning-strip strong { font-family: var(--mono); color: var(--red-dark); }
+    .warning-strip p { margin: 0; }
+    .evidence-log {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .8rem;
+      margin-bottom: 2.4rem;
+    }
+    .badge {
+      padding: .8rem;
+      border-top: 4px solid currentColor;
+      background: var(--paper-hi);
+      box-shadow: 0 8px 20px var(--shadow);
+      font-size: .9rem;
+    }
+    .badge b { display: block; font-family: var(--mono); font-size: 1.35rem; }
+    .badge.o { color: var(--green); }
+    .badge.l { color: var(--blue); }
+    .badge.r { color: var(--red-dark); }
+    .badge.i { color: var(--amber); }
+    .terminal {
+      padding: 1.4rem;
+      border: 1px solid #363832;
+      background: #242621;
+      color: #eff0e7;
+      box-shadow: 10px 10px 0 rgba(32,34,30,.12);
+      font-family: var(--mono);
+      font-size: .84rem;
+      overflow-x: auto;
+    }
+    .terminal p { margin: .25rem 0; max-width: none; }
+    .terminal .dim { color: #a9ada0; }
+    .implementation-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+    .mechanism {
+      padding: 1.8rem;
+      border-left: 6px solid var(--green);
+      background: var(--paper-hi);
+    }
+    .mechanism.sdk { border-color: var(--blue); }
+    .version-note {
+      margin-top: 2rem;
+      padding: 1.4rem 1.6rem;
+      border: 1px dashed var(--ink);
+      background: rgba(250,247,236,.58);
+    }
+    .source-card a { font-weight: 700; }
+    details {
+      margin-top: 2rem;
+      padding: 1rem 1.2rem;
+      border: 1px solid var(--line);
+      background: rgba(250,247,236,.5);
+    }
+    summary { cursor: pointer; font-weight: 700; }
+    footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2rem clamp(1rem, 7vw, 8rem);
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--mono);
+      font-size: .78rem;
+    }
+    footer a { color: #f2b19e; }
+    @media (max-width: 820px) {
+      .hero { grid-template-columns: 1fr; padding-top: 4rem; }
+      .reel { min-height: 0; }
+      .section-head { grid-template-columns: 1fr; gap: .6rem; }
+      .dual-flow { grid-template-columns: 1fr; }
+      .spindle { min-height: 52px; writing-mode: horizontal-tb; }
+      .evidence-log { grid-template-columns: repeat(2, 1fr); }
+      .implementation-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .topbar { align-items: flex-start; }
+      .topbar > a { white-space: nowrap; }
+      h1 { font-size: clamp(2.45rem, 13vw, 4rem); }
+      .terms-grid, .limits-grid, .unknown-grid, .source-grid { grid-template-columns: 1fr; }
+      .choice-table { display: block; overflow-x: auto; white-space: nowrap; }
+      .warning-strip { grid-template-columns: 1fr; }
+      .section { padding-block: 4.5rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：文件检查点、rewind 与回退边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ctx-08-checkpoints-rewind/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CTX-08 · 文件检查点、rewind 与回退边界">
+  <meta property="og:description" content="Claude Code X-Ray：文件检查点、rewind 与回退边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ctx-08-checkpoints-rewind/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CTX-08 · 文件检查点、rewind 与回退边界">
+  <meta name="twitter:description" content="Claude Code X-Ray：文件检查点、rewind 与回退边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CTX-08</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="stamp-row" aria-label="页面状态">
+      <span class="stamp">CTX-08</span>
+      <span class="stamp status">状态 documented</span>
+      <span class="stamp">Claude Code <code>2.1.247</code></span>
+    </div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <main>
+    <section class="hero" id="answer" data-xray-section="answer">
+      <div>
+        <p class="kicker">文件检查点、rewind 与回退边界</p>
+        <h1>代码和对话可以分开回卷</h1>
+        <p class="lede"><span class="claim-id">O</span>Claude Code 把每次用户提示当作恢复点。它用文件编辑工具动手前，会保留受影响文件的旧内容。用户随后可把代码、对话或两者拉回所选提示，也可只压缩一段对话。</p>
+        <p class="hero-note"><span class="claim-id">O</span>Shell 命令已经改掉的文件、数据库写入、API 调用和部署都不会跟着回来。回退只覆盖它确实记录过的文件编辑。</p>
+      </div>
+      <div class="reel" aria-label="回退覆盖范围">
+        <div class="track safe">
+          <b>01</b>
+          <p><strong>文件编辑工具留下的改动</strong><small>可选择恢复到提示对应的文件状态</small></p>
+        </div>
+        <div class="track safe">
+          <b>02</b>
+          <p><strong>当前会话里的对话</strong><small>可单独截回，也可定点摘要</small></p>
+        </div>
+        <div class="track keep">
+          <b>03</b>
+          <p><strong>Bash 与远端副作用</strong><small>保持现状，需要另行撤销</small></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="terms" data-xray-section="terms">
+      <div class="section-head"><span class="section-no">01 · TERMS</span><h2>先分清四件东西</h2></div>
+      <div class="terms-grid">
+        <article class="term"><h3>提示检查点</h3><p>每次用户提示形成一个可选择的恢复位置。菜单按本次会话里的提示排列。</p></article>
+        <article class="term"><h3>文件快照</h3><p>文件编辑工具写入前保存旧内容。它服务于代码恢复，和 Git 提交没有从属关系。</p></article>
+        <article class="term"><h3>对话回退</h3><p>对话被截回所选消息，磁盘文件可以保持当前状态。恢复后的原提示会回到输入框。</p></article>
+        <article class="term"><h3>定点摘要</h3><p>压缩所选位置之前或之后的消息，文件不变，原消息仍留在会话记录里。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence">
+      <div class="section-head"><span class="section-no">02 · SEQUENCE</span><h2>一次动作怎样走完</h2></div>
+      <div class="timeline" aria-label="检查点与回退时序">
+        <article class="moment"><div class="dot"></div><span class="when">T0</span><h3>用户发送提示</h3><p>新提示成为菜单里的恢复点。</p></article>
+        <article class="moment"><div class="dot"></div><span class="when">T1</span><h3>Claude 选择工具</h3><p>读取和推理本身不产生可恢复的文件改动。</p></article>
+        <article class="moment"><div class="dot"></div><span class="when">T2</span><h3>写入前留快照</h3><p>文件编辑工具动手前保存旧内容。SDK 文档明确列出 Write、Edit 与 NotebookEdit。</p></article>
+        <article class="moment"><div class="dot"></div><span class="when">T3</span><h3>文件发生变化</h3><p>新建文件和改过的文件进入这次会话的跟踪范围。</p></article>
+        <article class="moment"><div class="dot"></div><span class="when">T4</span><h3>用户打开回卷菜单</h3><p>输入框为空时按两次 Esc，或运行 <code>/rewind</code>。</p></article>
+        <article class="moment"><div class="dot"></div><span class="when">T5</span><h3>用户选恢复方式</h3><p>代码、对话、两者或摘要，各自改变不同状态。</p></article>
+      </div>
+      <div class="warning-strip"><strong>停止条件</strong><p><span class="claim-id">O</span>所选检查点以后没有被跟踪的文件改动时，菜单不会显示两项代码恢复动作。链接文件被跳过时，恢复结束并给出跳过数量，文件保留当前内容。</p></div>
+    </section>
+
+    <section class="section" id="flow" data-xray-section="flow">
+      <div class="section-head"><span class="section-no">03 · FLOW</span><h2>两条状态轨道互不捆绑</h2></div>
+      <div class="dual-flow">
+        <article class="lane convo"><span class="lane-label">CONVERSATION</span><h3>对话轨道</h3><ol><li>用户提示成为恢复位置</li><li>消息、工具调用与结果随会话保存</li><li>恢复对话会截短当前上下文</li><li>定点摘要只替换上下文中的一段</li></ol></article>
+        <div class="spindle">选择动作</div>
+        <article class="lane files"><span class="lane-label">FILES</span><h3>文件轨道</h3><ol><li>文件工具写入前保留旧内容</li><li>新建与修改过的文件进入跟踪</li><li>恢复时删除随后新建的文件</li><li>改过的文件回到所选点的内容</li></ol></article>
+      </div>
+      <table class="choice-table">
+        <caption><span class="claim-id">O</span>同一恢复点可以分别作用于对话和文件。只恢复代码后的输入框状态，官方没有说明。</caption>
+        <thead><tr><th>菜单动作</th><th>对话状态</th><th>磁盘文件</th><th>输入框</th></tr></thead>
+        <tbody>
+          <tr><td>恢复代码和对话</td><td class="yes">截回所选提示</td><td class="yes">恢复被跟踪改动</td><td>放回原提示</td></tr>
+          <tr><td>只恢复对话</td><td class="yes">截回所选提示</td><td class="no">保持当前状态</td><td>放回原提示</td></tr>
+          <tr><td>只恢复代码</td><td class="no">保留完整对话</td><td class="yes">恢复被跟踪改动</td><td>官方没有说明</td></tr>
+          <tr><td>从这里摘要</td><td class="yes">后段换成摘要</td><td class="no">完全不变</td><td>放回原提示</td></tr>
+          <tr><td>摘要到这里</td><td class="yes">前段换成摘要</td><td class="no">完全不变</td><td>留空并停在末尾</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits">
+      <div class="section-head"><span class="section-no">04 · LIMITS</span><h2>回卷越过不了这些边界</h2></div>
+      <div class="limits-grid">
+        <article class="limit"><h3><span class="claim-id">O</span>Bash 改过的文件</h3><p><code>rm</code>、<code>mv</code>、<code>cp</code>、重定向和 <code>sed -i</code> 造成的变化不进文件检查点。对话回去以后，这些结果仍在。</p></article>
+        <article class="limit"><h3><span class="claim-id">O</span>远端系统</h3><p>数据库写入、API 请求和部署无法被本地检查点撤销。权限规则负责在执行前拦截或询问，rewind 负责事后恢复已跟踪文件。</p></article>
+        <article class="limit"><h3><span class="claim-id">O</span>外部与并发编辑</h3><p>用户手改和其他并发会话的编辑通常不被当前会话捕获。官方只保留一个例外，双方碰巧改到当前会话已跟踪的同一文件时，结果可能被卷入。</p></article>
+        <article class="limit"><h3><span class="claim-id">O</span>subagent 编辑</h3><p>大多数 subagent 改动不会随父会话恢复。前台运行的 forked skill 是官方列出的例外，后台 fork 和其他 subagent 需要用 Git 或手工撤销。</p></article>
+        <article class="limit"><h3><span class="claim-id">O</span>符号链接与硬链接</h3><p>Claude Code <code>2.1.216</code> 起会跳过链接路径，并报告跳过数量。被跳过的文件保持当前内容。</p></article>
+        <article class="limit"><h3><span class="claim-id">O</span>长期历史</h3><p>检查点服务于会话级快速恢复。协作、审计和长期版本仍交给 Git。当前官方页面写明每个会话保留最近一百个检查点的文件快照。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="experiment" data-xray-section="experiment">
+      <div class="section-head"><span class="section-no">05 · EVIDENCE</span><h2>本机核对到哪里</h2></div>
+      <div class="evidence-log" aria-label="证据身份图例">
+        <div class="badge o"><b>O</b>Anthropic 官方契约</div>
+        <div class="badge l"><b>L</b>本机静态与帮助证据</div>
+        <div class="badge r"><b>R</b>本轮真实运行，本页没有</div>
+        <div class="badge i"><b>I</b>研究者推断与待验证处</div>
+      </div>
+      <div class="terminal" aria-label="本机只读核对摘要">
+        <p><span class="dim">$</span> 固定版本文件 <code>--version</code></p>
+        <p>2.1.247 Claude Code</p>
+        <p><span class="dim">$</span> 固定版本文件 SHA-256</p>
+        <p>5086b9b64d8bb842e1f599cdd3767ab08c6b2266e462fcc5686ae4b019cca8f7</p>
+        <p><span class="dim">$</span> 固定版本文件 <code>--help</code></p>
+        <p>可见 continue、resume、fork-session 与 no-session-persistence</p>
+      </div>
+      <p><span class="claim-id l">L</span>这些只读命令证明指定的 <code>2.1.247</code> 安装文件仍在本机，摘要与研究基线相符。公开顶层帮助没有列出交互式 <code>/rewind</code>，因此菜单行为仍由官方契约承担。</p>
+      <p><span class="claim-id r">R</span>本轮没有启动付费 Claude 会话，也没有读取任何私人会话或文件历史。页面保持 <strong>documented</strong>，不把帮助输出写成真实恢复实验。</p>
+      <div class="warning-strip"><strong>登录与费用</strong><p><span class="claim-id">O</span>执行复现实验前，需要用 Claude Pro、Max、Team 或 Enterprise 订阅登录，也可使用 Claude Console 的 API 计费账户，或组织提供的 Amazon Bedrock、Google Cloud Agent Platform、Microsoft Foundry 访问。首次运行 <code>claude</code> 会引导登录；环境中已有 <code>ANTHROPIC_API_KEY</code> 时，CLI 会要求确认该密钥。实验中的模型请求会占用订阅额度，或按 Console、云提供商的计费方式产生用量。<span class="claim-id l">L</span>本轮只运行 <code>--version</code> 与 <code>--help</code>，没有发起模型请求。</p></div>
+    </section>
+
+    <section class="section" id="implementation" data-xray-section="implementation">
+      <div class="section-head"><span class="section-no">06 · IMPLEMENTATION</span><h2>CLI 自动记录，SDK 需要显式打开</h2></div>
+      <div class="implementation-grid">
+        <article class="mechanism"><h3>Claude Code CLI</h3><p>恢复点跟着用户提示自动产生。文件编辑工具写入前保存受影响文件，检查点和会话一起保存，恢复会话以后仍可使用 <code>/rewind</code>。默认清理周期跟随会话，为三十天，可由 <code>cleanupPeriodDays</code> 调整。</p></article>
+        <article class="mechanism sdk"><h3>Agent SDK</h3><p>调用方需要打开文件检查点，接收用户消息里的检查点标识，再调用文件恢复方法。SDK 只承诺跟踪 Write、Edit 与 NotebookEdit。文件恢复不改对话上下文。</p></article>
+      </div>
+      <div class="version-note"><h3>版本边界</h3><p><span class="claim-id">O</span><code>2.1.191</code> 起，用户可在同一进程里从 <code>/clear</code> 之前的会话入口恢复。<code>2.1.216</code> 起，文件恢复会跳过链接和其他非普通文件。<code>2.1.247</code> 的官方 changelog 修复了指定 agent 会话中“从这里摘要”使用错误系统提示的问题。</p><p><span class="claim-id l">L</span>研究固定基线是 2026-08-27 的 <code>2.1.247</code> 与 202 个官方入口。2026-08-28 核对时，当前命令已指向 <code>2.1.248</code>，官方入口也增至 203。页面没有把次日安装当作基线实验。</p></div>
+    </section>
+
+    <section class="section" id="unknowns" data-xray-section="unknowns">
+      <div class="section-head"><span class="section-no">07 · UNKNOWNS</span><h2>还不能写死的地方</h2></div>
+      <div class="unknown-grid">
+        <article class="unknown"><h3><span class="claim-id i">I</span>恢复的原子性</h3><p>官方没有说明多文件恢复中途崩溃时，已经恢复和尚未恢复的文件怎样收尾。</p></article>
+        <article class="unknown"><h3><span class="claim-id i">I</span>同文件并发冲突</h3><p>官方说并发编辑通常不捕获，又提到同一被跟踪文件的例外。外部写入与快照冲突时谁优先，公开契约没有细化。</p></article>
+        <article class="unknown"><h3><span class="claim-id i">I</span>本机存储布局</h3><p>本轮遵守隐私边界，没有查看会话记录与文件历史目录。具体快照命名、去重与占用空间留作未知。</p></article>
+        <article class="unknown"><h3><span class="claim-id i">I</span>最近一百点以外</h3><p>官方说明旧检查点会丢弃不再引用的快照，也保留首个文件基线。复杂交叉编辑下哪些文件还能完整恢复，需要隔离实验。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources">
+      <div class="section-head"><span class="section-no">08 · SOURCES</span><h2>一手来源与复现办法</h2></div>
+      <div class="source-grid">
+        <article class="source-card"><h3><a href="https://code.claude.com/docs/en/checkpointing">官方检查点契约</a></h3><p>证明恢复点、菜单动作、保留期限与各类回退边界。</p></article>
+        <article class="source-card"><h3><a href="https://code.claude.com/docs/en/how-claude-code-works">官方工作原理</a></h3><p>证明会话与文件快照分开保存，以及远端系统无法被检查点恢复。</p></article>
+        <article class="source-card"><h3><a href="https://code.claude.com/docs/en/agent-sdk/file-checkpointing">Agent SDK 文件检查点</a></h3><p>证明三种受跟踪文件工具、新建文件删除和链接路径跳过规则。</p></article>
+        <article class="source-card"><h3><a href="https://code.claude.com/docs/en/commands">官方命令参考</a></h3><p>证明 <code>/rewind</code>、<code>/checkpoint</code> 与 <code>/undo</code> 的命令关系。</p></article>
+        <article class="source-card"><h3><a href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md">官方 changelog</a></h3><p>证明 <code>2.1.191</code> 与 <code>2.1.247</code> 的相关修复边界。</p></article>
+        <article class="source-card"><h3><a href="https://code.claude.com/docs/en/authentication">官方认证说明</a></h3><p>证明订阅、Console 与受支持云提供商的认证路径。</p></article>
+        <article class="source-card"><h3><a href="https://code.claude.com/docs/en/quickstart">官方快速开始</a></h3><p>证明首次登录、Console 预付 API 用量与实验所需账户条件。</p></article>
+        <article class="source-card"><h3><a href="../index.html">返回总索引</a></h3><p>会话恢复、分叉与导出留给 CTX-02，权限审批留给 SAFE-01，subagent 生命周期留给 PAR-07。</p></article>
+      </div>
+      <details>
+        <summary>安全复现步骤</summary>
+        <ol><li>在一次性目录启动新的交互会话，先确认不会产生远端写入。</li><li>让 Claude 用文件编辑工具新建一个文件，再用 Bash 新建另一个文件。</li><li>输入框留空，按两次 Esc，选到本次提示以前的恢复点。</li><li>先选只恢复代码，比较两个文件，再单独测试只恢复对话和两者一起恢复。</li><li>记录菜单、文件摘要与退出状态，不保存提示正文、工具参数或会话标识。</li></ol>
+        <p>这套实验会发起模型请求，本轮没有执行。执行者还需确认当前认证对应的订阅额度或 API、云提供商计费，并使用隔离目录，避免碰到真实项目和并发会话。</p>
+      </details>
+    </section>
+  </main>
+
+  <footer><span>CTX-08 · documented · Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></footer>
+</body>
+</html>

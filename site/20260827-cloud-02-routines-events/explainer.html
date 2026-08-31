@@ -1,0 +1,1067 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CLOUD-02">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CLOUD-02 · Routines 与云端事件触发</title>
+  <style>
+    :root {
+      --paper: #f2efe5;
+      --paper-deep: #e5decd;
+      --ink: #17201d;
+      --muted: #59625d;
+      --line: #aaa693;
+      --orange: #e65321;
+      --orange-dark: #9d2d0d;
+      --teal: #126b65;
+      --lime: #c8d94a;
+      --black: #111613;
+      --white: #fffdf6;
+      --radius: 2px;
+      --display: "Iowan Old Style", "Songti SC", "Noto Serif CJK SC", serif;
+      --body: "Avenir Next", "Noto Sans CJK SC", "PingFang SC", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Noto Sans Mono CJK SC", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      color-scheme: light;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image:
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(23, 32, 29, .055) 31px 32px),
+        repeating-linear-gradient(90deg, transparent 0 31px, rgba(23, 32, 29, .035) 31px 32px);
+      font-family: var(--body);
+      line-height: 1.68;
+      font-size: 16px;
+    }
+
+    a {
+      color: inherit;
+      text-decoration-color: var(--orange);
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+
+    a:hover { color: var(--orange-dark); }
+
+    a:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid var(--teal);
+      outline-offset: 4px;
+      border-radius: 1px;
+    }
+
+    .skip {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 30;
+      transform: translateY(-150%);
+      background: var(--black);
+      color: var(--white);
+      padding: .55rem .8rem;
+    }
+
+    .skip:focus { transform: translateY(0); }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 52px;
+      padding: .55rem clamp(1rem, 4vw, 4rem);
+      border-bottom: 2px solid var(--black);
+      background: rgba(242, 239, 229, .96);
+      backdrop-filter: blur(8px);
+      font-size: .84rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .topbar nav {
+      display: flex;
+      gap: 1rem;
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: thin;
+    }
+
+    main { overflow: hidden; }
+
+    section {
+      width: min(1180px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: clamp(4rem, 9vw, 7rem) 0;
+      scroll-margin-top: 64px;
+    }
+
+    .hero {
+      width: 100%;
+      min-height: calc(100vh - 52px);
+      padding: clamp(2.5rem, 8vw, 6.5rem) max(1rem, calc((100vw - 1180px) / 2));
+      border-bottom: 2px solid var(--black);
+      background: var(--black);
+      color: var(--white);
+      display: grid;
+      grid-template-columns: minmax(0, 1.14fr) minmax(310px, .86fr);
+      gap: clamp(2rem, 6vw, 6rem);
+      align-items: center;
+    }
+
+    .kicker,
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: .77rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .kicker { color: var(--lime); }
+
+    h1,
+    h2,
+    h3,
+    p { margin-top: 0; }
+
+    h1 {
+      max-width: 840px;
+      margin-bottom: 1.35rem;
+      font-family: var(--display);
+      font-size: clamp(3rem, 7.8vw, 7.6rem);
+      font-weight: 700;
+      line-height: .94;
+      letter-spacing: -.055em;
+    }
+
+    .hero-answer {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(1.18rem, 2.2vw, 1.72rem);
+      line-height: 1.48;
+      text-wrap: balance;
+    }
+
+    .hero-answer strong { color: var(--lime); }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      margin-top: 2rem;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: .25rem .58rem;
+      border: 1px solid currentColor;
+      font-family: var(--mono);
+      font-size: .75rem;
+      letter-spacing: .03em;
+    }
+
+    .chip.status {
+      background: var(--orange);
+      border-color: var(--orange);
+      color: var(--black);
+      font-weight: 900;
+    }
+
+    .trigger-board {
+      position: relative;
+      padding: 1.1rem;
+      border: 1px solid #65716b;
+      background: #1c2421;
+      box-shadow: 14px 14px 0 var(--orange);
+    }
+
+    .board-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-bottom: .8rem;
+      border-bottom: 1px solid #65716b;
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: #c4cdc8;
+    }
+
+    .signal-list {
+      list-style: none;
+      margin: 1.2rem 0;
+      padding: 0;
+      display: grid;
+      gap: .72rem;
+    }
+
+    .signal-list li {
+      display: grid;
+      grid-template-columns: 12px 1fr auto;
+      gap: .65rem;
+      align-items: center;
+      padding: .66rem .75rem;
+      border: 1px solid #46514c;
+      font-family: var(--mono);
+      font-size: .79rem;
+    }
+
+    .lamp {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--lime);
+      box-shadow: 0 0 0 3px rgba(200, 217, 74, .16);
+    }
+
+    .board-output {
+      padding: .85rem;
+      border-top: 1px solid #65716b;
+      color: #dce3df;
+      font-size: .86rem;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .6rem;
+      margin-top: 2rem;
+    }
+
+    .legend span {
+      display: grid;
+      grid-template-columns: 2rem 1fr;
+      gap: .35rem;
+      align-items: start;
+      padding-top: .55rem;
+      border-top: 1px solid #65716b;
+      font-size: .74rem;
+      color: #c4cdc8;
+    }
+
+    .legend b {
+      font-family: var(--mono);
+      font-size: 1rem;
+      color: var(--lime);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(120px, .33fr) minmax(0, 1fr);
+      gap: 1.5rem;
+      align-items: end;
+      margin-bottom: clamp(2rem, 5vw, 4rem);
+      padding-bottom: 1.2rem;
+      border-bottom: 2px solid var(--black);
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: clamp(2.1rem, 5vw, 4.4rem);
+      line-height: 1;
+      letter-spacing: -.045em;
+    }
+
+    .section-head p {
+      max-width: 590px;
+      margin: 0 0 .2rem auto;
+      color: var(--muted);
+    }
+
+    .evidence {
+      display: inline-flex;
+      justify-content: center;
+      min-width: 1.8rem;
+      padding: .08rem .38rem;
+      border: 1px solid currentColor;
+      font-family: var(--mono);
+      font-size: .68rem;
+      font-weight: 900;
+      line-height: 1.35;
+      vertical-align: .12em;
+    }
+
+    .evidence.o { color: var(--teal); }
+    .evidence.l { color: #6d5712; }
+    .evidence.r { color: #6b6470; }
+    .evidence.i { color: var(--orange-dark); }
+
+    .term-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid var(--black);
+      border-left: 1px solid var(--black);
+    }
+
+    .term {
+      min-height: 190px;
+      padding: clamp(1.2rem, 3vw, 2rem);
+      border-right: 1px solid var(--black);
+      border-bottom: 1px solid var(--black);
+      background: rgba(242, 239, 229, .76);
+    }
+
+    .term h3 {
+      margin-bottom: .6rem;
+      font-family: var(--mono);
+      font-size: .9rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .term p { margin-bottom: 0; }
+
+    .access-note {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 1.2rem;
+      border: 2px solid var(--black);
+      background: var(--white);
+    }
+
+    .access-note article {
+      padding: 1.2rem;
+      border-right: 1px solid var(--black);
+    }
+
+    .access-note article:last-child { border-right: 0; }
+
+    .access-note h3 {
+      margin-bottom: .55rem;
+      font-family: var(--mono);
+      font-size: .82rem;
+      letter-spacing: .04em;
+    }
+
+    .access-note p {
+      margin: 0;
+      font-size: .9rem;
+    }
+
+    .rail {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--black);
+      border: 1px solid var(--black);
+    }
+
+    .rail::before {
+      content: "";
+      position: absolute;
+      left: 5%;
+      right: 5%;
+      top: 44px;
+      height: 4px;
+      background: var(--orange);
+      z-index: 1;
+    }
+
+    .stop {
+      position: relative;
+      z-index: 2;
+      min-height: 310px;
+      padding: 1rem;
+      background: var(--white);
+    }
+
+    .stop-no {
+      display: grid;
+      place-items: center;
+      width: 56px;
+      height: 56px;
+      margin-bottom: 1.5rem;
+      border: 4px solid var(--orange);
+      border-radius: 50%;
+      background: var(--black);
+      color: var(--white);
+      font-family: var(--mono);
+      font-size: .84rem;
+      font-weight: 800;
+    }
+
+    .stop h3 {
+      font-family: var(--display);
+      font-size: 1.35rem;
+      line-height: 1.1;
+    }
+
+    .stop p {
+      font-size: .88rem;
+      line-height: 1.55;
+    }
+
+    .flow-map {
+      display: grid;
+      grid-template-columns: 1fr 62px 1.3fr 62px 1fr;
+      align-items: stretch;
+    }
+
+    .flow-box {
+      padding: clamp(1.2rem, 3vw, 2rem);
+      border: 2px solid var(--black);
+      background: var(--white);
+    }
+
+    .flow-box.dark {
+      background: var(--black);
+      color: var(--white);
+    }
+
+    .flow-box h3 {
+      font-family: var(--display);
+      font-size: 1.55rem;
+      line-height: 1.05;
+    }
+
+    .flow-box ul {
+      padding-left: 1.15rem;
+      margin-bottom: 0;
+    }
+
+    .arrow {
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+      font-size: 1.8rem;
+      color: var(--orange-dark);
+    }
+
+    .fact-strip {
+      margin-top: 1.4rem;
+      padding: 1.1rem 1.3rem;
+      border-left: 8px solid var(--orange);
+      background: var(--paper-deep);
+    }
+
+    .fact-strip p { margin: 0; }
+
+    .limit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .limit-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 290px;
+      padding: 1.35rem;
+      border: 2px solid var(--black);
+      background: var(--white);
+    }
+
+    .limit-card h3 {
+      min-height: 2.8em;
+      margin-bottom: .8rem;
+      font-family: var(--display);
+      font-size: 1.45rem;
+      line-height: 1.1;
+    }
+
+    .limit-card p { font-size: .9rem; }
+
+    .limit-card .tag {
+      margin-top: auto;
+      padding-top: .8rem;
+      border-top: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: var(--muted);
+    }
+
+    .retry-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--white);
+    }
+
+    .retry-table th,
+    .retry-table td {
+      padding: .9rem 1rem;
+      border: 1px solid var(--black);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .retry-table th {
+      background: var(--black);
+      color: var(--white);
+      font-family: var(--mono);
+      font-size: .75rem;
+      letter-spacing: .04em;
+    }
+
+    .lab-note {
+      display: grid;
+      grid-template-columns: minmax(150px, .32fr) 1fr;
+      border: 2px solid var(--black);
+      background: var(--white);
+    }
+
+    .lab-stamp {
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+      padding: 1.5rem;
+      background: var(--orange);
+      color: var(--white);
+      text-align: center;
+    }
+
+    .lab-stamp strong {
+      font-family: var(--mono);
+      font-size: clamp(2rem, 6vw, 4.5rem);
+      line-height: .9;
+    }
+
+    .lab-copy { padding: clamp(1.4rem, 4vw, 3rem); }
+
+    .lab-copy code,
+    .inline-code {
+      padding: .12rem .28rem;
+      background: var(--paper-deep);
+      font-family: var(--mono);
+      font-size: .86em;
+    }
+
+    .implementation-list {
+      counter-reset: impl;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-top: 2px solid var(--black);
+    }
+
+    .implementation-list li {
+      counter-increment: impl;
+      display: grid;
+      grid-template-columns: 72px 1fr minmax(80px, .18fr);
+      gap: 1rem;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--black);
+      align-items: start;
+    }
+
+    .implementation-list li::before {
+      content: counter(impl, decimal-leading-zero);
+      font-family: var(--mono);
+      font-size: 1.25rem;
+      color: var(--orange-dark);
+    }
+
+    .implementation-list p { margin: 0; }
+
+    .version-note {
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: var(--muted);
+    }
+
+    details {
+      border-top: 1px solid var(--black);
+      background: rgba(242, 239, 229, .78);
+    }
+
+    details:last-child { border-bottom: 1px solid var(--black); }
+
+    summary {
+      cursor: pointer;
+      padding: 1.1rem .2rem;
+      font-family: var(--display);
+      font-size: 1.23rem;
+      font-weight: 700;
+    }
+
+    details p { max-width: 790px; padding: 0 0 1rem 1.75rem; }
+
+    .sources {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: clamp(4rem, 9vw, 7rem) max(1rem, calc((100vw - 1180px) / 2));
+      background: var(--black);
+      color: var(--white);
+    }
+
+    .sources .section-head { border-color: #728079; }
+    .sources .section-head p { color: #bdc6c1; }
+
+    .source-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid #728079;
+      background: #728079;
+    }
+
+    .source-list a {
+      min-height: 150px;
+      padding: 1.25rem;
+      background: var(--black);
+      color: var(--white);
+      text-decoration: none;
+    }
+
+    .source-list a:hover { background: #222d29; }
+
+    .sources a:hover { color: #f6a57f; }
+
+    .sources a:focus-visible { outline-color: var(--lime); }
+
+    .source-list strong {
+      display: block;
+      margin-bottom: .5rem;
+      font-family: var(--display);
+      font-size: 1.25rem;
+    }
+
+    .source-list span {
+      display: block;
+      color: #bdc6c1;
+      font-size: .84rem;
+    }
+
+    .source-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #728079;
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: #bdc6c1;
+    }
+
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+      .trigger-board { max-width: 680px; }
+      .rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .rail::before { display: none; }
+      .stop { min-height: 250px; }
+      .flow-map { grid-template-columns: 1fr; gap: .7rem; }
+      .arrow { transform: rotate(90deg); }
+      .limit-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 700px) {
+      body { font-size: 15px; }
+      .topbar nav { display: none; }
+      section { width: min(100% - 1.25rem, 1180px); }
+      .hero {
+        min-height: auto;
+        padding: 3rem .8rem 4rem;
+      }
+      h1 { font-size: clamp(3rem, 16vw, 5.2rem); }
+      .trigger-board { box-shadow: 7px 7px 0 var(--orange); }
+      .legend { grid-template-columns: 1fr 1fr; }
+      .section-head { grid-template-columns: 1fr; gap: .75rem; }
+      .section-head p { margin-left: 0; }
+      .term-grid,
+      .limit-grid,
+      .source-list { grid-template-columns: 1fr; }
+      .access-note { grid-template-columns: 1fr; }
+      .access-note article {
+        border-right: 0;
+        border-bottom: 1px solid var(--black);
+      }
+      .access-note article:last-child { border-bottom: 0; }
+      .rail { grid-template-columns: 1fr 1fr; }
+      .lab-note { grid-template-columns: 1fr; }
+      .lab-stamp { min-height: 150px; }
+      .implementation-list li {
+        grid-template-columns: 45px 1fr;
+      }
+      .version-note { grid-column: 2; }
+      .retry-table,
+      .retry-table tbody,
+      .retry-table tr,
+      .retry-table th,
+      .retry-table td { display: block; }
+      .retry-table thead { display: none; }
+      .retry-table tr { border: 1px solid var(--black); border-bottom: 0; }
+      .retry-table tr:last-child { border-bottom: 1px solid var(--black); }
+      .retry-table td { border: 0; border-bottom: 1px solid var(--line); }
+      .retry-table td:last-child { border-bottom: 0; }
+      .source-footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Routines 与云端事件触发。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-cloud-02-routines-events/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CLOUD-02 · Routines 与云端事件触发">
+  <meta property="og:description" content="Claude Code X-Ray：Routines 与云端事件触发。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-cloud-02-routines-events/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CLOUD-02 · Routines 与云端事件触发">
+  <meta name="twitter:description" content="Claude Code X-Ray：Routines 与云端事件触发。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CLOUD-02</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <a class="skip" href="#main">跳到正文</a>
+  <header class="topbar">
+    <a href="../index.html">← 返回总索引</a>
+    <nav aria-label="页内导航">
+      <a href="#sequence">时序</a>
+      <a href="#limits">停止与失败</a>
+      <a href="#unknowns">未知项</a>
+      <a href="#sources">一手来源</a>
+    </nav>
+    <span>CLOUD-02 · 33</span>
+  </header>
+
+  <main id="main">
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <p class="kicker">Claude Code XRY · lifecycle sheet</p>
+        <h1 id="answer-title">事件来了，云里新开一班工。</h1>
+        <p class="hero-answer">Routine 先保存指令、仓库、环境和可用工具。时间到了，API 请求通过，或者 GitHub 事件匹配后，系统会<strong>为这一次触发新建独立云 session</strong>。它从新鲜 clone 开工，结束后把 run 留在账户里。整次失败自动重跑与内建完成通知，目前没有公开保证。 <span class="evidence o">O</span> <span class="evidence i">I</span></p>
+        <div class="hero-meta" aria-label="页面状态">
+          <span class="chip status">当前状态 documented</span>
+          <span class="chip">Claude Code 2.1.247</span>
+          <span class="chip">基线 2026-08-27</span>
+          <span class="chip">无 R 层运行</span>
+        </div>
+      </div>
+
+      <div class="trigger-board" aria-label="触发到独立会话的简图">
+        <div class="board-head"><span>ROUTINE CONTROL</span><span>ARMED</span></div>
+        <ul class="signal-list">
+          <li><span class="lamp"></span><span>schedule</span><span>wall clock</span></li>
+          <li><span class="lamp"></span><span>API fire</span><span>bearer</span></li>
+          <li><span class="lamp"></span><span>GitHub event</span><span>filtered</span></li>
+        </ul>
+        <div class="board-output">每次匹配 → 新 session → 新运行记录</div>
+        <div class="legend" aria-label="证据图例">
+          <span><b>O</b>官方契约</span>
+          <span><b>L</b>本机静态证据</span>
+          <span><b>R</b>真实实验，本页缺席</span>
+          <span><b>I</b>研究者推断</span>
+        </div>
+      </div>
+    </section>
+
+    <section data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head">
+        <div><p class="eyebrow">01 · terms</p><h2 id="terms-title">先认四样东西</h2></div>
+        <p>本页讲一条调度链，只保留读懂它所需的名词。云 session 的一般接管与环境管理留给相邻页。</p>
+      </div>
+      <div class="term-grid">
+        <article class="term">
+          <h3>Routine <span class="evidence o">O</span></h3>
+          <p>保存在个人 claude.ai 账户里的配置。它带着已写好的 instructions、仓库、模型、环境和 connectors，等待触发器。</p>
+        </article>
+        <article class="term">
+          <h3>Trigger <span class="evidence o">O</span></h3>
+          <p>启动条件。一个 Routine 可以同时接受 schedule、带 token 的 API 请求和筛选后的 GitHub 事件。</p>
+        </article>
+        <article class="term">
+          <h3>Run session <span class="evidence o">O</span></h3>
+          <p>一次触发对应的一条完整云 session。GitHub 的两个更新会变成两条独立 session，不会接着同一段对话跑。</p>
+        </article>
+        <article class="term">
+          <h3>Environment <span class="evidence o">O</span></h3>
+          <p>这次 run 的运行条件。它约束网络，提供变量、API credentials 与 setup script。Anthropic 托管时，每条 session 使用新的 Linux VM。</p>
+        </article>
+      </div>
+      <div class="access-note" aria-label="可用套餐与登录边界">
+        <article>
+          <h3>可用套餐 <span class="evidence o">O</span></h3>
+          <p>Routines 面向 Pro、Max、Team 与 Enterprise。账户还要启用 Claude Code on the web，Team 和 Enterprise 组织另受 Routines 开关约束。</p>
+        </article>
+        <article>
+          <h3>CLI 登录 <span class="evidence o">O</span></h3>
+          <p><code class="inline-code">/schedule</code> 要求 claude.ai 订阅登录。Console API key、Anthropic profile、federation credential 和云提供商登录都不能使用这个入口。</p>
+        </article>
+        <article>
+          <h3>Enterprise 与 API <span class="evidence o">O</span></h3>
+          <p>Enterprise 用户需要 Premium 或 Chat + Claude Code 席位。fire API 使用 Routine 专属 bearer token，不接受 Claude API key。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head">
+        <div><p class="eyebrow">02 · sequence</p><h2 id="sequence-title">一次触发怎样走完</h2></div>
+        <p>这条时序把用户动作、云端角色与停止点排在同一条线上。每一步附近的证据标记与 evidence.md 保持一致。</p>
+      </div>
+
+      <div class="rail" aria-label="Routine 生命周期时序">
+        <article class="stop">
+          <div class="stop-no">00</div>
+          <h3>保存工作说明</h3>
+          <p>用户写清目标，选择模型、仓库、环境与 connectors，再挂一个或多个 trigger。配置留在个人云账户。 <span class="evidence o">O</span></p>
+        </article>
+        <article class="stop">
+          <div class="stop-no">01</div>
+          <h3>事件到达</h3>
+          <p>schedule 到点，API fire 通过认证，或 GitHub 事件满足全部 filter。未匹配、暂停或超限会停在这里。 <span class="evidence o">O</span></p>
+        </article>
+        <article class="stop">
+          <div class="stop-no">02</div>
+          <h3>创建新 session</h3>
+          <p>每次成功触发都会建立一条新 session。API 在创建后立即返回 URL，不等任务完成。 <span class="evidence o">O</span></p>
+        </article>
+        <article class="stop">
+          <div class="stop-no">03</div>
+          <h3>准备云环境</h3>
+          <p>托管运行拿到新 VM，clone 仓库，复制环境变量。setup 结果若命中缓存，脚本可能不再重跑。 <span class="evidence o">O</span></p>
+        </article>
+        <article class="stop">
+          <div class="stop-no">04</div>
+          <h3>自主执行</h3>
+          <p>保存的 instructions 成为 assigned task。运行中没有批准对话，可用范围早已由环境、仓库和 connectors 定下。 <span class="evidence o">O</span></p>
+        </article>
+        <article class="stop">
+          <div class="stop-no">05</div>
+          <h3>留下可检查结果</h3>
+          <p>run 进入历史列表。用户打开 session 看 transcript、diff 与错误，也可让 prompt 指示 connector 把摘要发出去。 <span class="evidence o">O</span></p>
+        </article>
+      </div>
+    </section>
+
+    <section data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head">
+        <div><p class="eyebrow">03 · flow</p><h2 id="flow-title">数据从哪里来，又去了哪里</h2></div>
+        <p>固定配置与本次事件分开进入 run。这个区别决定了权限判断，也决定 API payload 为什么不会直接变成命令。</p>
+      </div>
+
+      <div class="flow-map">
+        <article class="flow-box">
+          <h3>预先保存</h3>
+          <ul>
+            <li>instructions 与模型</li>
+            <li>仓库与 trigger</li>
+            <li>环境与 connectors</li>
+          </ul>
+          <p><span class="evidence o">O</span> 这些内容由已授权账户提前保存。</p>
+        </article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="flow-box dark">
+          <h3>新 run session</h3>
+          <ul>
+            <li>默认分支 fresh clone</li>
+            <li>启动时复制环境变量</li>
+            <li>API text 进入不可信包装</li>
+          </ul>
+          <p><span class="evidence o">O</span> prompt 要明确引用 fire payload，Claude 才按其中信息行动。</p>
+        </article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="flow-box">
+          <h3>运行产物</h3>
+          <ul>
+            <li>session transcript 与 diff</li>
+            <li>claude 前缀分支与 PR</li>
+            <li>connector 写入的外部结果</li>
+          </ul>
+          <p><span class="evidence o">O</span> 外部动作使用用户已连接的身份。</p>
+        </article>
+      </div>
+      <div class="fact-strip">
+        <p><strong>关键读法</strong>　绿色 run 只说明 session 没有基础设施错误地启动并退出。任务可能仍被网络挡住，缺 connector 工具，或自己判断无法完成。要打开 run 才知道。 <span class="evidence o">O</span></p>
+      </div>
+    </section>
+
+    <section id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head">
+        <div><p class="eyebrow">04 · limits</p><h2 id="limits-title">停在哪里，怎样再试</h2></div>
+        <p>触发入口、session 内部与整次 run 是三个重试层。把它们写成一个自动恢复故事，会掩盖重复执行的风险。</p>
+      </div>
+
+      <div class="limit-grid">
+        <article class="limit-card">
+          <h3>触发前就被挡住</h3>
+          <p>Routine 暂停、token 错误、组织关闭功能、环境已归档或账户用量到顶，都可能让新 session 根本不出现。</p>
+          <p class="tag">400 · 401 · 403 · 429 <span class="evidence o">O</span></p>
+        </article>
+        <article class="limit-card">
+          <h3>事件被直接丢掉</h3>
+          <p>GitHub webhook 超过每条 Routine 或每账户的小时上限后，事件会丢弃到窗口重置。这里没有补跑承诺。</p>
+          <p class="tag">event dropped <span class="evidence o">O</span></p>
+        </article>
+        <article class="limit-card">
+          <h3>session 启动后失败</h3>
+          <p>环境网络、仓库权限、setup、工具或 prompt 本身都可能失败。绿色状态仍可能出现，任务结果要读 transcript。</p>
+          <p class="tag">task result differs from infra status <span class="evidence o">O</span></p>
+        </article>
+        <article class="limit-card">
+          <h3>API 调用方重试</h3>
+          <p>500 适合指数退避，503 适合短暂等待，429 要遵守 Retry-After。一次请求若已经成功，再发一次会创建另一条 session。</p>
+          <p class="tag">no idempotency key <span class="evidence o">O</span></p>
+        </article>
+        <article class="limit-card">
+          <h3>session 内请求重试</h3>
+          <p>Claude Code 一般会重试可恢复的模型 API 故障。本页没有真实云 run，无法确认托管 Routine 的每项参数都与本机一致。</p>
+          <p class="tag">request level only <span class="evidence o">O</span> <span class="evidence i">I</span></p>
+        </article>
+        <article class="limit-card">
+          <h3>整次 run 再跑</h3>
+          <p>官方给出 Run now 与 `/schedule run` 的手动入口，没有公开整次失败后的自动重跑次数、退避与去重契约。</p>
+          <p class="tag">manual path documented <span class="evidence o">O</span> <span class="evidence i">I</span></p>
+        </article>
+      </div>
+
+      <table class="retry-table" aria-label="三种重试的差别">
+        <thead>
+          <tr><th>所在层</th><th>官方已说明</th><th>仍需防的事</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>触发 HTTP</td><td>500、503、429 的等待方式</td><td>没有幂等键，成功后的重复提交会多开 session</td></tr>
+          <tr><td>Claude 请求</td><td>可恢复 API 故障的一般自动重试</td><td>工具已经执行时不能粗暴重放整个请求</td></tr>
+          <tr><td>完整 run</td><td>用户可以手动 Run now</td><td>自动重跑与去重规则未知</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head">
+        <div><p class="eyebrow">05 · experiment</p><h2 id="experiment-title">这页为何停在 documented</h2></div>
+        <p>本机证据证明版本快照存在，云端主链来自官方契约。创建真实 Routine 会动用私人账户和订阅用量，本轮没有越过这条线。</p>
+      </div>
+
+      <div class="lab-note">
+        <div class="lab-stamp"><strong>L<br>ONLY</strong></div>
+        <div class="lab-copy">
+          <p>本机安装目录仍保留 Claude Code 2.1.247。版本输出和二进制 SHA-256 与固定基线相符。该版本的顶层 help 公开了 <code>--cloud</code>，说明它能创建或连接云 session。 <span class="evidence l">L</span></p>
+          <p>研究 shell 的默认 <code>PATH</code> 没有 <code>claude</code>，当前安装软链接也已经升到 2.1.250。本页直接调用固定版本文件，没有让新版本替代研究快照。</p>
+          <p>没有执行 <code>/schedule</code>、<code>/fire</code>、Run now 或 GitHub webhook。也没有读取账户里的 Routine、connector 或 run transcript。因此本页缺少 R，状态只能是 documented。</p>
+        </div>
+      </div>
+    </section>
+
+    <section data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head">
+        <div><p class="eyebrow">06 · implementation</p><h2 id="implementation-title">版本与实现边界</h2></div>
+        <p>这里只写会改变这条生命周期的版本差异。环境的完整配置方式与云 session 的接管行为由相邻页继续解释。</p>
+      </div>
+
+      <ol class="implementation-list">
+        <li>
+          <p><strong>CLI 创建入口</strong><br>用 `/schedule` 对话式创建 Routine 需要 2.1.225 或更高。2.1.247 已满足。 <span class="evidence o">O</span></p>
+          <span class="version-note">≥ 2.1.225</span>
+        </li>
+        <li>
+          <p><strong>运行历史解释</strong><br>让 CLI 列近期 runs、打开日志并解释工具错误与最终结果，需要 2.1.227 或更高。 <span class="evidence o">O</span></p>
+          <span class="version-note">≥ 2.1.227</span>
+        </li>
+        <li>
+          <p><strong>保存 prompt 的身份</strong><br>2.1.213 以前，触发 prompt 以不可信后台通知进入，Claude 可能拒绝。当前把预存 prompt 当作 assigned task，API fire text 仍是不可信数据。 <span class="evidence o">O</span></p>
+          <span class="version-note">changed 2.1.213</span>
+        </li>
+        <li>
+          <p><strong>没有 schedule 的显示</strong><br>2.1.211 以前，这类 Routine 可能显示公元 1 年的 next run。当前应当显示没有下次运行时间。 <span class="evidence o">O</span></p>
+          <span class="version-note">fixed 2.1.211</span>
+        </li>
+        <li>
+          <p><strong>研究预览</strong><br>Routines 与 fire API 都还在 research preview。beta header、请求形状、限额和 token 语义可能变化。 <span class="evidence o">O</span></p>
+          <span class="version-note">snapshot 2026-08-27</span>
+        </li>
+      </ol>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head">
+        <div><p class="eyebrow">07 · unknowns</p><h2 id="unknowns-title">还不能写成事实</h2></div>
+        <p>这些缺口会影响重复执行、告警与恢复设计。官方补齐契约或真实隔离实验完成以前，页面不会替产品猜答案。</p>
+      </div>
+
+      <details open>
+        <summary>调度器内部怎样排队</summary>
+        <p>event accepted 到 session provisioning 之间有哪些持久状态、投递保证与超时，官方没有公开。schedule 的几分钟错峰只说明启动时间，不说明队列实现。 <span class="evidence i">I</span></p>
+      </details>
+      <details>
+        <summary>整次失败会不会自动重跑</summary>
+        <p>公开材料给了 HTTP 调用方退避和 Claude 请求级重试，也给了手动 Run now。整条 run 的自动重跑次数、去重键与最终停止条件仍未知。 <span class="evidence i">I</span></p>
+      </details>
+      <details>
+        <summary>完成通知由谁发送</summary>
+        <p>官方保证 run 进入列表，并展示让 connector 发 Slack 摘要的例子。Routine 是否另有邮件、网页或手机完成提醒，文档没有说明。Remote Control 的手机推送不能拿来补这个缺口。 <span class="evidence i">I</span></p>
+      </details>
+      <details>
+        <summary>GitHub 重投怎样去重</summary>
+        <p>每个匹配事件都会新建 session，小时上限之外的事件会被丢掉。webhook 重投、filter 修改与限额窗口交界处怎样识别重复事件，仍没有公开契约。 <span class="evidence i">I</span></p>
+      </details>
+      <details>
+        <summary>setup cache 何时失效</summary>
+        <p>官方说明 setup 结果会缓存，也说明 session 使用 fresh clone。缓存精确键、复用范围、失效时机与单次 run 的最长墙钟时间还需单独验证。 <span class="evidence i">I</span></p>
+      </details>
+    </section>
+
+    <section id="sources" class="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head">
+        <div><p class="eyebrow">08 · sources</p><h2 id="sources-title">一手来源与复现入口</h2></div>
+        <p>链接直达 Anthropic 官方页面。完整事实表、命令摘要、实验限制和授权后复现步骤收在 evidence.md。</p>
+      </div>
+
+      <div class="source-list">
+        <a href="https://code.claude.com/docs/en/routines">
+          <strong>Routines 官方指南</strong>
+          <span>证明定义、触发器、独立 session、权限、运行状态与限额</span>
+        </a>
+        <a href="https://platform.claude.com/docs/en/api/claude-code/routines-fire">
+          <strong>Routine fire API</strong>
+          <span>证明响应边界、认证、错误、退避与无幂等键</span>
+        </a>
+        <a href="https://code.claude.com/docs/en/cloud-environments">
+          <strong>Cloud environments</strong>
+          <span>证明 fresh VM、clone、环境变量启动快照与 setup cache</span>
+        </a>
+        <a href="https://code.claude.com/docs/en/errors">
+          <strong>Claude Code 错误参考</strong>
+          <span>证明一般请求级自动重试及不能安全重放的例外</span>
+        </a>
+        <a href="https://code.claude.com/docs/en/commands">
+          <strong>Commands 参考</strong>
+          <span>证明 `/schedule`、别名和云端运行入口</span>
+        </a>
+        <a href="https://code.claude.com/docs/en/claude-code-on-the-web">
+          <strong>Claude Code on the web</strong>
+          <span>证明云端会话的套餐与 Enterprise 席位边界</span>
+        </a>
+        <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+      </div>
+
+      <div class="source-footer">
+        <span>CLOUD-02 · documented · Claude Code 2.1.247</span>
+        <a href="../index.html">← 返回总索引</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

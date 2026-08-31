@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-CLOUD-CI-PROVIDERS">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CI 与云 Provider 配置差异矩阵</title>
+  <style>
+    :root {
+      --navy: #071b2c;
+      --navy-2: #0b2941;
+      --blue: #0d3f63;
+      --paper: #f2efdf;
+      --paper-2: #e6e0ca;
+      --ink: #10202a;
+      --muted: #52606a;
+      --line: #17384c;
+      --orange: #f15a2a;
+      --lime: #c8e14b;
+      --cyan: #6fd8e8;
+      --white: #fffdf4;
+      --shadow: 8px 8px 0 rgba(4, 19, 31, .86);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(7,27,44,.055) 1px, transparent 1px) 0 0 / 24px 24px,
+        linear-gradient(90deg, rgba(7,27,44,.04) 1px, transparent 1px) 0 0 / 24px 24px,
+        var(--paper);
+      font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 17px;
+      line-height: 1.68;
+    }
+    a { color: inherit; text-underline-offset: .2em; }
+    a:hover { text-decoration-thickness: 3px; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--orange);
+      outline-offset: 4px;
+    }
+    code {
+      padding: .08em .32em;
+      color: #002239;
+      background: rgba(111,216,232,.25);
+      border: 1px solid rgba(13,63,99,.28);
+      font-family: "SFMono-Regular", "Cascadia Code", monospace;
+      font-size: .83em;
+      overflow-wrap: anywhere;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2, h3 {
+      font-family: "Songti SC", "STSong", "Baskerville", serif;
+      line-height: 1.08;
+      letter-spacing: -.025em;
+    }
+    h2 { font-size: clamp(2.2rem, 5.4vw, 5.2rem); margin-bottom: .35em; }
+    h3 { font-size: 1.35rem; margin-bottom: .4em; }
+    p:last-child { margin-bottom: 0; }
+    .wrap { width: min(1220px, calc(100% - 42px)); margin-inline: auto; }
+    .mono { font-family: "SFMono-Regular", "Cascadia Code", monospace; }
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1.1rem;
+      font: 800 .72rem/1 "SFMono-Regular", monospace;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 2.8rem; height: 7px; background: var(--orange); }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 1.75rem;
+      padding: .2rem .55rem;
+      border: 1px solid currentColor;
+      font: 800 .68rem/1 "SFMono-Regular", monospace;
+      letter-spacing: .06em;
+    }
+    .e {
+      display: inline-grid;
+      place-items: center;
+      width: 1.6rem;
+      height: 1.6rem;
+      margin-left: .25rem;
+      border: 1.5px solid currentColor;
+      border-radius: 50%;
+      font: 900 .68rem/1 "SFMono-Regular", monospace;
+      vertical-align: .12em;
+    }
+
+    .mast {
+      color: var(--white);
+      background: var(--navy);
+      border-bottom: 5px solid var(--lime);
+    }
+    .mast .wrap {
+      min-height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .id { color: var(--lime); font: 800 .8rem/1.25 "SFMono-Regular", monospace; letter-spacing: .08em; }
+    .mast nav { display: flex; gap: 1rem; font-size: .78rem; }
+
+    .hero {
+      position: relative;
+      min-height: calc(100svh - 62px);
+      display: grid;
+      align-items: center;
+      overflow: hidden;
+      color: var(--white);
+      background:
+        linear-gradient(112deg, transparent 0 62%, rgba(111,216,232,.08) 62% 75%, transparent 75%),
+        var(--navy-2);
+      border-bottom: 8px solid var(--orange);
+    }
+    .hero::after {
+      content: "IDENTITY\A SWITCHBOARD";
+      white-space: pre;
+      position: absolute;
+      right: -1.5rem;
+      bottom: -1.4rem;
+      color: rgba(255,255,255,.035);
+      font: 900 clamp(5rem, 13vw, 12rem)/.74 "SFMono-Regular", monospace;
+      text-align: right;
+      pointer-events: none;
+    }
+    .hero-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(360px, .9fr);
+      gap: clamp(2rem, 7vw, 7rem);
+      align-items: center;
+      padding-block: clamp(4rem, 10vw, 8rem);
+    }
+    h1 { max-width: 12ch; margin-bottom: .3em; font-size: clamp(3.5rem, 8vw, 8.3rem); }
+    .lede { max-width: 41rem; color: #dce8eb; font-size: clamp(1.1rem, 1.8vw, 1.35rem); }
+    .status { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.5rem; }
+    .status .tag:first-child { color: var(--navy); background: var(--lime); border-color: var(--lime); }
+    .switchboard {
+      padding: 1rem;
+      background: #051522;
+      border: 1px solid #416479;
+      box-shadow: 10px 10px 0 rgba(0,0,0,.32);
+    }
+    .switch-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .45rem .55rem .85rem;
+      color: var(--cyan);
+      font: 800 .67rem/1 "SFMono-Regular", monospace;
+      letter-spacing: .1em;
+    }
+    .rail {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: .65rem;
+      padding: .8rem;
+      background: #0b2639;
+      border-top: 1px solid #34566b;
+    }
+    .rail + .rail { margin-top: .5rem; }
+    .rail strong { font-size: .82rem; }
+    .rail small { display: block; color: #9cb2bd; font-size: .65rem; }
+    .rail i { width: .8rem; height: .8rem; border: 3px solid var(--lime); border-radius: 50%; }
+    .rail.warn i { border-color: var(--orange); }
+    .hero-note { margin: .8rem .3rem 0; color: #aebdc5; font-size: .75rem; }
+
+    .jump {
+      position: sticky;
+      top: 0;
+      z-index: 8;
+      color: var(--white);
+      background: rgba(7,27,44,.96);
+      border-bottom: 1px solid #537386;
+    }
+    .jump .wrap { display: flex; gap: 1.1rem; overflow-x: auto; padding-block: .7rem; }
+    .jump a { flex: 0 0 auto; text-decoration: none; font-size: .72rem; }
+    .jump a::before { content: "●"; margin-right: .35rem; color: var(--lime); font-size: .6rem; }
+    .section { padding: clamp(4.5rem, 10vw, 9rem) 0; border-bottom: 2px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: .8fr 1.2fr; gap: 2.5rem; margin-bottom: 3rem; }
+    .section-head p { max-width: 48rem; color: #3d4c55; font-size: 1.05rem; }
+
+    .terms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 2px solid var(--line); }
+    .term { min-height: 220px; padding: 1.25rem; background: var(--paper); }
+    .term b { color: var(--orange); font: 900 .7rem/1 "SFMono-Regular", monospace; }
+    .term p { color: var(--muted); font-size: .88rem; }
+
+    .flow-map {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      color: var(--white);
+      background: var(--navy);
+      border: 2px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .flow-lane { padding: 1rem; background: #0b2639; border: 1px solid #416479; }
+    .flow-lane > b { color: var(--cyan); font: 900 .7rem/1 "SFMono-Regular", monospace; letter-spacing: .08em; }
+    .flow-step { display: grid; grid-template-columns: 7.5rem 1fr; gap: .7rem; padding: .75rem 0; border-top: 1px solid #416479; }
+    .flow-step:first-of-type { margin-top: .8rem; }
+    .flow-step strong { color: var(--lime); font-size: .8rem; }
+    .flow-step span { color: #d0dfe5; font-size: .82rem; }
+
+    .boundary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .boundary { min-height: 210px; padding: 1.2rem; background: var(--paper-2); border: 2px solid var(--line); border-top: 9px solid var(--orange); }
+    .boundary:nth-child(2n) { border-top-color: var(--lime); }
+    .boundary b { color: #b53d1c; font: 900 .7rem/1 "SFMono-Regular", monospace; }
+    .boundary p { color: #4b5a62; font-size: .86rem; }
+
+    .access-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .access { min-height: 225px; padding: 1.2rem; background: var(--paper-2); border: 2px solid var(--line); border-top: 9px solid var(--orange); }
+    .access:nth-child(2n) { border-top-color: var(--lime); }
+    .access b { color: #b53d1c; font: 900 .7rem/1 "SFMono-Regular", monospace; }
+    .access p { color: #4b5a62; font-size: .85rem; }
+
+    .matrix-intro {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      margin-bottom: 1.5rem;
+      color: var(--white);
+      background: #7690a0;
+      border: 2px solid var(--navy);
+    }
+    .ci-head { padding: 1.1rem; background: var(--navy); }
+    .ci-head small { color: var(--cyan); font: 800 .67rem/1 "SFMono-Regular", monospace; }
+    .ci-head p { color: #bdcdd5; font-size: .82rem; }
+    .provider { margin-bottom: 1.25rem; border: 2px solid var(--line); box-shadow: 5px 5px 0 rgba(7,27,44,.17); }
+    .provider-head {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      color: var(--white);
+      background: var(--blue);
+      border-bottom: 2px solid var(--line);
+    }
+    .provider-head h3 { margin: 0; padding: 1rem; color: var(--lime); }
+    .provider-head p { margin: 0; padding: 1rem; color: #d0dfe5; border-left: 1px solid #7290a2; font-size: .82rem; }
+    .provider-cells { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); }
+    .cell { padding: 1.15rem; background: var(--paper); }
+    .cell.unsupported { background: repeating-linear-gradient(135deg, #e7ddc8 0 12px, #ded2b8 12px 24px); }
+    .cell h4 { margin: 0 0 .7rem; font-size: .8rem; letter-spacing: .08em; }
+    .cell dl { display: grid; grid-template-columns: 6.8rem 1fr; gap: .5rem .7rem; margin: 0; font-size: .82rem; }
+    .cell dt { color: #b43c1c; font-weight: 850; }
+    .cell dd { margin: 0; }
+    .version-note { margin-top: 1.8rem; padding: 1.2rem; color: var(--white); background: var(--navy); border-left: 12px solid var(--lime); }
+    .version-note p { color: #c5d4da; font-size: .86rem; }
+
+    .unknowns { counter-reset: u; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--line); border: 2px solid var(--line); }
+    .unknown { counter-increment: u; min-height: 240px; padding: 1rem; background: var(--paper); }
+    .unknown::before { content: "U" counter(u); color: var(--orange); font: 900 .7rem/1 "SFMono-Regular", monospace; }
+    .unknown p { color: var(--muted); font-size: .82rem; }
+    details { border-top: 1.5px solid var(--line); }
+    details:last-of-type { border-bottom: 1.5px solid var(--line); }
+    summary { cursor: pointer; padding: 1rem 0; font-weight: 850; }
+    details p, details ol { max-width: 56rem; color: var(--muted); font-size: .88rem; }
+    .sources { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2rem; }
+    .source { min-height: 190px; padding: 1.1rem; color: var(--white); background: var(--navy); border-top: 7px solid var(--orange); }
+    .source:nth-child(2n) { border-top-color: var(--lime); }
+    .source small { color: var(--cyan); font: 800 .67rem/1 "SFMono-Regular", monospace; }
+    .source a { display: inline-block; margin-top: .7rem; font-family: "Songti SC", serif; font-size: 1.18rem; line-height: 1.3; }
+    .source p { margin-top: .7rem; color: #bcd0d8; font-size: .78rem; }
+    footer { padding: 2.5rem 0 4rem; color: var(--white); background: var(--navy); }
+    footer .wrap { display: flex; justify-content: space-between; gap: 2rem; align-items: end; }
+    footer strong { color: var(--lime); }
+    footer p { color: #b9ccd4; font-size: .8rem; }
+
+    @media (max-width: 980px) {
+      .hero-grid, .section-head { grid-template-columns: 1fr; }
+      .hero { min-height: auto; }
+      .terms { grid-template-columns: repeat(2, 1fr); }
+      .flow-map { grid-template-columns: 1fr; }
+      .access-grid { grid-template-columns: repeat(2, 1fr); }
+      .unknowns { grid-template-columns: repeat(2, 1fr); }
+      .sources { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      .wrap { width: min(100% - 26px, 1220px); }
+      .mast .wrap { align-items: flex-start; flex-direction: column; padding-block: .8rem; }
+      .mast nav { width: 100%; justify-content: space-between; }
+      h1 { font-size: clamp(3.2rem, 16vw, 5rem); }
+      .hero-grid { grid-template-columns: 1fr; }
+      .switchboard { box-shadow: 5px 5px 0 rgba(0,0,0,.32); }
+      .terms, .access-grid, .boundary-grid, .matrix-intro, .provider-cells, .unknowns, .sources { grid-template-columns: 1fr; }
+      .term, .unknown { min-height: auto; }
+      .flow-step { grid-template-columns: 1fr; gap: .15rem; }
+      .provider-head { grid-template-columns: 1fr; }
+      .provider-head p { border-left: 0; border-top: 1px solid #7290a2; }
+      .cell dl { grid-template-columns: 1fr; gap: .12rem; }
+      .cell dd { margin-bottom: .6rem; }
+      footer .wrap { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：CI 与云 Provider 配置差异矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-ci-provider-matrix/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-CLOUD-CI-PROVIDERS · CI 与云 Provider 配置差异矩阵">
+  <meta property="og:description" content="Claude Code X-Ray：CI 与云 Provider 配置差异矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-ci-provider-matrix/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-CLOUD-CI-PROVIDERS · CI 与云 Provider 配置差异矩阵">
+  <meta name="twitter:description" content="Claude Code X-Ray：CI 与云 Provider 配置差异矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-CLOUD-CI-PROVIDERS</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="mast">
+    <div class="wrap">
+      <div class="id">COMP-CLOUD-CI-PROVIDERS / COMPANION MATRIX</div>
+      <nav aria-label="页首导航">
+        <a href="#matrix">直达矩阵</a>
+        <a href="../20260827-cloud-03-ci-event-execution/explainer.html">回到 CLOUD-03</a>
+        <a href="../index.html">返回总索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer">
+      <div class="wrap hero-grid">
+        <div>
+          <div class="eyebrow">最短答案</div>
+          <h1>两套身份，四种 Provider。</h1>
+          <p class="lede">CI 作业分别取得模型访问权和仓库回写权。GitHub Action 的官方云配方覆盖 Bedrock、Google Cloud 和 Foundry。GitLab CI/CD 的官方页只覆盖 Bedrock 与 Google Cloud，Foundry 组合仍是文档缺口。Provider 选择不改变仓库 token 的权限。<span class="e">O</span></p>
+          <div class="status" aria-label="页面状态">
+            <span class="tag">状态 documented</span>
+            <span class="tag">Claude Code 2.1.247</span>
+            <span class="tag">基线 2026-08-27</span>
+            <span class="tag">非计数伴页</span>
+          </div>
+        </div>
+        <aside class="switchboard" aria-label="两套身份缩略图">
+          <div class="switch-head"><span>CI IDENTITY PANEL</span><span>GITHUB 3 / GITLAB 2</span></div>
+          <div class="rail"><div><strong>仓库事件</strong><small>comment · MR · PR · schedule</small></div><i></i><div><strong>CI 作业身份</strong><small>GitHub App 或 GitLab token</small></div></div>
+          <div class="rail"><div><strong>Anthropic</strong><small>key · OAuth · WIF</small></div><i></i><div><strong>Claude API</strong><small>直接模型身份</small></div></div>
+          <div class="rail"><div><strong>Bedrock / Google</strong><small>OIDC federation</small></div><i></i><div><strong>短期云身份</strong><small>role 或 service account</small></div></div>
+          <div class="rail warn"><div><strong>Foundry + GitLab</strong><small>官方 CI 页未列</small></div><i></i><div><strong>保持未知</strong><small>不能从通用凭据链类推</small></div></div>
+          <p class="hero-note">事件执行状态机仍在 CLOUD-03。本页只比较身份、secret、触发和回写的配置差异。</p>
+        </aside>
+      </div>
+    </section>
+
+    <nav class="jump" aria-label="页面章节">
+      <div class="wrap">
+        <a href="#terms">名词</a><a href="#sequence">配置顺序</a><a href="#flow">身份流</a><a href="#matrix">矩阵</a><a href="#limits">边界</a><a href="#experiment">观察</a><a href="#access">开通与费用</a><a href="#unknowns">未知</a><a href="#sources">来源</a>
+      </div>
+    </nav>
+
+    <section class="section" id="terms" data-xray-section="terms">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">先认四个配置点</div><h2>同一个 job，身份分两路</h2></div>
+          <p>模型身份回答请求发给谁、由谁计费。仓库身份回答谁能读写评论、分支和合并请求。OIDC 只是一张短期身份证明，云端还要有对应的 trust、role 或 service account。</p>
+        </div>
+        <div class="terms">
+          <article class="term"><b>01 / TRIGGER</b><h3>触发配置</h3><p>GitHub Action 可直接识别提及或接收自动化 prompt。GitLab 的评论提及通常要 listener 把 note 事件转成 pipeline trigger。</p></article>
+          <article class="term"><b>02 / MODEL ID</b><h3>模型身份</h3><p>API key、订阅 OAuth、Anthropic WIF、AWS role、Google service account 或 Azure Entra identity。它们不能代替仓库 token。</p></article>
+          <article class="term"><b>03 / REPO ID</b><h3>回写身份</h3><p>GitHub App、自建 App、<code>GITHUB_TOKEN</code>、<code>CI_JOB_TOKEN</code> 或 Project Access Token。权限太小时，模型成功也写不回去。</p></article>
+          <article class="term"><b>04 / PROVIDER</b><h3>路由开关</h3><p>Action 的三个 <code>use_*</code> 输入或 CLI 的 <code>CLAUDE_CODE_USE_*</code> 环境变量，把推理送往对应 Provider。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">配置阅读顺序</div><h2>先选支持格，再接两把身份</h2></div>
+          <p>这里排的是部署配置的核对次序，不复述 runner 的执行状态。事件怎样启动作业、工具怎样循环和作业怎样停止，继续以 CLOUD-03 为准。</p>
+        </div>
+        <div class="terms">
+          <article class="term"><b>01 / SUPPORT</b><h3>确认组合有官方配方</h3><p>GitHub 可选 Anthropic、Bedrock、Google Cloud 和 Foundry。GitLab 官方页列出 Anthropic、Bedrock 与 Google Cloud，Foundry 这一格先留空。</p></article>
+          <article class="term"><b>02 / MODEL ID</b><h3>绑定模型身份</h3><p>直连路径保存 API key 或 OAuth token。云路径让 CI 的 OIDC token 换取 role、service account 或 Entra identity。</p></article>
+          <article class="term"><b>03 / REPO ID</b><h3>另配仓库回写</h3><p>GitHub 使用 App 或自动 token。GitLab 使用 job token，权限不足时再换 project token。模型身份不会扩大这套权限。</p></article>
+          <article class="term"><b>04 / EVENT</b><h3>最后接触发和结果</h3><p>GitHub Action 接提及或自动化事件。GitLab job 接 rules、MR、web 或 listener 转出的 trigger。回写位置由仓库 token 和工具许可共同决定。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="flow" data-xray-section="flow">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">身份与 secret 流向</div><h2>两条凭据线在 job 里会合</h2></div>
+          <p>模型线决定推理请求发往哪里，也决定模型费用归属。仓库线决定评论、分支和合并请求能否回写。两条线都进入同一个 job，权限仍彼此独立。<span class="e">O</span><span class="e">I</span></p>
+        </div>
+        <div class="flow-map">
+          <article class="flow-lane">
+            <b>GITHUB ACTIONS</b>
+            <div class="flow-step"><strong>模型线</strong><span>repository secret，或 GitHub OIDC 换 Anthropic、AWS、Google Cloud、Azure 的短期身份</span></div>
+            <div class="flow-step"><strong>路由线</strong><span><code>use_bedrock</code>、<code>use_vertex</code>、<code>use_foundry</code> 选择 Provider</span></div>
+            <div class="flow-step"><strong>仓库线</strong><span>官方 App、自建 App 或 <code>GITHUB_TOKEN</code> 接住评论与分支写回</span></div>
+          </article>
+          <article class="flow-lane">
+            <b>GITLAB CI/CD</b>
+            <div class="flow-step"><strong>模型线</strong><span>masked API key，或 job OIDC 换 AWS、Google Cloud 的短期身份</span></div>
+            <div class="flow-step"><strong>路由线</strong><span><code>CLAUDE_CODE_USE_BEDROCK</code> 或 <code>CLAUDE_CODE_USE_VERTEX</code> 选择 Provider</span></div>
+            <div class="flow-step"><strong>仓库线</strong><span><code>CI_JOB_TOKEN</code> 或 Project Access Token 交给允许的 GitLab MCP 工具</span></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="matrix" data-xray-section="implementation">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">实现与配置矩阵</div><h2>四个 Provider，逐格看 CI</h2></div>
+          <p>每格都把模型身份、要保存的值、触发和回写分开。短期身份路线仍会保存 role ARN、provider resource name 或 client ID。这些值只定位资源，不含长期云密钥。</p>
+        </div>
+        <div class="matrix-intro">
+          <article class="ci-head"><small>CI A</small><h3>GitHub Actions</h3><p>官方 Action 接住事件与角色检查。官方云配方覆盖 Bedrock、Google Cloud 和 Foundry。</p></article>
+          <article class="ci-head"><small>CI B</small><h3>GitLab CI/CD</h3><p>runner job 直接运行 CLI。官方 Provider 配方覆盖 Bedrock 与 Google Cloud，Foundry 尚未列入。</p></article>
+        </div>
+
+        <article class="provider">
+          <header class="provider-head"><h3>Anthropic</h3><p>直连 Claude API。GitHub 官方页还给出 Anthropic WIF，GitLab 官方 CI 页的最小路径只写 masked API key。</p></header>
+          <div class="provider-cells">
+            <section class="cell"><h4>GITHUB ACTIONS</h4><dl><dt>模型身份</dt><dd><code>ANTHROPIC_API_KEY</code>、订阅 OAuth，或 GitHub OIDC 接 Anthropic WIF</dd><dt>保存的值</dt><dd>key 或 OAuth token；WIF 保存 rule、organization、service account 等 ID</dd><dt>触发</dt><dd>提及模式，或带 <code>prompt</code> 的任意 GitHub event</dd><dt>回写</dt><dd>官方 App、自建 App 或 <code>GITHUB_TOKEN</code></dd><dt>推理账单</dt><dd>API tokens、个人订阅额度或 Anthropic 组织账号</dd></dl></section>
+            <section class="cell"><h4>GITLAB CI/CD</h4><dl><dt>模型身份</dt><dd>masked <code>ANTHROPIC_API_KEY</code></dd><dt>保存的值</dt><dd>CI/CD variable，可按实例政策设 protected</dd><dt>触发</dt><dd>manual、MR event、web，或 listener 转出的 API trigger</dd><dt>回写</dt><dd><code>CI_JOB_TOKEN</code>；权限不足时改用带 <code>api</code> scope 的 project token</dd><dt>推理账单</dt><dd>保存该 API key 的 Anthropic 组织账号</dd></dl></section>
+          </div>
+        </article>
+
+        <article class="provider">
+          <header class="provider-head"><h3>Amazon Bedrock</h3><p>两套 CI 都有官方 OIDC 路径。AWS role trust 必须约束到目标 repository、project 与 refs。</p></header>
+          <div class="provider-cells">
+            <section class="cell"><h4>GITHUB ACTIONS</h4><dl><dt>模型身份</dt><dd>GitHub OIDC → AWS IAM role</dd><dt>保存的值</dt><dd><code>AWS_ROLE_TO_ASSUME</code>，没有静态 AWS key</dd><dt>Provider 开关</dt><dd><code>use_bedrock: "true"</code></dd><dt>触发</dt><dd>提及模式，或带 <code>prompt</code> 的 GitHub event</dd><dt>回写</dt><dd>GitHub App 或自动 token，与 AWS role 分开</dd><dt>推理账单</dt><dd>承担 IAM role 的 AWS 账号</dd></dl></section>
+            <section class="cell"><h4>GITLAB CI/CD</h4><dl><dt>模型身份</dt><dd>job OIDC token → STS 临时 AWS 凭据</dd><dt>保存的值</dt><dd><code>AWS_ROLE_TO_ASSUME</code> 与 <code>AWS_REGION</code></dd><dt>Provider 开关</dt><dd><code>CLAUDE_CODE_USE_BEDROCK=1</code></dd><dt>触发</dt><dd>manual、MR event、web，或 listener 转出的 API trigger</dd><dt>回写</dt><dd>GitLab job 或 project token，经允许的 MCP 工具</dd><dt>推理账单</dt><dd>承担 IAM role 的 AWS 账号</dd></dl></section>
+          </div>
+        </article>
+
+        <article class="provider">
+          <header class="provider-head"><h3>Google Cloud</h3><p>两套 CI 都把工作负载 OIDC token 换成 service account 身份。Claude Code 从 ADC 读到短期凭据。</p></header>
+          <div class="provider-cells">
+            <section class="cell"><h4>GITHUB ACTIONS</h4><dl><dt>模型身份</dt><dd>GitHub OIDC → Workload Identity Federation → service account</dd><dt>保存的值</dt><dd><code>GCP_WORKLOAD_IDENTITY_PROVIDER</code> 与 <code>GCP_SERVICE_ACCOUNT</code></dd><dt>Provider 开关</dt><dd><code>use_vertex: "true"</code>，另给 project 与 region</dd><dt>触发</dt><dd>提及模式，或带 <code>prompt</code> 的 GitHub event</dd><dt>回写</dt><dd>GitHub App 或自动 token，与 Google 身份分开</dd><dt>推理账单</dt><dd>启用模型访问的 Google Cloud project</dd></dl></section>
+            <section class="cell"><h4>GITLAB CI/CD</h4><dl><dt>模型身份</dt><dd>GitLab OIDC → WIF credential file → ADC</dd><dt>保存的值</dt><dd>provider、service account、project 与 region</dd><dt>Provider 开关</dt><dd><code>CLAUDE_CODE_USE_VERTEX=1</code></dd><dt>触发</dt><dd>manual、MR event、web，或 listener 转出的 API trigger</dd><dt>回写</dt><dd>GitLab job 或 project token，经允许的 MCP 工具</dd><dt>推理账单</dt><dd>启用模型访问的 Google Cloud project</dd></dl></section>
+          </div>
+        </article>
+
+        <article class="provider">
+          <header class="provider-head"><h3>Microsoft Foundry</h3><p>GitHub 有官方 Entra federation 配方。GitLab CI/CD 官方页没有列 Foundry，这一格只能停在未知。</p></header>
+          <div class="provider-cells">
+            <section class="cell"><h4>GITHUB ACTIONS</h4><dl><dt>模型身份</dt><dd>GitHub OIDC → Entra application 或 managed identity</dd><dt>保存的值</dt><dd>Azure client、tenant、subscription ID；不存长期云凭据</dd><dt>Provider 开关</dt><dd><code>use_foundry: "true"</code> 与 Foundry resource name</dd><dt>触发</dt><dd>提及模式，或带 <code>prompt</code> 的 GitHub event</dd><dt>回写</dt><dd>GitHub App 或自动 token，与 Azure 身份分开</dd><dt>推理账单</dt><dd>承载 Claude deployment 的 Azure 账号</dd></dl></section>
+            <section class="cell unsupported"><h4>GITLAB CI/CD / DOCUMENT GAP</h4><dl><dt>模型身份</dt><dd>官方 CI 页没有 Foundry 身份配方</dd><dt>保存的值</dt><dd>未知，通用 Foundry 凭据不能充当组合证据</dd><dt>触发</dt><dd>GitLab 可启动普通 job，官方没有声明该 job 可接 Foundry</dd><dt>回写</dt><dd>GitLab token 的通用能力已知，组合行为仍待验证</dd><dt>推理账单</dt><dd>组合未获官方声明，不能写成已可用账单路径</dd></dl></section>
+          </div>
+        </article>
+
+        <div class="version-note"><h3>版本边界</h3><p>本页锁定 Claude Code 2.1.247。GitHub 的 <code>@v1</code> 是浮动 major tag，GitLab 示例又会在线安装 CLI。要复现实验，需要同时固定 Action commit 与 CLI 版本。GitLab 集成仍是 beta。Foundry bearer token 从 2.1.203 起可用，但本轮没有运行验证。<span class="e">O</span><span class="e">I</span></p></div>
+      </div>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">支持、权限与停止边界</div><h2>矩阵能确认到哪里</h2></div>
+          <p>这一组边界只解释配置格为什么可用、失败或保持未知。作业运行中的取消、超时和工具循环仍由 CLOUD-03 负责。</p>
+        </div>
+        <div class="boundary-grid">
+          <article class="boundary"><b>DOCUMENTED SUPPORT</b><h3>GitLab 与 Foundry 留空</h3><p>GitLab 官方 CI 页没有 Foundry 配方。通用 Azure 凭据链可以证明 Foundry 的认证入口，不能替这项组合补出支持声明。</p></article>
+          <article class="boundary"><b>SEPARATE PERMISSIONS</b><h3>模型成功不保证回写成功</h3><p>API key、role 或 service account 只处理模型请求。App、job token 与 project token 才决定仓库写入范围。</p></article>
+          <article class="boundary"><b>SETUP AND COST</b><h3>开通权和账单分开核对</h3><p>管理员先安装 App、保存变量或建立云侧信任。runner 计算与模型推理分别计费，页面只确认归属，不锁定实时金额。</p></article>
+          <article class="boundary"><b>VERSION PINNING</b><h3>浮动版本会改变复现结果</h3><p><code>@v1</code> 会移动，GitLab 示例还可能在线安装新版 CLI。复现实验应固定 Action commit 和 Claude Code 版本。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="experiment" data-xray-section="experiment">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">本轮观察与复现</div><h2>证据停在 O，L 检查受阻</h2></div>
+          <p>本轮读取了官方公开契约，并做了安全的 CLI 可见性检查。当前 shell 找不到 <code>claude</code>，已知本地路径又被宿主拒绝读取，因此没有把版号或帮助写成 L。没有登录、模型调用、runner 和远端写入，R 仍为空。</p>
+        </div>
+        <div class="boundary-grid">
+          <article class="boundary"><b>OBSERVED / O</b><h3>公开支持面可以逐项核对</h3><p>官方文档给出 GitHub 的三家云配方、GitLab 的 AWS 与 Google 配方，以及四种 Provider 的认证入口。</p></article>
+          <article class="boundary"><b>BLOCKED / L</b><h3>本机版号没有重新确认</h3><p>页面沿用任务锁定的 2.1.247 基线。宿主返回的访问错误只能证明这次检查受阻，不能证明机器没有安装 Claude Code。</p></article>
+          <article class="boundary"><b>NOT RUN / R</b><h3>远端组合没有实际执行</h3><p>配置 App、OIDC trust、CI variable 和模型账号会写入外部状态，也可能产生费用。本轮授权不包含这些动作。</p></article>
+          <article class="boundary"><b>SAFE REPRODUCTION</b><h3>复现时逐格固定变量</h3><p>在隔离仓库固定 Action commit 与 CLI 版本，每次只更换模型身份，仓库 token 保持不变，再记录触发和回写结果。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="access" data-xray-section="access">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">开通、登录与账单</div><h2>配置前先确认谁有权，谁付费</h2></div>
+          <p>CI job 通过 secret 或 OIDC 自动取得凭据，每次 run 无需打开交互式登录。管理员仍要提前安装 App、保存变量、建立云侧信任，并开通目标模型。runner 计算与模型推理分别计费。<span class="e">O</span><span class="e">I</span></p>
+        </div>
+        <div class="access-grid">
+          <article class="access"><b>GITHUB SETUP</b><h3>仓库管理员先落配置</h3><p>官方安装路径要求 repository admin access，用来安装 GitHub App、增加 secret 和提交 workflow。改用自动 <code>GITHUB_TOKEN</code> 可以省去 App 安装，权限与二次 CI 行为也会随之改变。</p></article>
+          <article class="access"><b>GITLAB SETUP</b><h3>项目变量和回写权分开</h3><p>直连 Anthropic 要保存 masked <code>ANTHROPIC_API_KEY</code>。仓库回写先用 <code>CI_JOB_TOKEN</code>，权限不足时才配置带 <code>api</code> scope 的 Project Access Token。</p></article>
+          <article class="access"><b>CLAUDE API</b><h3>API 账单或订阅额度</h3><p>API key 消耗 Claude API tokens。订阅 OAuth 适用于 Pro、Max、Team 和 Enterprise，run 占用生成该 token 的订阅额度。共享多个仓库时，官方建议使用组织 API key 或 WIF。</p></article>
+          <article class="access"><b>CLOUD ACCESS</b><h3>云账号先开模型</h3><p>Bedrock 要获准访问目标 Claude 模型。Google Cloud 要启用 Agent Platform API 并取得模型访问。Foundry 要已有资源和 Claude deployment。账单归属按配置所用云账号核对。</p></article>
+          <article class="access"><b>NON-INTERACTIVE</b><h3>run 只消费预置身份</h3><p>GitHub 从 repository secret 或 workflow OIDC 取凭据。GitLab 从 masked variable、job OIDC 或 WIF 配置取凭据。交互式登录只可能出现在前期人工配置，不属于每次 CI run。</p></article>
+          <article class="access"><b>RUNNER BILLING</b><h3>计算分钟另算一笔</h3><p>GitHub 托管 runner 消耗 Actions minutes。GitLab job 消耗项目所用 runner 的 compute minutes。两项都与 API、Bedrock、Google Cloud 或 Foundry 的推理账单分开。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="unknowns" data-xray-section="unknowns">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">未知项</div><h2>矩阵里故意留出的空格</h2></div>
+          <p>这些未知会改变部署与审计结论。没有官方声明或隔离实验，就继续留白。</p>
+        </div>
+        <div class="unknowns">
+          <article class="unknown"><h3>锁定日正文</h3><p>8 月 27 日的官方索引哈希已知，本目录没有各页面当天的逐字快照。</p></article>
+          <article class="unknown"><h3>真实 run 版本</h3><p><code>@v1</code> 解析到哪个 commit、job 最终安装哪个 CLI，要从固定 SHA 或运行日志确认。</p></article>
+          <article class="unknown"><h3>GitLab × Foundry</h3><p>官方 CI 页没有支持声明。通用 Azure 凭据链只能证明基础能力。</p></article>
+          <article class="unknown"><h3>云端账单口径</h3><p>各云账号的模型价格、跨区费用和企业折扣会变化，本页只确认费用归属，不锁定金额。</p></article>
+          <article class="unknown"><h3>自建实例政策</h3><p>GitLab audience、runner 出网与 job token 权限都可能被管理员收紧。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources">
+      <div class="wrap">
+        <div class="section-head">
+          <div><div class="eyebrow">一手来源与复现</div><h2>怎样补成 verified</h2></div>
+          <p>拿到隔离测试仓库、四家 Provider 的测试身份和远端写入授权以后，再补 R。整个实验只记录匿名化 actor、状态与时间，不输出 token、完整 ID、prompt 或工具参数。</p>
+        </div>
+        <details open><summary>证据图例</summary><p><span class="e">O</span> 官方契约　<span class="e">L</span> 本机静态或帮助证据　<span class="e">R</span> 本轮真实实验　<span class="e">I</span> 研究者推断。页面正文使用 O 与 I，证据账本另记受阻的 L 检查。本轮没有 R，状态为 documented。</p></details>
+        <details><summary>最小复现路径</summary><ol><li>固定 Action commit 与 Claude Code 2.1.247。</li><li>为 GitHub 分别配置 Anthropic WIF、AWS OIDC、Google WIF 和 Azure federated credential。</li><li>为 GitLab 配置 masked API key、AWS OIDC 与 Google WIF，Foundry 保持未配置。</li><li>逐格记录模型身份、保存值、触发方式与仓库回写身份。</li><li>核对 runner 分钟与模型调用分别落入哪个账单。</li><li>撤销 App、trust、role、variables、测试分支与评论。</li></ol></details>
+        <details open><summary>边界与主页面</summary><p>完整 CI 事件状态机、工具执行与停止条件见 <a href="../20260827-cloud-03-ci-event-execution/explainer.html">CLOUD-03 CI 事件执行主页面</a>。本页是非计数 companion，只负责横向比较。</p></details>
+        <div class="sources">
+          <article class="source"><small>O / GITHUB</small><a href="https://code.claude.com/docs/en/github-actions">GitHub Action 的触发与回写身份</a><p>证明两种运行模式、触发者门禁、API key、OAuth、App token 与回写例外。</p></article>
+          <article class="source"><small>O / CLOUD CI</small><a href="https://code.claude.com/docs/en/github-actions-cloud-providers">GitHub 接三家云 Provider</a><p>证明 AWS、Google、Azure 的 OIDC 配置、secret 字段与 Provider 开关。</p></article>
+          <article class="source"><small>O / GITLAB</small><a href="https://code.claude.com/docs/en/gitlab-ci-cd">GitLab job、OIDC 与 MR 回写</a><p>证明 beta 边界、trigger 形态、masked variable、AWS 与 Google 配方。</p></article>
+          <article class="source"><small>O / AWS</small><a href="https://code.claude.com/docs/en/amazon-bedrock">Bedrock 凭据链与区域开关</a><p>证明 AWS 默认凭据链、缓存、region 与 Claude Code 环境变量。</p></article>
+          <article class="source"><small>O / GOOGLE</small><a href="https://code.claude.com/docs/en/google-vertex-ai">Google ADC 与 WIF</a><p>证明 service account、project、region 与 Application Default Credentials。</p></article>
+          <article class="source"><small>O / AZURE</small><a href="https://code.claude.com/docs/en/microsoft-foundry">Foundry 三种认证入口</a><p>证明 API key、Entra 默认链、bearer token、resource 与版本门槛。</p></article>
+          <article class="source"><small>O / AUTH</small><a href="https://code.claude.com/docs/en/authentication">Anthropic 认证与 federation</a><p>证明 API key、OAuth、profile 与 WIF 的公开认证顺序。</p></article>
+          <article class="source"><small>BOUNDARY</small><a href="../20260827-cloud-03-ci-event-execution/explainer.html">CLOUD-03 主状态机</a><p>继续查看事件、runner、工具循环与回写的完整顺序。</p></article>
+          <article class="source"><small>LOCAL RECORD</small><span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span><p>查看十六条事实主张、本机受阻记录、版本边界与复现步骤。</p></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div><strong>COMP-CLOUD-CI-PROVIDERS</strong><p>状态 documented · Claude Code 2.1.247 · 非计数 companion</p></div>
+      <a href="../index.html">返回总索引</a>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="ADM-02">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>ADM-02 认证来源选择与凭据生效</title>
+  <style>
+    :root {
+      --ink: #191c18;
+      --paper: #e8e2d2;
+      --paper-deep: #d3ccb9;
+      --panel: #222721;
+      --panel-2: #30362e;
+      --line: #777b6d;
+      --green: #b7f25b;
+      --amber: #ffbf45;
+      --red: #ff6d55;
+      --blue: #8cd8e8;
+      --white: #f8f4e9;
+      --shadow: 0 18px 45px rgba(26, 30, 24, .18);
+      --serif: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", serif;
+      --sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Noto Sans Mono CJK SC", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--ink); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(25, 28, 24, .055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(25, 28, 24, .045) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: var(--sans);
+      line-height: 1.72;
+      font-size: 16px;
+    }
+
+    a { color: inherit; text-underline-offset: .22em; text-decoration-thickness: 1px; }
+    a:hover { text-decoration-thickness: 2px; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      font-family: var(--mono);
+      font-size: .88em;
+      background: rgba(25, 28, 24, .09);
+      padding: .12em .36em;
+      border-radius: 3px;
+      word-break: break-word;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      padding: 10px max(20px, calc((100vw - 1240px) / 2));
+      color: var(--white);
+      background: rgba(25, 28, 24, .96);
+      border-bottom: 1px solid #4a5046;
+      backdrop-filter: blur(10px);
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: .04em;
+    }
+    .topbar .live { color: var(--green); }
+    .topbar nav { display: flex; gap: 16px; align-items: center; }
+    .topbar a { color: var(--white); text-decoration-color: var(--line); }
+
+    main { overflow: hidden; }
+    .wrap { width: min(1240px, calc(100% - 40px)); margin-inline: auto; }
+    .hero {
+      min-height: min(860px, calc(100vh - 42px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(390px, .98fr);
+      gap: clamp(36px, 6vw, 92px);
+      align-items: center;
+      padding-block: clamp(58px, 9vw, 120px);
+    }
+    .kicker {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 18px;
+      font: 700 12px/1 var(--mono);
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .kicker::before { content: ""; width: 36px; height: 4px; background: var(--ink); }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 770px;
+      margin-bottom: 26px;
+      font: 700 clamp(44px, 6.2vw, 88px)/1.03 var(--serif);
+      letter-spacing: -.055em;
+    }
+    .hero-answer {
+      max-width: 720px;
+      margin-bottom: 28px;
+      font-size: clamp(18px, 1.7vw, 23px);
+      line-height: 1.62;
+    }
+    .stamp-row { display: flex; flex-wrap: wrap; gap: 9px; }
+    .stamp {
+      border: 1px solid var(--ink);
+      padding: 5px 9px;
+      background: rgba(248, 244, 233, .38);
+      font: 700 11px/1.2 var(--mono);
+      letter-spacing: .04em;
+    }
+    .stamp.status { color: var(--ink); background: var(--amber); }
+
+    .switchboard {
+      position: relative;
+      color: var(--white);
+      background: var(--panel);
+      border: 1px solid #0e100d;
+      border-radius: 4px;
+      box-shadow: var(--shadow), inset 0 0 0 8px #2b3029;
+      padding: 34px;
+      transform: rotate(.7deg);
+    }
+    .switchboard::after {
+      content: "AUTH / LIVE";
+      position: absolute;
+      right: 22px;
+      bottom: 12px;
+      color: #7c8375;
+      font: 10px/1 var(--mono);
+      letter-spacing: .15em;
+    }
+    .board-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 26px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #596054;
+      font: 12px/1.2 var(--mono);
+      letter-spacing: .08em;
+    }
+    .lamp { width: 12px; height: 12px; border-radius: 50%; background: var(--green); box-shadow: 0 0 16px rgba(183, 242, 91, .7); }
+    .rail { display: grid; grid-template-columns: 100px 1fr auto; align-items: center; gap: 12px; min-height: 54px; }
+    .rail-name { color: #e8eadd; font: 12px/1.2 var(--mono); }
+    .track { height: 2px; background: #5f665a; position: relative; }
+    .track::before { content: ""; position: absolute; left: 0; top: -5px; width: 11px; height: 11px; border: 2px solid #7e8577; border-radius: 50%; background: var(--panel); }
+    .track.on { background: var(--green); box-shadow: 0 0 10px rgba(183, 242, 91, .3); }
+    .track.on::before { background: var(--green); border-color: var(--green); }
+    .rank { font: 11px/1 var(--mono); color: #959c8e; }
+    .merge {
+      margin: 14px 0 8px 100px;
+      border-left: 2px solid var(--green);
+      border-bottom: 2px solid var(--green);
+      height: 30px;
+      width: calc(100% - 126px);
+    }
+    .active-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 0 0 14px 100px;
+      padding: 12px 14px;
+      color: var(--ink);
+      background: var(--green);
+      font: 800 12px/1.3 var(--mono);
+    }
+    .model-gate {
+      margin-left: 100px;
+      padding: 14px;
+      border: 1px dashed #858d7d;
+      color: #c5c9bd;
+      font-size: 13px;
+    }
+
+    .legend-strip {
+      background: var(--ink);
+      color: var(--white);
+      border-block: 1px solid #4a5046;
+    }
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+    }
+    .legend div { padding: 18px 22px; border-left: 1px solid #444a41; font-size: 13px; }
+    .legend div:last-child { border-right: 1px solid #444a41; }
+    .legend b { display: block; margin-bottom: 5px; color: var(--green); font: 800 15px/1 var(--mono); }
+    .legend div:nth-child(2) b { color: var(--blue); }
+    .legend div:nth-child(3) b { color: var(--amber); }
+    .legend div:nth-child(4) b { color: var(--red); }
+
+    .section { padding-block: clamp(72px, 9vw, 126px); border-bottom: 1px solid rgba(25, 28, 24, .22); }
+    .section-head {
+      display: grid;
+      grid-template-columns: 90px minmax(0, 760px);
+      gap: 26px;
+      margin-bottom: 48px;
+    }
+    .section-no { padding-top: 9px; font: 700 12px/1 var(--mono); letter-spacing: .12em; }
+    h2 { margin-bottom: 12px; font: 700 clamp(33px, 4.5vw, 58px)/1.08 var(--serif); letter-spacing: -.035em; }
+    .section-intro { margin-bottom: 0; max-width: 760px; font-size: 18px; }
+
+    .term-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--ink); border: 1px solid var(--ink); }
+    .term { min-height: 260px; padding: 26px; background: var(--paper); }
+    .term .tag { font: 700 11px/1 var(--mono); color: #61675c; }
+    .term h3 { margin: 58px 0 12px; font: 700 27px/1.1 var(--serif); }
+    .term p { margin-bottom: 0; }
+
+    .sequence { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); border-block: 1px solid var(--ink); }
+    .sequence::before { content: ""; position: absolute; left: 5%; right: 5%; top: 46px; height: 2px; background: var(--ink); }
+    .step { position: relative; padding: 24px 20px 28px; }
+    .step-dot { position: relative; z-index: 1; display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 30px; border: 2px solid var(--ink); border-radius: 50%; background: var(--paper); font: 800 11px/1 var(--mono); }
+    .step:nth-child(4) .step-dot { background: var(--amber); }
+    .step:nth-child(5) .step-dot { background: var(--green); }
+    .step h3 { font: 700 19px/1.25 var(--serif); }
+    .step p { margin: 0; font-size: 14px; }
+    .evidence-id { color: #62685d; font: 700 10px/1 var(--mono); letter-spacing: .06em; }
+
+    .dark { color: var(--white); background: var(--panel); border-bottom-color: #4a5046; }
+    .dark .section-intro, .dark .evidence-id { color: #c9cec2; }
+    .flow-map { display: grid; grid-template-columns: 1fr 52px 1fr 52px 1fr; align-items: stretch; }
+    .node { padding: 24px; background: var(--panel-2); border: 1px solid #5a6255; min-height: 238px; }
+    .node strong { display: block; margin-bottom: 22px; color: var(--green); font: 700 12px/1 var(--mono); letter-spacing: .08em; }
+    .node h3 { margin-bottom: 14px; font: 700 25px/1.15 var(--serif); }
+    .node p { margin-bottom: 0; color: #d7dacd; font-size: 15px; }
+    .arrow { display: grid; place-items: center; color: var(--green); font: 25px/1 var(--mono); }
+    .branch-note { margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #5a6255; border: 1px solid #5a6255; }
+    .branch-note div { padding: 18px 20px; background: #292e28; font-size: 14px; }
+    .branch-note b { color: var(--amber); font-family: var(--mono); }
+
+    .fail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .fail-card { position: relative; padding: 28px 28px 24px; border: 1px solid var(--ink); background: rgba(248, 244, 233, .38); }
+    .fail-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 7px; background: var(--red); }
+    .fail-card:nth-child(2)::before { background: var(--amber); }
+    .fail-card:nth-child(3)::before { background: var(--blue); }
+    .fail-card:nth-child(4)::before { background: var(--green); }
+    .fail-card h3 { margin-bottom: 10px; font: 700 23px/1.2 var(--serif); }
+    .fail-card p { margin-bottom: 8px; }
+    .fail-card .stop { margin: 16px 0 0; padding-top: 12px; border-top: 1px dashed #8c9084; font-size: 13px; }
+
+    .matrix-wrap { margin-top: 52px; overflow-x: auto; border: 1px solid var(--ink); }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; background: rgba(248, 244, 233, .3); }
+    th, td { padding: 15px 17px; text-align: left; vertical-align: top; border-right: 1px solid #8d8c7f; border-bottom: 1px solid #8d8c7f; }
+    th { background: var(--ink); color: var(--white); font: 700 12px/1.35 var(--mono); letter-spacing: .04em; }
+    td { font-size: 14px; }
+    tr:last-child td { border-bottom: 0; }
+    td:last-child, th:last-child { border-right: 0; }
+
+    .experiment-grid { display: grid; grid-template-columns: .78fr 1.22fr; gap: 46px; align-items: start; }
+    .status-panel { padding: 28px; background: var(--ink); color: var(--white); box-shadow: var(--shadow); }
+    .status-panel .big { display: block; color: var(--amber); font: 800 clamp(34px, 5vw, 58px)/1 var(--mono); }
+    .status-panel p { margin: 20px 0 0; color: #d9dccf; }
+    .checks { border-top: 1px solid var(--ink); }
+    .check { display: grid; grid-template-columns: 34px 1fr; gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--ink); }
+    .check-mark { display: grid; place-items: center; width: 26px; height: 26px; margin-top: 2px; color: var(--ink); background: var(--blue); font: 800 11px/1 var(--mono); }
+    .check h3 { margin-bottom: 5px; font: 700 17px/1.3 var(--serif); }
+    .check p { margin: 0; font-size: 14px; }
+
+    .implementation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    details { border: 1px solid var(--ink); background: rgba(248, 244, 233, .35); }
+    summary { cursor: pointer; padding: 20px 22px; list-style: none; font: 700 18px/1.35 var(--serif); }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; float: right; font-family: var(--mono); }
+    details[open] summary::after { content: "×"; }
+    details[open] summary { border-bottom: 1px solid var(--ink); }
+    details > div { padding: 20px 22px; }
+    details p:last-child { margin-bottom: 0; }
+
+    .unknown-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--ink); border: 1px solid var(--ink); counter-reset: unknown; }
+    .unknown-list article { counter-increment: unknown; min-height: 190px; padding: 26px; background: var(--paper); }
+    .unknown-list article::before { content: "U" counter(unknown); display: block; margin-bottom: 38px; color: var(--red); font: 800 12px/1 var(--mono); }
+    .unknown-list p { margin: 0; }
+
+    .sources { color: var(--white); background: var(--ink); }
+    .source-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: #555c50; border: 1px solid #555c50; }
+    .source-list a { display: block; min-height: 138px; padding: 22px; background: var(--panel); text-decoration: none; }
+    .source-list a:hover { background: #30362e; }
+    .source-list b { display: block; margin-bottom: 10px; color: var(--green); font: 700 12px/1 var(--mono); }
+    .source-list span { color: #eef0e5; }
+    .repro { margin-top: 44px; padding: 26px; border: 1px solid #62695d; color: #d8dccf; }
+    .repro h3 { color: var(--white); font: 700 22px/1.2 var(--serif); }
+    .repro ol { margin-bottom: 0; padding-left: 20px; }
+
+    footer { padding: 26px 0 42px; color: #bfc4b8; background: var(--ink); font-size: 13px; }
+    footer .wrap { display: flex; justify-content: space-between; gap: 18px; }
+    footer a { color: var(--white); }
+
+    @media (max-width: 900px) {
+      .topbar nav a:not(:last-child) { display: none; }
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .switchboard { transform: none; }
+      .legend { grid-template-columns: 1fr 1fr; }
+      .legend div:nth-child(2) { border-right: 1px solid #444a41; }
+      .section-head { grid-template-columns: 1fr; gap: 10px; }
+      .term-grid { grid-template-columns: 1fr; }
+      .term { min-height: 0; }
+      .term h3 { margin-top: 28px; }
+      .sequence { grid-template-columns: 1fr; border-block: 0; border-left: 1px solid var(--ink); }
+      .sequence::before { top: 20px; bottom: 20px; left: 42px; right: auto; width: 2px; height: auto; }
+      .step { display: grid; grid-template-columns: 48px 1fr; gap: 20px; padding: 14px 18px; }
+      .step-dot { grid-row: span 2; margin-bottom: 0; }
+      .step h3 { margin: 3px 0 6px; }
+      .flow-map { grid-template-columns: 1fr; gap: 0; }
+      .arrow { min-height: 48px; transform: rotate(90deg); }
+      .branch-note, .experiment-grid { grid-template-columns: 1fr; }
+      .fail-grid, .implementation-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      body { font-size: 15px; }
+      .wrap { width: min(100% - 28px, 1240px); }
+      .topbar { padding-inline: 14px; }
+      .hero { padding-block: 48px 58px; }
+      h1 { font-size: clamp(42px, 14vw, 62px); }
+      .switchboard { padding: 26px 20px 34px; box-shadow: inset 0 0 0 5px #2b3029, var(--shadow); }
+      .rail { grid-template-columns: 80px 1fr 24px; }
+      .merge, .active-line, .model-gate { margin-left: 80px; }
+      .legend { grid-template-columns: 1fr; }
+      .legend div, .legend div:nth-child(2), .legend div:last-child { border-right: 1px solid #444a41; }
+      .section { padding-block: 68px; }
+      .section-head { margin-bottom: 34px; }
+      .section-no { padding-top: 0; }
+      .fail-card { padding: 24px 22px; }
+      .unknown-list, .source-list { grid-template-columns: 1fr; }
+      footer .wrap { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：认证来源选择与凭据生效。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-adm-02-auth-source-selection/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="ADM-02 · 认证来源选择与凭据生效">
+  <meta property="og:description" content="Claude Code X-Ray：认证来源选择与凭据生效。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-adm-02-auth-source-selection/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ADM-02 · 认证来源选择与凭据生效">
+  <meta name="twitter:description" content="Claude Code X-Ray：认证来源选择与凭据生效。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>ADM-02</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div><span class="live">●</span> ADM-02 / AUTH SIGNAL</div>
+    <nav aria-label="本页导航">
+      <a href="#sequence">时序</a>
+      <a href="#limits">失败点</a>
+      <a href="#sources">来源</a>
+      <a href="../index.html">返回总索引</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="wrap hero" data-xray-section="answer" aria-labelledby="page-title">
+      <div>
+        <p class="kicker">认证来源选择与凭据生效</p>
+        <h1 id="page-title">一次请求，只走一条认证线</h1>
+        <p class="hero-answer">Claude Code 启动后先选提供商，再按固定顺序取一份凭据。排在前面的旧 API key 仍能盖过有效订阅；凭据通过以后，账号权限、云端区域和模型部署继续决定你能用哪些模型。切换失败，通常就停在这里。</p>
+        <div class="stamp-row" aria-label="页面元数据">
+          <span class="stamp">ADM-02</span>
+          <span class="stamp status">当前状态 documented</span>
+          <span class="stamp">Claude Code 2.1.247</span>
+          <span class="stamp">基线 2026-08-27</span>
+        </div>
+      </div>
+
+      <div class="switchboard" aria-label="认证来源汇入当前凭据的示意图">
+        <div class="board-head"><span>官方优先顺序</span><span class="lamp" aria-hidden="true"></span><span>一线生效</span></div>
+        <div class="rail"><span class="rail-name">Gateway</span><span class="track"></span><span class="rank">00*</span></div>
+        <div class="rail"><span class="rail-name">云提供商</span><span class="track"></span><span class="rank">01</span></div>
+        <div class="rail"><span class="rail-name">Bearer</span><span class="track"></span><span class="rank">02</span></div>
+        <div class="rail"><span class="rail-name">API key</span><span class="track"></span><span class="rank">03</span></div>
+        <div class="rail"><span class="rail-name">Helper</span><span class="track"></span><span class="rank">04</span></div>
+        <div class="rail"><span class="rail-name">OAuth</span><span class="track"></span><span class="rank">05+</span></div>
+        <div class="merge" aria-hidden="true"></div>
+        <div class="active-line"><span>解析后的一份凭据</span><span>ACTIVE</span></div>
+        <div class="model-gate">下一站由提供商里的模型访问权、区域和组织策略共同放行。</div>
+      </div>
+    </section>
+
+    <aside class="legend-strip" aria-label="证据图例">
+      <div class="wrap legend">
+        <div><b>O</b>官方契约</div>
+        <div><b>L</b>本机静态或帮助证据</div>
+        <div><b>R</b>本轮真实实验，本页缺失</div>
+        <div><b>I</b>研究者推断</div>
+      </div>
+    </aside>
+
+    <section class="section wrap" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head">
+        <span class="section-no">01 / TERMS</span>
+        <div><h2 id="terms-title">先把三件事分开</h2><p class="section-intro">登录成功、凭据生效和模型可用发生在不同位置。混在一起看，最常见的误判就是订阅明明有效，终端却还在用另一把 key。</p></div>
+      </div>
+      <div class="term-grid">
+        <article class="term"><span class="tag">SOURCE</span><h3>认证来源</h3><p>Claude 订阅、Console、云提供商或企业 gateway 决定请求先去哪里，也决定该找哪一类身份。</p></article>
+        <article class="term"><span class="tag">CREDENTIAL</span><h3>当前凭据</h3><p>同一个进程可能看见多份凭据。Claude Code 只按优先级拿其中一份发当前请求。<span class="evidence-id">O</span></p></article>
+        <article class="term"><span class="tag">MODEL GATE</span><h3>模型门</h3><p>凭据有效以后，目标账号仍要有该模型、区域、IAM 或 RBAC 权限。allowlist 还会先收窄可选项。<span class="evidence-id">O＋I</span></p></article>
+      </div>
+    </section>
+
+    <section class="section wrap" id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head">
+        <span class="section-no">02 / SEQUENCE</span>
+        <div><h2 id="sequence-title">一次启动里的先后顺序</h2><p class="section-intro">这条时序只写官方材料能承住的部分。环境变量在启动后是否能热切换提供商，公开契约没有给出完整内部时序。</p></div>
+      </div>
+      <div class="sequence">
+        <article class="step"><span class="step-dot">01</span><div><h3>用户启动或重新登录</h3><p>首次运行会打开登录；Bedrock 与 Google Cloud 也可从第三方平台向导进入。</p></div></article>
+        <article class="step"><span class="step-dot">02</span><div><h3>提供商先分流</h3><p>已登录 gateway 优先；随后才看 Bedrock、Google Cloud 或 Foundry 开关。</p></div></article>
+        <article class="step"><span class="step-dot">03</span><div><h3>候选凭据排队</h3><p>Bearer、API key、helper、长期 OAuth、profile 与订阅 OAuth 依次判断。</p></div></article>
+        <article class="step"><span class="step-dot">04</span><div><h3>权限与模型过门</h3><p>组织策略、云端身份、区域和模型部署决定目标模型能否调用。</p></div></article>
+        <article class="step"><span class="step-dot">05</span><div><h3>首个请求给出结果</h3><p>成功才进入模型；过期、无权限或缺部署会在启动或请求处停下。</p></div></article>
+      </div>
+    </section>
+
+    <section class="section dark" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">03 / FLOW</span>
+          <div><h2 id="flow-title">凭据怎样走到请求头</h2><p class="section-intro">Claude Code 先看进程环境和已存登录，再把选中的身份交给对应提供商。这里只画选择边界，不展开 gateway 内部怎样转发。</p></div>
+        </div>
+        <div class="flow-map">
+          <article class="node"><strong>INPUT</strong><h3>环境与保存的登录</h3><p>provider 开关、bearer、API key、helper 输出、长期 OAuth、profile 和 Keychain 中的登录都是候选。</p></article>
+          <div class="arrow" aria-hidden="true">→</div>
+          <article class="node"><strong>RESOLVE</strong><h3>选中一份身份</h3><p>API key 走 <code>X-Api-Key</code>。Bearer token 走 <code>Authorization</code>。三方云使用各自 SDK 凭据链。<span class="evidence-id">O</span></p></article>
+          <div class="arrow" aria-hidden="true">→</div>
+          <article class="node"><strong>GATE</strong><h3>目标平台再判一次</h3><p>模型存在、区域匹配且账号有调用权，请求才继续。凭据有效并不会自动补齐这些条件。</p></article>
+        </div>
+        <div class="branch-note">
+          <div><b>CLI</b> API key、helper 与 bearer 可参与选择；订阅 OAuth 通常排在最后。</div>
+          <div><b>WEB</b> Claude Code on the Web 固定用订阅凭据，沙箱变量不会把它换走。<span class="evidence-id">O</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap" id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head">
+        <span class="section-no">04 / LIMITS</span>
+        <div><h2 id="limits-title">切换会停在哪里</h2><p class="section-intro">报错文案会变，失败位置更稳定。先查谁赢。随后再看目标平台是否允许那一个模型。</p></div>
+      </div>
+      <div class="fail-grid">
+        <article class="fail-card"><h3>旧 key 抢先</h3><p>订阅仍有效，批准过的 <code>ANTHROPIC_API_KEY</code> 仍会盖过它。旧组织停用时，请求报组织错误。</p><p class="stop">停止点在认证后的 API 请求。清掉变量，再用状态页核对。<span class="evidence-id">O</span></p></article>
+        <article class="fail-card"><h3>登录已经过期</h3><p>临近到期三天只显示提醒。登录已经过期并且无法刷新，每个请求都会要求重新登录。</p><p class="stop">停止点在每次请求。后台任务也会失去进展。<span class="evidence-id">O</span></p></article>
+        <article class="fail-card"><h3>云端身份没装好</h3><p>Bedrock、Google Cloud 与 Foundry 分别会报找不到 AWS、GCP 或 Azure 凭据链。</p><p class="stop">通常停在启动检查或第一条请求，IDE 还可能没有继承 shell 环境。<span class="evidence-id">O</span></p></article>
+        <article class="fail-card"><h3>模型在别处</h3><p>区域、模型批准、部署名、IAM 或 RBAC 任一缺口都会挡住模型。Bedrock 与 Google Cloud 可做当次回退，Foundry 直接报错。</p><p class="stop">回退不会持久保存，固定模型才会让下次启动保持选择。<span class="evidence-id">O</span></p></article>
+      </div>
+
+      <div class="matrix-wrap" tabindex="0" aria-label="认证与计费边界矩阵，可横向滚动">
+        <table>
+          <thead><tr><th>路线</th><th>凭据主体</th><th>模型可用性还看什么</th><th>计费边界</th><th>含 Claude on the web</th></tr></thead>
+          <tbody>
+            <tr><td>Claude 订阅</td><td>Claude.ai 登录</td><td>订阅状态与组织策略</td><td>Pro、Max、Team 或 Enterprise 的官方规则</td><td>是</td></tr>
+            <tr><td>Anthropic Console</td><td>Console API key</td><td>组织状态与 API 权限</td><td>Anthropic 按量</td><td>否</td></tr>
+            <tr><td>Amazon Bedrock</td><td>AWS 凭据或 Bedrock key</td><td>模型访问、IAM、区域</td><td>AWS 按量</td><td>否</td></tr>
+            <tr><td>Claude Platform on AWS</td><td>AWS 凭据或 workspace key</td><td>AWS 关联组织与 workspace</td><td>AWS Marketplace</td><td>否</td></tr>
+            <tr><td>Google Cloud</td><td>GCP 凭据</td><td>项目批准、区域、配额</td><td>GCP 按量</td><td>否</td></tr>
+            <tr><td>Microsoft Foundry</td><td>API key 或 Entra ID</td><td>部署名与 RBAC</td><td>Azure 按量</td><td>否</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section wrap" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head">
+        <span class="section-no">05 / EXPERIMENT</span>
+        <div><h2 id="experiment-title">本页停在 documented</h2><p class="section-intro">只读核对到此为止。它能证明程序公开了这些入口，无法证明私人账号当前用了哪条线；后一个问题需要查看认证状态或发出远端请求，本轮没有授权。</p></div>
+      </div>
+      <div class="experiment-grid">
+        <aside class="status-panel"><span class="big">O＋L</span><p>官方契约和基线二进制互相对过。没有 R，因此页面没有写成 verified。</p></aside>
+        <div class="checks">
+          <article class="check"><span class="check-mark">L</span><div><h3>版本与散列一致</h3><p>固定安装文件输出 Claude Code 2.1.247，SHA-256 与给定基线完全相同。</p></div></article>
+          <article class="check"><span class="check-mark">L</span><div><h3>帮助面可见</h3><p>根帮助公开 auth、setup-token、model、fallback model 与 bare mode；登录帮助公开订阅、Console 和 SSO 入口。</p></div></article>
+          <article class="check"><span class="check-mark">O</span><div><h3>官方索引仍有 202 项</h3><p>8 月 30 日重抓时入口数未变，散列已不同于 8 月 27 日基线。本文保留旧基线，没有把这次变化解释成产品行为。</p></div></article>
+          <article class="check"><span class="check-mark">R</span><div><h3>真实账号路径未运行</h3><p>没有执行状态查询、登录、退出、token 生成、云平台认证或任何模型请求。</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head">
+        <span class="section-no">06 / IMPLEMENTATION</span>
+        <div><h2 id="implementation-title">四个会改变结果的细节</h2><p class="section-intro">这些细节都来自公开契约。展开阅读时仍要记住，本页没有观察内部函数或私人状态文件。</p></div>
+      </div>
+      <div class="implementation-grid">
+        <details><summary>API key 的批准门</summary><div><p>交互模式第一次看见环境 key 时会让用户接受或拒绝，选择会被记住。非交互 <code>-p</code> 只要看见 key 就使用它。</p><p class="evidence-id">O / Authentication precedence</p></div></details>
+        <details><summary>helper 的刷新与停止</summary><div><p>默认五分钟或 HTTP 401 后重新取 key。helper 报错、超时或空输出，会在三次尝试内让请求失败。</p><p class="evidence-id">O / Credential management</p></div></details>
+        <details><summary>模型固定与当次回退</summary><div><p>三方部署没有固定版本时，别名会跟随 Claude Code 的提供商默认值。Bedrock 与 Google Cloud 可为当前会话回退，Foundry 没有启动检查。</p><p class="evidence-id">O / Model configuration</p></div></details>
+        <details><summary>长期 OAuth 的回摆</summary><div><p>当前会话执行登录后可以换到新账号。shell 里的长期 OAuth 变量还在，下一次启动又会读回它。要让切换保持，必须删掉更高优先级的旧来源。</p><p class="evidence-id">O / Authentication precedence</p></div></details>
+      </div>
+    </section>
+
+    <section class="section wrap" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head">
+        <span class="section-no">07 / UNKNOWNS</span>
+        <div><h2 id="unknowns-title">还不能写死的部分</h2><p class="section-intro">不知道的地方会改变排障顺序，留出来比补一个貌似完整的内部调用链更可靠。</p></div>
+      </div>
+      <div class="unknown-list">
+        <article><p>这台机器当前活跃的是订阅、Console、云提供商、profile 还是 gateway，未知。</p></article>
+        <article><p>当前账号与云项目实际允许哪些模型，未知。</p></article>
+        <article><p>现有会话从一种来源切到另一种来源时，连接与缓存释放的内部时刻，未知。</p></article>
+        <article><p>三个云提供商开关同时存在时，除 gateway 特例以外的完整冲突顺序，官方优先级表没有展开。</p></article>
+        <article><p>基线程序怎样保存 API key 的批准或拒绝选择，存储字段与失效策略未知。</p></article>
+      </div>
+    </section>
+
+    <section class="section sources" id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">08 / SOURCES</span>
+          <div><h2 id="sources-title">一手来源与复现</h2><p class="section-intro">链接直达 Anthropic 官方页面。详细事实表、命令摘要和版本差异见同目录 evidence.md。</p></div>
+        </div>
+        <div class="source-list">
+          <a href="https://code.claude.com/docs/en/authentication"><b>AUTHENTICATION</b><span>证明登录入口、凭据优先级、续期、存储和组织限制</span></a>
+          <a href="https://code.claude.com/docs/en/model-config"><b>MODEL CONFIGURATION</b><span>证明模型 allowlist、固定版本和三方回退差异</span></a>
+          <a href="https://code.claude.com/docs/en/third-party-integrations"><b>DEPLOYMENT OVERVIEW</b><span>证明凭据主体、计费主体与网页端边界</span></a>
+          <a href="https://code.claude.com/docs/en/amazon-bedrock"><b>AMAZON BEDROCK</b><span>证明 AWS 凭据链、启动检查和 IAM 门</span></a>
+          <a href="https://code.claude.com/docs/en/google-vertex-ai"><b>GOOGLE CLOUD</b><span>证明项目、区域、模型批准与当次回退</span></a>
+          <a href="https://code.claude.com/docs/en/microsoft-foundry"><b>MICROSOFT FOUNDRY</b><span>证明 Azure 凭据顺序、部署与直接失败</span></a>
+        </div>
+        <div class="repro">
+          <h3>安全复现办法</h3>
+          <ol>
+            <li>固定版本后只看版本与帮助，不执行认证状态查询。</li>
+            <li>获准使用隔离账号时，一次只放入一种凭据，并在状态页记录来源类别。</li>
+            <li>模型失败实验只在有成本上限的测试资源里做，记录匿名化错误类型，不保留 token、邮箱、组织 ID、资源名或真实工作目录。</li>
+            <li>得到 O、L、R 三层互证以后，再把状态改为 verified。</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap"><span>ADM-02 / documented / Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></div>
+  </footer>
+</body>
+</html>

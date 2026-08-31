@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-UI-STATUSLINE">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>Custom Status Line 的子进程协议 · Claude Code XRY</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f0ead8;
+      --paper-deep: #ded4ba;
+      --ink: #102a36;
+      --muted: #566970;
+      --rule: #9caa9f;
+      --red: #cf4338;
+      --red-dark: #8f2823;
+      --teal: #007e78;
+      --yellow: #e1b64c;
+      --white: #fffaf0;
+      --mono: "IBM Plex Mono", "SFMono-Regular", "Cascadia Mono", monospace;
+      --serif: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", serif;
+      --sans: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--paper); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 9px 9px, rgba(16,42,54,.075) 0 1px, transparent 1.3px) 0 0 / 18px 18px,
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(16,42,54,.055) 31px 32px),
+        var(--paper);
+      font-family: var(--sans);
+      line-height: 1.72;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: var(--red-dark); text-decoration-thickness: 1px; text-underline-offset: .22em; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--teal);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code, pre, .mono { font-family: var(--mono); }
+    code { font-size: .92em; }
+
+    .topline {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      min-height: 58px;
+      padding: .7rem clamp(1rem, 4vw, 4rem);
+      color: var(--white);
+      background: rgba(16,42,54,.97);
+      border-bottom: 4px solid var(--red);
+    }
+    .topline a { color: #fff1c9; }
+    .idline { display: flex; align-items: center; gap: .7rem; font: 750 .78rem/1.3 var(--mono); letter-spacing: .08em; }
+    .pulse-dot { width: .7rem; height: .7rem; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 4px rgba(207,67,56,.2); }
+    .topmeta { display: flex; gap: .8rem; align-items: center; font-size: .78rem; }
+    .status { padding: .22rem .55rem; color: var(--ink); background: #f4ca63; font: 800 .73rem/1.4 var(--mono); }
+
+    main { overflow: clip; }
+    .hero {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+      gap: clamp(2.5rem, 7vw, 8rem);
+      align-items: center;
+      min-height: 76svh;
+      padding: clamp(4rem, 9vw, 8rem) clamp(1rem, 7vw, 7rem);
+      border-bottom: 1px solid var(--ink);
+    }
+    .hero::before {
+      content: "STDIN  →  PROCESS  →  STDOUT";
+      position: absolute;
+      left: clamp(1rem, 7vw, 7rem);
+      top: 1.25rem;
+      color: #006f6a;
+      font: 800 .68rem/1 var(--mono);
+      letter-spacing: .17em;
+    }
+    .hero-copy { max-width: 54rem; }
+    .kicker { margin: 0 0 1rem; color: var(--red-dark); font: 800 .78rem/1.4 var(--mono); letter-spacing: .09em; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 12ch;
+      margin-bottom: 1.25rem;
+      font-family: var(--serif);
+      font-size: clamp(3rem, 7vw, 7.2rem);
+      line-height: .98;
+      letter-spacing: -.055em;
+    }
+    .lede { max-width: 43rem; margin-bottom: 1.2rem; font-size: clamp(1.08rem, 1.65vw, 1.42rem); line-height: 1.7; }
+    .baseline { color: var(--muted); font: 650 .83rem/1.6 var(--mono); }
+
+    .terminal-slip {
+      position: relative;
+      padding: 1.1rem 1rem 1.3rem;
+      color: #dcecf0;
+      background: var(--ink);
+      border: 1px solid #00131c;
+      box-shadow: 16px 16px 0 rgba(207,67,56,.18);
+      font-family: var(--mono);
+    }
+    .terminal-slip::before {
+      content: "ONE REFRESH TICK";
+      display: block;
+      margin: -1.1rem -1rem 1rem;
+      padding: .55rem 1rem;
+      color: var(--ink);
+      background: var(--yellow);
+      font-weight: 900;
+      letter-spacing: .1em;
+    }
+    .wire-row { display: grid; grid-template-columns: 5.2rem 1fr; gap: .8rem; padding: .72rem 0; border-bottom: 1px dashed #57707a; }
+    .wire-row:last-child { border-bottom: 0; }
+    .wire-row b { color: #f3c654; font-size: .75rem; }
+    .wire-row span { min-width: 0; color: #eef7f5; }
+    .wire-row.stop b { color: #ff8a7f; }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--white);
+      border-bottom: 1px solid var(--ink);
+    }
+    .legend div { display: grid; grid-template-columns: auto 1fr; gap: .7rem; padding: 1rem clamp(1rem, 2.6vw, 2.2rem); border-right: 1px solid var(--rule); }
+    .legend div:last-child { border-right: 0; }
+    .legend b { display: block; font-size: .84rem; }
+    .legend small { color: var(--muted); }
+
+    .tag {
+      display: inline-grid;
+      place-items: center;
+      min-width: 1.65rem;
+      height: 1.65rem;
+      padding: 0 .3rem;
+      color: var(--white);
+      background: var(--teal);
+      font: 850 .7rem/1 var(--mono);
+      vertical-align: .1em;
+    }
+    .tag.l { background: var(--ink); }
+    .tag.r { color: var(--ink); background: var(--paper-deep); border: 1px solid var(--ink); }
+    .tag.i { background: var(--red-dark); }
+
+    .sheet {
+      display: grid;
+      grid-template-columns: minmax(190px, .32fr) minmax(0, 1fr);
+      gap: clamp(2rem, 6vw, 7rem);
+      padding: clamp(4.5rem, 8vw, 8rem) clamp(1rem, 7vw, 7rem);
+      border-bottom: 1px solid var(--ink);
+    }
+    .section-head { position: sticky; top: 92px; align-self: start; }
+    .section-no { display: block; margin-bottom: .8rem; color: var(--red-dark); font: 850 .72rem/1 var(--mono); letter-spacing: .14em; }
+    h2 { margin-bottom: 1rem; font-family: var(--serif); font-size: clamp(2.1rem, 4.4vw, 4.4rem); line-height: 1.04; letter-spacing: -.045em; }
+    .section-head p { max-width: 24rem; color: var(--muted); font-size: .94rem; }
+    .content { min-width: 0; }
+
+    .term-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--ink); border-left: 1px solid var(--ink); }
+    .term { min-width: 0; padding: 1.25rem; background: rgba(255,250,240,.66); border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+    .term h3 { margin: 0 0 .45rem; color: var(--teal); font: 850 1rem/1.3 var(--mono); }
+    .term p { margin-bottom: 0; color: var(--muted); }
+
+    .timeline { counter-reset: tick; }
+    .tick { counter-increment: tick; display: grid; grid-template-columns: 5.4rem minmax(0, 1fr); position: relative; min-height: 7.5rem; }
+    .tick::before { content: "T+" counter(tick, decimal-leading-zero); padding-top: .25rem; color: var(--red-dark); font: 850 .8rem/1 var(--mono); }
+    .tick::after { content: ""; position: absolute; left: 4.55rem; top: .45rem; bottom: -.45rem; width: 2px; background: var(--teal); }
+    .tick:last-child::after { bottom: calc(100% - .55rem); }
+    .tick-body { position: relative; padding: 0 0 2rem 1.5rem; }
+    .tick-body::before { content: ""; position: absolute; left: -.15rem; top: .25rem; width: .75rem; height: .75rem; border-radius: 50%; background: var(--paper); border: 2px solid var(--teal); transform: translateX(-50%); }
+    .tick h3 { margin: 0 0 .35rem; font-size: 1.06rem; }
+    .tick p { margin: 0; color: var(--muted); }
+
+    .protocol {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 1rem;
+      align-items: stretch;
+      padding: clamp(1rem, 3vw, 2rem);
+      background: var(--ink);
+      border: 6px double var(--paper-deep);
+    }
+    .node { min-width: 0; padding: 1.1rem; color: var(--white); border: 1px solid #78919a; }
+    .node b { display: block; margin-bottom: .45rem; color: #f5cb62; font: 800 .78rem/1.4 var(--mono); }
+    .node p { margin: 0; color: #c7d6d9; font-size: .9rem; }
+    .arrow { align-self: center; color: #f37669; font: 900 1.8rem/1 var(--mono); }
+    .flow-note { margin: 1rem 0 0; padding: .9rem 1rem; color: var(--muted); background: rgba(255,250,240,.7); border-left: 5px solid var(--red); }
+    .field-table { width: 100%; margin-top: 1.25rem; border-collapse: collapse; background: rgba(255,250,240,.65); }
+    .field-table th, .field-table td { padding: .85rem 1rem; text-align: left; vertical-align: top; border: 1px solid var(--rule); }
+    .field-table th { color: var(--white); background: var(--teal); font: 750 .75rem/1.3 var(--mono); }
+    .field-table td:first-child { width: 28%; font-weight: 750; }
+
+    .limit-grid, .unknown-grid, .source-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+    .limit, .unknown, .source {
+      position: relative;
+      min-width: 0;
+      padding: 1.25rem;
+      background: rgba(255,250,240,.72);
+      border: 1px solid var(--ink);
+      box-shadow: 5px 5px 0 var(--paper-deep);
+    }
+    .limit h3, .unknown h3, .source h3 { margin: 0 0 .5rem; font: 850 1rem/1.35 var(--mono); color: var(--red-dark); }
+    .limit p, .unknown p, .source p { margin: 0; color: var(--muted); }
+    .limit .tag { position: absolute; top: .8rem; right: .8rem; }
+    .warning { grid-column: 1 / -1; padding: 1rem 1.15rem; color: var(--white); background: var(--red-dark); }
+    .warning strong { color: #ffe18b; }
+
+    .facts { display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 1rem; border: 1px solid var(--ink); background: var(--white); }
+    .fact { padding: 1rem; border-right: 1px solid var(--ink); }
+    .fact:last-child { border-right: 0; }
+    .fact b { display: block; color: var(--red-dark); font: 900 1.12rem/1.2 var(--mono); }
+    .fact span { color: var(--muted); font-size: .85rem; }
+    details { margin-top: 1rem; background: rgba(255,250,240,.7); border: 1px solid var(--ink); }
+    summary { cursor: pointer; padding: 1rem 1.15rem; font-weight: 800; }
+    .details-body { padding: 0 1.15rem 1.15rem; color: var(--muted); }
+    .details-body p:last-child { margin-bottom: 0; }
+
+    pre { overflow-x: auto; margin: 0; padding: 1.1rem; color: #e8f3f2; background: var(--ink); border-left: 6px solid var(--red); font-size: .82rem; line-height: 1.65; }
+    .version-list { border-top: 1px solid var(--ink); }
+    .version { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--rule); }
+    .version b { color: var(--red-dark); font-family: var(--mono); }
+    .version p { margin: 0; color: var(--muted); }
+
+    .unknown-grid { counter-reset: q; }
+    .unknown { counter-increment: q; min-height: 10rem; }
+    .unknown::after { content: "?" counter(q); position: absolute; right: .65rem; bottom: .25rem; color: rgba(207,67,56,.12); font: 900 3.2rem/1 var(--mono); }
+    .source { display: block; color: inherit; text-decoration: none; }
+    .source:hover { background: var(--white); transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--paper-deep); }
+    .source small { display: block; margin-bottom: .45rem; color: var(--teal); font: 800 .7rem/1 var(--mono); letter-spacing: .08em; }
+
+    footer { display: flex; justify-content: space-between; gap: 1rem; padding: 2rem clamp(1rem, 7vw, 7rem); color: #d8e5e5; background: var(--ink); font-size: .82rem; }
+
+    @media (max-width: 950px) {
+      .hero, .sheet { grid-template-columns: 1fr; }
+      .hero { min-height: auto; }
+      .section-head { position: static; }
+      .protocol { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); justify-self: center; }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+      .legend div:nth-child(2) { border-right: 0; }
+      .legend div:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
+    }
+    @media (max-width: 620px) {
+      .topline { align-items: flex-start; }
+      .idline { max-width: 15rem; }
+      .topmeta { flex-direction: column; align-items: flex-end; gap: .3rem; }
+      .hero, .sheet { padding-inline: 1rem; }
+      h1 { font-size: clamp(2.65rem, 14vw, 4.8rem); }
+      .legend, .term-list, .limit-grid, .unknown-grid, .source-grid, .facts { grid-template-columns: 1fr; }
+      .legend div, .legend div:nth-child(2) { border-right: 0; border-bottom: 1px solid var(--rule); }
+      .legend div:last-child { border-bottom: 0; }
+      .term-list { border-top: 1px solid var(--ink); }
+      .field-table, .field-table tbody, .field-table tr, .field-table th, .field-table td { display: block; width: 100%; }
+      .field-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .field-table tr { border: 1px solid var(--rule); border-bottom: 0; }
+      .field-table td { border: 0; border-bottom: 1px solid var(--rule); }
+      .field-table td:first-child { width: 100%; color: var(--teal); }
+      .facts .fact { border-right: 0; border-bottom: 1px solid var(--ink); }
+      .facts .fact:last-child { border-bottom: 0; }
+      .version { grid-template-columns: 1fr; gap: .25rem; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .source:hover { transform: none; }
+    }
+    @media print {
+      .topline { position: static; }
+      body { background: white; }
+      .sheet { break-inside: avoid; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Custom Status Line 的子进程协议。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-custom-statusline/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-UI-STATUSLINE · Custom Status Line 的子进程协议">
+  <meta property="og:description" content="Claude Code X-Ray：Custom Status Line 的子进程协议。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-custom-statusline/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-UI-STATUSLINE · Custom Status Line 的子进程协议">
+  <meta name="twitter:description" content="Claude Code X-Ray：Custom Status Line 的子进程协议。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-UI-STATUSLINE</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topline">
+    <div class="idline"><span class="pulse-dot" aria-hidden="true"></span><span>COMP-UI-STATUSLINE · 伴页</span></div>
+    <div class="topmeta"><span class="status">当前状态 documented</span><a href="../index.html">返回总索引</a></div>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div class="hero-copy">
+        <p class="kicker">Claude Code 2.1.247 · 固定基线 2026-08-27</p>
+        <h1 id="answer-title">一份快照，换回一段底栏文字</h1>
+        <p class="lede">刷新到来时，Claude Code 启动配置好的本机命令，把会话快照作为 JSON 写进标准输入，再捕获脚本的标准输出。脚本成功打印，底栏就更新。非零退出或没有输出会留下空白；脚本被下一次刷新取消时，新的调用接手。</p>
+        <p class="baseline">本页状态为 documented。官方契约和本机 help 已核对，本轮没有启动真实 Claude 会话。</p>
+      </div>
+      <aside class="terminal-slip" aria-label="一次刷新里的子进程协议">
+        <div class="wire-row"><b>TRIGGER</b><span>会话事件或定时器到点</span></div>
+        <div class="wire-row"><b>STDIN</b><span>一次 JSON 会话快照</span></div>
+        <div class="wire-row"><b>CHILD</b><span>本机 shell command</span></div>
+        <div class="wire-row"><b>STDOUT</b><span>一行或多行底栏文字</span></div>
+        <div class="wire-row stop"><b>STOP</b><span>完成、失败或被新刷新取消</span></div>
+      </aside>
+    </section>
+
+    <div class="legend" aria-label="O L R I 证据图例">
+      <div><span class="tag">O</span><span><b>官方契约</b><small>公开配置与运行承诺</small></span></div>
+      <div><span class="tag l">L</span><span><b>本机静态</b><small>固定版本与帮助输出</small></span></div>
+      <div><span class="tag r">R</span><span><b>真实实验</b><small>本页没有这一层</small></span></div>
+      <div><span class="tag i">I</span><span><b>研究推断</b><small>合并图示与保守建议</small></span></div>
+    </div>
+
+    <section class="sheet" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head">
+        <span class="section-no">01 / TERMS</span>
+        <h2 id="terms-title">四个角色就够了</h2>
+        <p>本页只追踪命令边界。底栏怎样在 fullscreen 或 classic 里绘制，交给 UI-02。</p>
+      </div>
+      <div class="content term-list">
+        <article class="term"><h3>Claude Code</h3><p>组装当前快照，触发刷新，管理子进程，再把输出交给界面。<span class="tag">O</span></p></article>
+        <article class="term"><h3>statusLine command</h3><p>用户配置的 shell command。它从 stdin 读 JSON，做格式化，也可以自行运行 git。<span class="tag">O</span></p></article>
+        <article class="term"><h3>stdin snapshot</h3><p>一次调用只收到当时可见的数据。字段可能缺席，首个 API 响应前也可能为 null。<span class="tag">O</span></p></article>
+        <article class="term"><h3>footer row</h3><p>stdout 的去处。多行、ANSI 颜色与 OSC 8 链接都属于公开输出面。它在部分交互期间会暂时隐藏。<span class="tag">O</span></p></article>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head">
+        <span class="section-no">02 / SEQUENCE</span>
+        <h2 id="sequence-title">一次刷新走完六步</h2>
+        <p>防抖发生在启动命令之前。取消发生在旧命令还没结束而新刷新已经到来时。</p>
+      </div>
+      <div class="content timeline">
+        <article class="tick"><div class="tick-body"><h3>用户先配置命令</h3><p>可以让 <code>/statusline</code> 按自然语言生成脚本，也可以手动写设置。前一种做法发生在已认证的 Claude Code 会话里，不能套用子进程刷新零 token 的结论。项目命令还要先通过 workspace trust。<span class="tag">O</span></p></div></article>
+        <article class="tick"><div class="tick-body"><h3>某个刷新条件出现</h3><p>会话启动或恢复会触发，助手消息和压缩完成也会触发。权限、Vim 模式或 command 变化继续触发；已收到的 rate-limit reset 时间到点也会触发。<code>refreshInterval</code> 还能在空闲期加一条定时刷新。<span class="tag">O</span></p></div></article>
+        <article class="tick"><div class="tick-body"><h3>普通变更等待 300 毫秒</h3><p>短时间内连续出现的变化会合并。command 本身变更时会跳过这段等待，立刻运行新命令。<span class="tag">O</span></p></div></article>
+        <article class="tick"><div class="tick-body"><h3>Claude Code 启动子进程</h3><p>JSON 快照进入 stdin，终端宽高通过 <code>COLUMNS</code> 与 <code>LINES</code> 环境变量传递。stdout 被捕获，脚本并没有直接连到终端。<span class="tag">O</span></p></div></article>
+        <article class="tick"><div class="tick-body"><h3>脚本读取并打印</h3><p>它可以只格式化已有字段，也可以运行 git 查询。官方建议缓存较慢的 git 操作，免得每次刷新都重新扫描。<span class="tag">O</span></p></div></article>
+        <article class="tick"><div class="tick-body"><h3>完成、失败或取消</h3><p>stdout 成为新的状态行。非零退出或无输出会留下空白。新的刷新到来时，仍在运行的旧命令会被取消。<span class="tag">O</span></p></div></article>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head">
+        <span class="section-no">03 / FLOW</span>
+        <h2 id="flow-title">数据只走一趟</h2>
+        <p>图中状态名是研究者把官方时序压成的一条线。输入字段和停止行为来自官方契约。</p>
+      </div>
+      <div class="content">
+        <div class="protocol" role="img" aria-label="刷新条件进入 Claude Code，JSON 通过 stdin 交给命令，stdout 再交回底栏">
+          <div class="node"><b>EVENT</b><p>事件或定时器把状态从等待推到待刷新。</p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node"><b>JSON STDIN</b><p>会话、工作区、成本和上下文在同一个对象里。</p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node"><b>CAPTURED STDOUT</b><p>stdout 完成后替换底栏。非零退出或无输出会让底栏变空。</p></div>
+        </div>
+        <p class="flow-note"><span class="tag i">I</span> 可以把一次调用理解为 wait → pending → running → displayed。blocked、blank 与 cancelled 是旁路终点。官方没有公开内部枚举，这些名字只帮助阅读。</p>
+        <table class="field-table">
+          <thead><tr><th>数据组</th><th>Claude Code 给什么</th><th>脚本要留意什么</th></tr></thead>
+          <tbody>
+            <tr><td>会话与位置</td><td><code>session_id</code>、<code>session_name</code>、<code>prompt_id</code>、<code>cwd</code>、<code>transcript_path</code></td><td>这些值能定位真实会话。不要把整份输入写进日志。<span class="tag i">I</span></td></tr>
+            <tr><td>模型与上下文</td><td><code>model</code>、<code>context_window</code>、<code>effort</code>、<code>thinking</code></td><td>上下文取自最近一次 API 响应。首个响应前应准备 null 兜底。<span class="tag">O</span></td></tr>
+            <tr><td>成本与时间</td><td><code>total_cost_usd</code>、总时长、API 等待时长和改动行数</td><td>美元值是客户端估算，可能不同于实际账单。<span class="tag">O</span></td></tr>
+            <tr><td>套餐与速率窗口</td><td><code>rate_limits.five_hour</code>、<code>rate_limits.seven_day</code></td><td>只向 Claude.ai Pro 或 Max 用户提供，并且要等首次 API 响应。每个窗口都可能缺席。<span class="tag">O</span></td></tr>
+            <tr><td>git 与协作</td><td>仓库身份、worktree、已发现的 PR 或 MR</td><td>普通分支和 dirty 计数常由脚本自行运行 git 取得。<span class="tag">O</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head">
+        <span class="section-no">04 / LIMITS</span>
+        <h2 id="limits-title">本地刷新只占其中一层</h2>
+        <p>statusline 子进程在本机刷新，不消耗 API token。这项承诺不覆盖自然语言配置和外围 Claude 会话。</p>
+      </div>
+      <div class="content limit-grid">
+        <article class="limit"><span class="tag">O</span><h3>认证和配置</h3><p>Claude Code 的交互会话需要按部署方式认证。<code>/statusline</code> 会理解自然语言、生成脚本并改设置。手动写脚本和设置可以省掉这次生成动作。</p></article>
+        <article class="limit"><span class="tag">O</span><h3>订阅和 API 费用</h3><p>本地子进程每次刷新都不花 API token。外围会话仍按接入方式计算用量。Pro 与 Max 计入订阅额度，Console 和云服务按各自的 API 账单处理。</p></article>
+        <article class="limit"><span class="tag">O</span><h3>套餐限定字段</h3><p>2.1.247 的五小时与七天窗口只面向 Claude.ai Pro 或 Max，并且首次 API 响应后才可能出现。gateway 的 <code>spend_limit</code> 要到 2.1.251 才支持。</p></article>
+        <article class="limit"><span class="tag">O</span><h3>Workspace trust</h3><p>目录尚未被信任时，命令会跳过，状态行保持空白。debug 会记录跳过原因。</p></article>
+        <article class="limit"><span class="tag">O</span><h3>Managed gate</h3><p><code>disableAllHooks</code> 与 <code>allowManagedHooksOnly</code> 会按设置来源决定自定义 statusLine 能否运行。</p></article>
+        <article class="limit"><span class="tag">O</span><h3>失败和空输出</h3><p>非零退出或没有 stdout 都产生空白。stderr 不会自动变成底栏文字，可用 debug 看首个调用的退出码和 stderr。</p></article>
+        <article class="limit"><span class="tag">O</span><h3>慢脚本和取消</h3><p>脚本没结束，状态行就不会更新。新刷新到来时旧进程被取消，新的快照随后接手。</p></article>
+        <article class="limit"><span class="tag">O</span><h3>临时隐藏</h3><p>自动补全、帮助菜单和权限提示出现时，状态行会暂时隐藏。窄终端里的通知也可能截短它。</p></article>
+        <article class="limit"><span class="tag i">I</span><h3>脚本自己的权限</h3><p>官方只说明命令在本机 shell 中运行，没有承诺为脚本的读写和网络再弹 Claude 工具权限提示。脚本应按本机程序对待。</p></article>
+        <div class="warning"><strong>refreshInterval 不是超时。</strong> 它只增加刷新时机。官方没有公开 statusLine 的固定截止时间，也没有配置 timeout 字段。没有新刷新时，一个卡住的命令何时被强制结束仍然未知。</div>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head">
+        <span class="section-no">05 / EXPERIMENT</span>
+        <h2 id="experiment-title">本轮停在静态核对</h2>
+        <p>子进程刷新可以零 token，启动外围交互会话仍会接触认证和会话状态，也可能占用订阅额度或产生 API 费用。本轮没有得到这类授权。</p>
+      </div>
+      <div class="content">
+        <div class="facts">
+          <div class="fact"><b>2.1.247</b><span>固定二进制返回的版本</span></div>
+          <div class="fact"><b>O + L</b><span>本页实际拥有的证据层</span></div>
+          <div class="fact"><b>R = 0</b><span>没有真实子进程调用</span></div>
+        </div>
+        <details open>
+          <summary>只读命令得到了什么</summary>
+          <div class="details-body"><p>固定二进制的 version 返回 2.1.247，help 能正常读取。当前 PATH 没有 claude 入口，安装文件的静态读取又被操作系统拒绝，所以本页没有重做二进制摘要，也没有用 strings 推断内部实现。</p><p>这些结果只证明固定版本入口存在。它们证明不了 stdin 的真实字段集合、300 毫秒防抖或进程取消已经在这台机器上发生。</p></div>
+        </details>
+        <p class="flow-note"><span class="tag r">R</span> mock JSON 能测试一段脚本，却不能测试 Claude Code 的调度与渲染。本页没有把 mock 冒充真实产品实验。</p>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head">
+        <span class="section-no">06 / IMPLEMENTATION</span>
+        <h2 id="implementation-title">给脚本留好退路</h2>
+        <p>字段缺席、git 变慢和异常退出都很常见。最小脚本先读完 stdin，再用短输出收住。</p>
+      </div>
+      <div class="content">
+        <pre aria-label="安全的 statusline 脚本骨架"><code>#!/bin/sh
+input=$(cat)
+
+model=$(printf '%s' "$input" | jq -r '.model.display_name // "?"')
+used=$(printf '%s' "$input" | jq -r '.context_window.used_percentage // 0')
+
+# Keep optional git work bounded and cache its result.
+# Do not dump the full JSON. It contains session and path identifiers.
+printf '%s · context %s%%\n' "$model" "$used"</code></pre>
+        <p class="flow-note"><span class="tag i">I</span> 若脚本还要调用网络或较慢的 git 命令，给那一步设置自己的短截止时间，并缓存结果。Claude Code 的公开配置没有 statusline timeout 可以替脚本兜底。</p>
+        <div class="version-list" aria-label="版本差异">
+          <div class="version"><b>1.0.71</b><p>官方 changelog 已记录可定制 status line 与 <code>/statusline</code>。</p></div>
+          <div class="version"><b>2.1.92 至 2.1.101</b><p><code>refreshInterval</code> 与 <code>workspace.git_worktree</code> 进入官方发布批次。</p></div>
+          <div class="version"><b>2.1.196+</b><p><code>prompt_id</code> 可用，且只会在第一次用户输入后出现。</p></div>
+          <div class="version"><b>2.1.211+</b><p><code>/clear</code> 开新会话时，估算会话成本归零。</p></div>
+          <div class="version"><b>2.1.234+</b><p>GitLab merge request 数据进入 <code>pr</code> 字段。</p></div>
+          <div class="version"><b>2.1.251+</b><p><code>prompt_cache</code> 与 gateway spend limit 才可用，超出本页的 2.1.247。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head">
+        <span class="section-no">07 / UNKNOWNS</span>
+        <h2 id="unknowns-title">还有五处不能写死</h2>
+        <p>公开 schema 讲清了接口，没有把每个平台的进程清理细节一并公开。</p>
+      </div>
+      <div class="content unknown-grid">
+        <article class="unknown"><h3>固定超时</h3><p>没有新刷新时，2.1.247 会不会在某个未公开的时限强制结束卡住的脚本。</p></article>
+        <article class="unknown"><h3>后代进程</h3><p>macOS、Linux、Git Bash 与 PowerShell 上的取消是否会递归清理脚本创建的全部后代。</p></article>
+        <article class="unknown"><h3>stdout 上限</h3><p>捕获字节数、尾随换行与异常 ANSI 序列的精确处理规则没有公开。</p></article>
+        <article class="unknown"><h3>环境继承</h3><p>除了明确给出的 <code>COLUMNS</code> 与 <code>LINES</code>，子进程还会继承或过滤哪些环境变量。</p></article>
+        <article class="unknown"><h3>实际速率窗口</h3><p>满足套餐和首次 API 响应条件以后，当前账号究竟会收到哪些 rate-limit 窗口，仍需隔离真实会话核对。</p></article>
+        <article class="unknown"><h3>渲染边界</h3><p>输出怎样与通知、fullscreen 和辅助技术共同排版，由相邻 UI-02 页面继续解释。</p></article>
+      </div>
+    </section>
+
+    <section class="sheet" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head">
+        <span class="section-no">08 / SOURCES</span>
+        <h2 id="sources-title">一手资料和复现入口</h2>
+        <p>事实只取 Anthropic 官方文档、官方发布说明和官方仓库。命令摘要与完整复现计划写在 evidence.md。</p>
+      </div>
+      <div class="content source-grid">
+        <a class="source" href="https://code.claude.com/docs/en/statusline"><small>OFFICIAL DOC</small><h3>Customize your status line</h3><p>证明 JSON stdin、stdout、刷新、取消、字段和故障处理。</p></a>
+        <a class="source" href="https://code.claude.com/docs/en/settings"><small>OFFICIAL DOC</small><h3>Claude Code settings</h3><p>证明用户、项目、本地与 managed 设置的作用域。</p></a>
+        <a class="source" href="https://code.claude.com/docs/en/permissions"><small>OFFICIAL DOC</small><h3>Configure permissions</h3><p>证明 workspace trust 和项目设置的执行边界。</p></a>
+        <a class="source" href="https://code.claude.com/docs/en/authentication"><small>OFFICIAL DOC</small><h3>Authentication</h3><p>证明 Claude Code 会话支持的账号、订阅、Console 与云服务认证方式。</p></a>
+        <a class="source" href="https://code.claude.com/docs/en/costs"><small>OFFICIAL DOC</small><h3>Manage costs effectively</h3><p>证明订阅额度、API token 计费与本地成本估算的边界。</p></a>
+        <a class="source" href="https://code.claude.com/docs/en/whats-new/2026-w15"><small>OFFICIAL RELEASE</small><h3>Week 15 release notes</h3><p>证明 refreshInterval 与 git worktree 字段的发布批次。</p></a>
+        <a class="source" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><small>OFFICIAL REPO</small><h3>Claude Code changelog</h3><p>证明 statusline 的早期版本记录。</p></a>
+        <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+        <a class="source" href="../20260827-ui-02-terminal-rendering-accessibility/explainer.html"><small>ADJACENT XRAY</small><h3>返回 UI-02 主页面</h3><p>继续查看 fullscreen、classic、主题和无障碍呈现。</p></a>
+        <a class="source" href="../index.html"><small>XRAY INDEX</small><h3>返回总索引</h3><p>查看本页与会话、git、hooks 和管理页面的边界。</p></a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>COMP-UI-STATUSLINE · Custom Status Line 的子进程协议</span>
+    <span>documented · Claude Code 2.1.247 · 2026-08-27 baseline</span>
+  </footer>
+</body>
+</html>

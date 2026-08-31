@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CTX-04">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CTX-04 自动记忆的写入、加载与失效</title>
+  <style>
+    :root {
+      --paper: #eee5cf;
+      --paper-deep: #dfd0af;
+      --ink: #17211d;
+      --muted: #5a625b;
+      --rule: #9c8f70;
+      --red: #b43b2f;
+      --green: #275b4c;
+      --blue: #264c63;
+      --gold: #c18a2d;
+      --shadow: rgba(28, 33, 28, .16);
+      --max: 1180px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: #202824; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(54,64,56,.06) 1px, transparent 1px) 0 0 / 28px 28px,
+        linear-gradient(rgba(54,64,56,.06) 1px, transparent 1px) 0 0 / 28px 28px,
+        var(--paper);
+      font-family: "Noto Serif CJK SC", "Source Han Serif SC", "Songti SC", STSong, Georgia, serif;
+      line-height: 1.72;
+    }
+    a { color: var(--blue); text-underline-offset: .18em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--ink);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 6px #fff8e9;
+      border-radius: 2px;
+    }
+    code, .mono {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .92em;
+      background: rgba(23,33,29,.08);
+      border-radius: 3px;
+      padding: .08em .35em;
+    }
+    .mast {
+      min-height: 100svh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      border-bottom: 7px solid var(--ink);
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+      padding: 1rem max(1.1rem, calc((100vw - var(--max)) / 2));
+      border-bottom: 1px solid var(--rule);
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .78rem;
+      letter-spacing: .05em;
+    }
+    .status { display: flex; align-items: center; gap: .55rem; }
+    .status::before { content: ""; width: .66rem; height: .66rem; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px rgba(193,138,45,.2); }
+    .hero {
+      width: min(var(--max), calc(100% - 2.2rem));
+      margin: auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+      gap: clamp(2rem, 7vw, 7rem);
+      align-items: center;
+      padding: 4rem 0;
+    }
+    .kicker { margin: 0 0 1rem; font-family: "SFMono-Regular", Menlo, monospace; font-size: .78rem; letter-spacing: .16em; color: var(--red); }
+    h1, h2, h3 { line-height: 1.12; margin-top: 0; font-weight: 700; }
+    h1 { font-size: clamp(2.8rem, 7.2vw, 6.7rem); letter-spacing: -.07em; margin-bottom: 1.25rem; max-width: 10ch; }
+    .lede { font-size: clamp(1.2rem, 2.2vw, 1.75rem); line-height: 1.52; max-width: 27em; margin: 0; }
+    .answer-line { display: block; width: 5rem; height: 6px; background: var(--red); margin: 1.65rem 0 1.3rem; }
+    .index-card {
+      position: relative;
+      background: #f5edda;
+      border: 1px solid #807456;
+      box-shadow: 13px 15px 0 var(--paper-deep), 15px 17px 0 #807456, 26px 28px 32px var(--shadow);
+      padding: 2rem 1.6rem 1.7rem;
+      transform: rotate(1.2deg);
+    }
+    .index-card::before {
+      content: "MEMORY.md";
+      position: absolute;
+      top: -1px;
+      right: 1.4rem;
+      transform: translateY(-55%);
+      background: var(--red);
+      color: #fff8e9;
+      padding: .3rem .65rem;
+      font: 700 .72rem/1 "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .08em;
+    }
+    .line { display: grid; grid-template-columns: 2.1rem 1fr; gap: .8rem; border-bottom: 1px solid rgba(128,116,86,.45); padding: .72rem 0; align-items: baseline; }
+    .line b { color: var(--red); font: 700 .75rem/1 "SFMono-Regular", Menlo, monospace; }
+    .line span { font-size: .97rem; }
+    .hero-foot { padding: 1rem max(1.1rem, calc((100vw - var(--max)) / 2)); display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--rule); font-size: .85rem; color: var(--muted); }
+    .nav-wrap { background: var(--ink); color: #f4ead4; position: sticky; top: 0; z-index: 5; overflow-x: auto; }
+    nav { width: min(var(--max), calc(100% - 2rem)); margin: auto; display: flex; white-space: nowrap; }
+    nav a { color: inherit; text-decoration: none; padding: .88rem 1rem; font: .77rem/1 "SFMono-Regular", Menlo, monospace; border-right: 1px solid rgba(244,234,212,.18); }
+    nav a:hover { background: var(--red); color: white; }
+    main { width: min(var(--max), calc(100% - 2.2rem)); margin: 0 auto; padding: 4.5rem 0 7rem; }
+    section { scroll-margin-top: 4.8rem; padding: 4.7rem 0; border-bottom: 1px solid var(--rule); }
+    .section-head { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: 1.3rem; align-items: start; margin-bottom: 2.5rem; }
+    .num { font: 700 .78rem/1 "SFMono-Regular", Menlo, monospace; color: var(--red); border-top: 4px solid var(--red); padding-top: .65rem; }
+    h2 { font-size: clamp(2rem, 4.8vw, 4rem); letter-spacing: -.045em; margin-bottom: .55rem; }
+    .section-head p { margin: 0; max-width: 45rem; color: var(--muted); }
+    .callout { border-left: 8px solid var(--green); padding: 1.2rem 1.4rem; background: rgba(39,91,76,.08); font-size: 1.14rem; max-width: 58rem; }
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--rule); margin-top: 2rem; }
+    .legend div { padding: 1.15rem; border-right: 1px solid var(--rule); }
+    .legend div:last-child { border: 0; }
+    .legend b { display: block; width: 2rem; height: 2rem; display: grid; place-items: center; color: #fff; background: var(--ink); margin-bottom: .65rem; font-family: "SFMono-Regular", Menlo, monospace; }
+    .legend div:nth-child(1) b { background: var(--green); }
+    .legend div:nth-child(2) b { background: var(--blue); }
+    .legend div:nth-child(3) b { background: var(--red); }
+    .legend div:nth-child(4) b { background: #7d652c; }
+    .terms { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+    .term { background: var(--paper); padding: 1.6rem; }
+    .term h3 { font-size: 1.25rem; margin-bottom: .45rem; }
+    .term p { margin: 0; color: var(--muted); }
+    .sequence { list-style: none; padding: 0; margin: 0; counter-reset: steps; }
+    .sequence li { counter-increment: steps; display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 1rem; padding: 1.5rem 0; border-top: 1px solid var(--rule); }
+    .sequence li::before { content: "0" counter(steps); font: 700 2rem/1 "SFMono-Regular", Menlo, monospace; color: var(--red); }
+    .sequence h3 { margin-bottom: .4rem; font-size: 1.28rem; }
+    .sequence p { margin: 0; max-width: 48rem; }
+    .tag { display: inline-block; font: 700 .68rem/1 "SFMono-Regular", Menlo, monospace; color: white; background: var(--green); padding: .32rem .45rem; margin-left: .45rem; vertical-align: .2em; }
+    .tag.i { background: #7d652c; }
+    .flow-grid { display: grid; grid-template-columns: 1fr 4.8rem 1fr 4.8rem 1fr; align-items: stretch; }
+    .node { border: 1px solid var(--ink); padding: 1.4rem; background: rgba(245,237,218,.65); min-height: 10rem; }
+    .node small { color: var(--red); font: 700 .7rem/1 "SFMono-Regular", Menlo, monospace; }
+    .node h3 { margin: 1rem 0 .55rem; font-size: 1.3rem; }
+    .node p { margin: 0; color: var(--muted); }
+    .arrow { display: grid; place-items: center; color: var(--red); font-size: 2.2rem; }
+    .files { margin-top: 2rem; display: grid; grid-template-columns: 1.1fr .9fr; gap: 1.5rem; }
+    .filebox { border: 1px solid var(--rule); background: rgba(255,255,255,.22); padding: 1.5rem; }
+    .filebox h3 { margin-bottom: 1rem; }
+    .filebox ul { margin: 0; padding-left: 1.2rem; }
+    .limit-meter { margin: 1.2rem 0; height: 1.6rem; border: 1px solid var(--ink); padding: 3px; background: #f5edda; }
+    .limit-meter span { display: block; height: 100%; width: 74%; background: linear-gradient(90deg, var(--green) 0 76%, var(--gold) 76% 91%, var(--red) 91%); }
+    .matrix { width: 100%; border-collapse: collapse; font-size: .96rem; }
+    .matrix th, .matrix td { text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); padding: 1rem .8rem; }
+    .matrix th { font-family: "SFMono-Regular", Menlo, monospace; font-size: .72rem; letter-spacing: .04em; color: var(--muted); }
+    .matrix td:first-child { font-weight: 700; width: 18%; }
+    .warn { color: var(--red); font-weight: 700; }
+    .experiment { display: grid; grid-template-columns: .7fr 1.3fr; border: 1px solid var(--rule); }
+    .experiment > div { padding: 1.7rem; }
+    .experiment > div:first-child { background: var(--ink); color: #f4ead4; }
+    .experiment h3 { margin-bottom: .7rem; }
+    .experiment p { margin: 0 0 .9rem; }
+    .version-strip { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--rule); }
+    .version-strip div { padding: 1rem; border-right: 1px solid var(--rule); }
+    .version-strip div:last-child { border: 0; }
+    .version-strip b { display: block; font: 700 .82rem/1 "SFMono-Regular", Menlo, monospace; color: var(--red); margin-bottom: .5rem; }
+    details { border-top: 1px solid var(--rule); }
+    details:last-child { border-bottom: 1px solid var(--rule); }
+    summary { cursor: pointer; padding: 1.1rem .2rem; font-weight: 700; }
+    details p { max-width: 54rem; margin: 0 0 1.2rem 2rem; color: var(--muted); }
+    .sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+    .source { display: block; background: var(--paper); padding: 1.4rem; text-decoration: none; min-height: 8rem; }
+    .source:hover { background: #f8efdb; }
+    .source b { display: block; color: var(--ink); font-size: 1.05rem; margin-bottom: .5rem; }
+    .source span { color: var(--muted); font-size: .92rem; }
+    footer { background: var(--ink); color: #f4ead4; padding: 2.6rem max(1.1rem, calc((100vw - var(--max)) / 2)); display: flex; justify-content: space-between; gap: 1rem; }
+    footer a { color: #f4ead4; }
+    @media (prefers-reduced-motion: no-preference) {
+      .index-card { animation: settle .7s cubic-bezier(.2,.8,.2,1) both; }
+      @keyframes settle { from { transform: translateY(18px) rotate(3deg); opacity: 0; } to { transform: translateY(0) rotate(1.2deg); opacity: 1; } }
+    }
+    @media (max-width: 760px) {
+      .topbar, .hero-foot, footer { align-items: flex-start; flex-direction: column; }
+      .mast { min-height: auto; }
+      .hero { grid-template-columns: 1fr; padding: 4rem 0 5rem; }
+      h1 { max-width: none; font-size: clamp(2.8rem, 16vw, 5rem); }
+      .index-card { width: calc(100% - 18px); margin-top: 1.5rem; }
+      main { width: min(100% - 1.5rem, var(--max)); padding-top: 2rem; }
+      section { padding: 3.5rem 0; }
+      .section-head { grid-template-columns: 3.2rem 1fr; gap: .8rem; }
+      .legend, .terms, .files, .experiment, .sources { grid-template-columns: 1fr; }
+      .legend div { border-right: 0; border-bottom: 1px solid var(--rule); }
+      .flow-grid { grid-template-columns: 1fr; }
+      .arrow { min-height: 3.2rem; transform: rotate(90deg); }
+      .version-strip { grid-template-columns: 1fr; }
+      .version-strip div { border-right: 0; border-bottom: 1px solid var(--rule); }
+      .sequence li { grid-template-columns: 3.5rem minmax(0,1fr); }
+      .matrix, .matrix tbody, .matrix tr, .matrix td { display: block; width: 100%; }
+      .matrix { font-size: .92rem; }
+      .matrix thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+      .matrix tr { padding: 1rem 0; border-bottom: 1px solid var(--rule); }
+      .matrix td, .matrix td:first-child { width: 100%; border: 0; padding: .3rem .25rem; }
+      .matrix td::before { display: inline-block; min-width: 5.5rem; color: var(--muted); font: 700 .68rem/1 "SFMono-Regular", Menlo, monospace; letter-spacing: .04em; }
+      .matrix td:nth-child(1)::before { content: "位置"; }
+      .matrix td:nth-child(2)::before { content: "发生什么"; }
+      .matrix td:nth-child(3)::before { content: "用户处理"; }
+      .matrix td:nth-child(4)::before { content: "证据"; }
+      nav { width: 100%; }
+      nav a { padding-inline: .8rem; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：自动记忆的写入、加载与失效。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ctx-04-auto-memory/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CTX-04 · 自动记忆的写入、加载与失效">
+  <meta property="og:description" content="Claude Code X-Ray：自动记忆的写入、加载与失效。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ctx-04-auto-memory/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CTX-04 · 自动记忆的写入、加载与失效">
+  <meta name="twitter:description" content="Claude Code X-Ray：自动记忆的写入、加载与失效。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CTX-04</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="mast" data-xray-section="answer" id="answer">
+    <div class="topbar">
+      <a href="../index.html">← 返回总索引</a>
+      <div class="status">CTX-04 · 当前状态 documented · Claude Code 2.1.247</div>
+    </div>
+    <div class="hero">
+      <div>
+        <p class="kicker">AUTO MEMORY / 本地持久化</p>
+        <h1>记住以后，下次从索引继续</h1>
+        <span class="answer-line"></span>
+        <p class="lede">Claude 会挑出将来可能还有用的反馈和项目事实，写进当前仓库对应的本地 Markdown。新会话只先读索引前 200 行或 25KB。你可以随时打开、改掉、删除或关闭它。</p>
+      </div>
+      <aside class="index-card" aria-label="自动记忆索引示意">
+        <div class="line"><b>01</b><span>用户偏好与角色</span></div>
+        <div class="line"><b>02</b><span>已经确认的纠正</span></div>
+        <div class="line"><b>03</b><span>代码里找不到的项目决定</span></div>
+        <div class="line"><b>04</b><span>外部资料在哪里</span></div>
+        <div class="line"><b>→</b><span>详细内容留在主题文件，等用到再读</span></div>
+      </aside>
+    </div>
+    <div class="hero-foot"><span>基线日期 2026-08-27</span><span>结论来自官方契约与本机只读帮助，没有真实付费会话实验</span></div>
+  </header>
+
+  <div class="nav-wrap">
+    <nav aria-label="页面章节">
+      <a href="#terms">名词</a><a href="#sequence">顺序</a><a href="#flow">文件流</a><a href="#limits">边界</a><a href="#experiment">实验</a><a href="#implementation">版本</a><a href="#unknowns">未知</a><a href="#sources">来源</a>
+    </nav>
+  </div>
+
+  <main>
+    <section data-xray-section="terms" id="terms">
+      <div class="section-head"><span class="num">01</span><div><h2>先认清三样东西</h2><p>自动记忆、索引和主题文件各做一件事。把它们混成一个大文件，会误读启动加载范围。</p></div></div>
+      <div class="terms">
+        <article class="term"><h3>自动记忆</h3><p>Claude 自己写的跨会话笔记。官方限定为用户、反馈、项目和引用四类，按仓库划分。</p></article>
+        <article class="term"><h3>MEMORY.md</h3><p>目录索引。每次新会话自动装入的只有它的前 200 行或 25KB，哪条先到就停。</p></article>
+        <article class="term"><h3>主题文件</h3><p>每条记忆的详细内容。启动时不自动装入，Claude 在需要时用普通文件工具读取。</p></article>
+        <article class="term"><h3>modified</h3><p>Claude 再写带 frontmatter 的文件时记录的 ISO 时间。它帮助判断新旧，不负责自动判定真假。</p></article>
+      </div>
+      <div class="legend" aria-label="证据图例">
+        <div><b>O</b><span>Anthropic 官方契约</span></div>
+        <div><b>L</b><span>本机静态与帮助证据</span></div>
+        <div><b>R</b><span>隔离真实运行。本页没有</span></div>
+        <div><b>I</b><span>研究者推断，保留不确定性</span></div>
+      </div>
+    </section>
+
+    <section data-xray-section="sequence" id="sequence">
+      <div class="section-head"><span class="num">02</span><div><h2>一次记忆怎样走到下次会话</h2><p>这条时序从用户的一次纠正开始，到后续会话拿到索引前缀结束。</p></div></div>
+      <ol class="sequence">
+        <li><div><h3>信息进入对话 <span class="tag">O</span></h3><p>用户给出偏好、纠正、项目决定或外部资料位置。也可以直接要求 Claude 记住某件事。</p></div></li>
+        <li><div><h3>Claude 判断有没有复用价值 <span class="tag">O</span></h3><p>它会跳过代码或 Git 能推出的内容，也跳过 CLAUDE.md 已经写明的内容。没有足够价值时，这一轮到此为止。</p></div></li>
+        <li><div><h3>会话中写主题与索引 <span class="tag">O</span></h3><p>Claude 把内容写进本仓库对应的记忆目录，用 MEMORY.md 记录它放在哪里。界面可能显示保存了几条记忆。</p></div></li>
+        <li><div><h3>客户端在写后量索引 <span class="tag">O</span></h3><p>接近上限就提醒 Claude 缩短。越界写入仍落盘，随后返回错误，要求改写索引。</p></div></li>
+        <li><div><h3>新会话装入索引前缀 <span class="tag">O</span></h3><p>启动只带入 MEMORY.md 的前 200 行或 25KB。越过上限的内容留在文件里，却不会出现在这次启动上下文。</p></div></li>
+        <li><div><h3>需要细节时再读主题文件 <span class="tag">O</span></h3><p>Claude 根据索引定位主题文件。记忆只作为上下文影响判断，不构成强制执行规则。</p></div></li>
+      </ol>
+    </section>
+
+    <section data-xray-section="flow" id="flow">
+      <div class="section-head"><span class="num">03</span><div><h2>文件流有一道窄门</h2><p>详细内容可以很多，自动进入后续会话的部分很小。</p></div></div>
+      <div class="flow-grid" aria-label="自动记忆文件流">
+        <article class="node"><small>会话 N</small><h3>纠正与决定</h3><p>模型筛选将来可能还会用到、代码里又找不到的信息。</p></article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="node"><small>本地磁盘</small><h3>索引加主题页</h3><p>MEMORY.md 留一行入口，主题文件保存细节。两者都能被人直接改删。</p></article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="node"><small>会话 N+1</small><h3>先拿索引前缀</h3><p>主题页等到相关任务出现再读。关闭自动记忆后，这一步停下。</p></article>
+      </div>
+      <div class="files">
+        <article class="filebox"><h3>默认作用域 <span class="tag">O</span></h3><ul><li>每个 Git 仓库一份目录</li><li>同仓库 worktree 与子目录共享</li><li>离开 Git 仓库后按项目根归组</li><li>只在本机，不同步到另一台机器或云环境</li></ul></article>
+        <article class="filebox"><h3>启动读入量 <span class="tag">O</span></h3><div class="limit-meter" aria-label="索引上限示意"><span></span></div><p>200 行与 25KB 同时计数，先碰到哪一个就在哪里截断。这个上限只管 MEMORY.md。</p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="limits" id="limits">
+      <div class="section-head"><span class="num">04</span><div><h2>开关、失效与停止位置</h2><p>用户能控制读写和文件，自动记忆本身没有替用户兜底的强制力。</p></div></div>
+      <table class="matrix">
+        <thead><tr><th>位置</th><th>发生什么</th><th>用户怎样处理</th><th>证据</th></tr></thead>
+        <tbody>
+          <tr><td>没有复用价值</td><td>Claude 不保存，每个会话都可能没有新记忆。</td><td>需要明确持久化时，可以直接要求“记住”。</td><td>O</td></tr>
+          <tr><td>自动记忆关闭</td><td>不再创建或加载自动记忆文件。</td><td>用 <code>/memory</code> 切换并保存到用户设置，项目设置也可单独写 false，环境变量还能关掉它。</td><td>O</td></tr>
+          <tr><td>索引接近上限</td><td>客户端提醒压缩条目、移动细节、合并或删掉陈旧项。</td><td>打开目录，检查一行一条的索引是否仍准确。</td><td>O</td></tr>
+          <tr><td>索引已经越界</td><td>写入成功，客户端返回错误。下次启动会漏掉越界部分。</td><td>缩短索引，再把细节移进主题文件。</td><td>O</td></tr>
+          <tr><td>内容已经失效</td><td><code>modified</code> 只显示最后改写时间，没有自动过期承诺。</td><td>用 <code>/memory</code> 打开 Markdown，直接改或删。</td><td>O</td></tr>
+          <tr><td>需要硬性阻断</td><td>记忆只是上下文，模型不保证严格遵循。</td><td>用 PreToolUse hook 无条件阻断相应动作。</td><td>O</td></tr>
+          <tr><td>关闭后仍有旧文件</td><td>开关停止读写，保留期清扫又排除记忆文件。旧内容会留在磁盘。</td><td>确认不再需要后手动删掉相关 Markdown。<span class="warn">重新开启前先审阅。</span></td><td>I</td></tr>
+        </tbody>
+      </table>
+      <div class="files">
+        <article class="filebox"><h3>访问方式 <span class="tag">O</span></h3><p>使用本地 CLI 仍要先完成认证。个人可以用 claude.ai 的 Pro 或 Max 账号，团队可以用 Team 或 Enterprise 账号。组织也可以接入 Anthropic Console、Amazon Bedrock、Google Cloud 的 Agent Platform 或 Microsoft Foundry。官方把本地运行的 CLI 能力列为所有提供商可用，没有为自动记忆另列套餐门槛。</p></article>
+        <article class="filebox"><h3>费用归属 <span class="tag">O</span></h3><p>费用跟当前认证走。Pro 与 Max 的使用包含在订阅中，Team 与 Enterprise 会消耗成员的席位额度。Console 和云提供商按 token 向对应组织或云账户计费。新会话会再次调用模型，可能继续消耗额度或产生 token 费用。</p></article>
+      </div>
+      <div class="callout"><strong>权限边界</strong>　自定义记忆目录必须是绝对路径或以 <code>~/</code> 开头。项目或本地设置提出的重定向受工作区信任规则约束。官方没有公开每次自动写入是否弹出普通文件权限提示。</div>
+    </section>
+
+    <section data-xray-section="experiment" id="experiment">
+      <div class="section-head"><span class="num">05</span><div><h2>本轮停在只读证据</h2><p>没有 R，就不把官方文档画成已经亲手跑通的路径。</p></div></div>
+      <div class="experiment">
+        <div><h3>状态 documented</h3><p>没有启动新 Claude 会话，没有打开私人记忆目录，也没有修改任何设置。</p><p>真实写入、跨会话加载和失效修订仍待隔离实验。</p></div>
+        <div><h3>本机看到了什么 <span class="tag">L</span></h3><p><code>claude --version</code> 返回 2.1.248。当前二进制已经偏离指定的 2.1.247 基线，因此本机帮助只能证明当前安装带有相关入口。</p><p>静态帮助写明 <code>--bare</code> 跳过自动记忆；二进制含公开契约名 <code>autoMemoryEnabled</code>、<code>autoMemoryDirectory</code>、禁用变量与 <code>MEMORY.md</code>。这些字符串不能证明一条真实记忆曾经写入或加载。</p><p>未做 R 的原因很直接。新会话可能产生付费调用，也可能碰到已有私人状态，超出这轮安全边界。</p></div>
+      </div>
+    </section>
+
+    <section data-xray-section="implementation" id="implementation">
+      <div class="section-head"><span class="num">06</span><div><h2>2.1.247 之前已经补齐哪些能力</h2><p>版本日期能说明一项能力何时进入公开契约，不能替代这台机器上的真实运行。</p></div></div>
+      <div class="version-strip">
+        <div><b>2.1.59</b><span>自动保存有用上下文，并由 /memory 管理</span></div>
+        <div><b>2.1.63</b><span>同仓库的 worktree 共享自动记忆</span></div>
+        <div><b>2.1.74</b><span>加入自定义记忆目录</span></div>
+        <div><b>2.1.214</b><span>frontmatter 加入 modified 时间</span></div>
+        <div><b>2.1.247</b><span>本页固定基线，以上门槛均已越过</span></div>
+      </div>
+      <p class="callout">研究日的本机已升级到 2.1.248。官方 2.1.248 changelog 没列自动记忆语义变化，这仍不足以把 2.1.248 的 L 证据当作 2.1.247 的 R。</p>
+    </section>
+
+    <section data-xray-section="unknowns" id="unknowns">
+      <div class="section-head"><span class="num">07</span><div><h2>官方没有说透的地方</h2><p>这些缺口会改变诊断方式，页面把它们留在明处。</p></div></div>
+      <details open><summary>Claude 怎样判断“将来有用”</summary><p>四种类型和跳过原则已经公开，内部评分、阈值与去重算法没有公开。</p></details>
+      <details><summary>并发写入怎样合并</summary><p>同仓库的 worktree 共享目录。两个会话同时改索引时采用什么锁、谁先落盘、冲突怎样恢复，官方没有给出契约。</p></details>
+      <details><summary>失效是否会被自动识别</summary><p><code>modified</code> 只留下日期线索。自动 TTL、可信度分数、事实复核和回滚机制都没有公开说明。</p></details>
+      <details><summary>普通文件权限提示会不会出现</summary><p>文档说 Claude 在会话中读写记忆文件，也说主题页通过普通文件工具读取。自动写入与通用权限层之间的精确调用关系仍缺少 R。</p></details>
+      <details><summary>关闭后再开启会不会复查旧条目</summary><p>开关的读写效果与文件保留都能从文档确认。重新开启时是否先做额外陈旧检查，官方没有说明。</p></details>
+    </section>
+
+    <section data-xray-section="sources" id="sources">
+      <div class="section-head"><span class="num">08</span><div><h2>一手来源与复现入口</h2><p>所有技术结论回到 Anthropic 官方页面。完整命令摘要与隔离复现步骤见本目录 evidence.md。</p></div></div>
+      <div class="sources">
+        <a class="source" href="https://code.claude.com/docs/en/memory"><b>记忆与自动记忆的完整契约</b><span>证明写入者、四种类型、目录、加载上限、开关、编辑和失效处理。</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/commands"><b>/memory 的官方命令入口</b><span>证明用户可以编辑记忆、切换自动记忆并查看条目。</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/claude-directory"><b>本地目录与保留期边界</b><span>证明自动记忆目录不受普通会话保留期清扫，并说明 Project 清理范围。</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/changelog"><b>自动记忆的版本演进</b><span>证明加入、worktree 共享、自定义目录和 modified 时间的版本节点。</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/env-vars"><b>关闭自动记忆的环境变量</b><span>证明禁用时不创建或加载自动记忆文件。</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/authentication"><b>登录与提供商认证</b><span>证明订阅账号、Console 与三个云提供商的认证路径。</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/feature-availability"><b>本地 CLI 的提供商边界</b><span>证明本地能力适用于各提供商，并给出订阅套餐范围。</span></a>
+        <a class="source" href="https://code.claude.com/docs/en/costs"><b>额度与 token 费用归属</b><span>证明订阅、席位、Console 与云账户各自承担哪类用量。</span></a>
+        <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+      </div>
+    </section>
+  </main>
+
+  <footer><span>CTX-04 · documented · Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></footer>
+</body>
+</html>

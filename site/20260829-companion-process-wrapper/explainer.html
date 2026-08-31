@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-ADM-PROCESS-WRAPPER">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>伴页 Corporate Launcher 与 Process Wrapper</title>
+  <style>
+    :root{
+      --ink:#171815;
+      --soot:#20231f;
+      --paper:#eee9dc;
+      --paper-2:#f8f4e9;
+      --grid:#c9c1ad;
+      --line:#343832;
+      --amber:#f2b632;
+      --red:#c94a32;
+      --green:#2f8f62;
+      --muted:#676b62;
+      --steel:#d7d2c5;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;background:var(--soot)}
+    body{margin:0;color:var(--ink);background:var(--paper);font-family:Athelas,"Iowan Old Style","Songti SC","Noto Serif CJK SC",Georgia,serif;line-height:1.72}
+    a{color:inherit;text-underline-offset:.22em;text-decoration-thickness:.08em}
+    a:hover{color:#8d2d1f}
+    a:focus-visible,summary:focus-visible{outline:3px solid var(--amber);outline-offset:4px;border-radius:2px}
+    code,.mono,.kicker,.plate,.evidence,.rail-nav,.signal-label{font-family:Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+    .mast{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.82rem clamp(1rem,4vw,4rem);color:#f7f2e6;background:var(--soot);border-bottom:6px solid var(--amber);font-size:.78rem;letter-spacing:.08em}
+    .mast a{color:#fff}
+    .plate{display:inline-flex;gap:.65rem;align-items:center}
+    .plate:before{content:"";width:.62rem;height:.62rem;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(242,182,50,.18)}
+    .rail-nav{display:flex;gap:.2rem;overflow:auto;padding:.7rem clamp(1rem,4vw,4rem);background:#30342f;color:#e7e2d4;border-bottom:1px solid #60665c;font-size:.72rem;white-space:nowrap}
+    .rail-nav a{padding:.25rem .55rem;text-decoration:none;border:1px solid transparent}
+    .rail-nav a:hover{color:#fff;border-color:#777d72}
+    main{overflow:hidden}
+    .hero{min-height:calc(100svh - 96px);display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,.82fr);align-items:center;gap:clamp(2rem,6vw,7rem);padding:clamp(3.2rem,8vw,8rem) clamp(1.1rem,7vw,8rem);position:relative;background-color:var(--paper);background-image:linear-gradient(rgba(52,56,50,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(52,56,50,.07) 1px,transparent 1px);background-size:28px 28px}
+    .hero:before{content:"伴页";position:absolute;right:-.06em;bottom:-.2em;color:rgba(23,24,21,.045);font-size:clamp(8rem,26vw,28rem);font-weight:800;line-height:1;pointer-events:none}
+    .hero-copy{position:relative;z-index:1;max-width:52rem}
+    .kicker{font-size:.76rem;font-weight:700;letter-spacing:.14em;color:#8d2d1f;text-transform:uppercase}
+    h1{max-width:10ch;margin:.5rem 0 1.5rem;font-size:clamp(3.3rem,7.2vw,7.8rem);line-height:.9;letter-spacing:-.06em;font-weight:760}
+    .lede{max-width:31em;margin:0;font-size:clamp(1.2rem,2.05vw,1.72rem);line-height:1.55}
+    .evidence{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:2rem;font-size:.73rem}
+    .evidence span{padding:.38rem .58rem;border:1px solid var(--line);background:var(--paper-2);box-shadow:3px 3px 0 var(--line)}
+    .machine{position:relative;z-index:1;padding:1rem;background:var(--soot);border:1px solid #090a09;box-shadow:12px 12px 0 rgba(23,24,21,.2),inset 0 0 0 4px #41463f;color:#eee9dc}
+    .machine-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.55rem .55rem 1rem;border-bottom:1px solid #646a60;font-family:Menlo,monospace;font-size:.72rem;letter-spacing:.09em}
+    .lights{display:flex;gap:.4rem}.lights i{display:block;width:.55rem;height:.55rem;border-radius:50%;background:#6b7067}.lights i:first-child{background:var(--green)}.lights i:last-child{background:var(--red)}
+    .socket{display:grid;grid-template-columns:5.5rem 1fr;gap:.8rem;align-items:center;margin:.82rem 0;padding:.78rem;border:1px solid #5a6057;background:#292c28}
+    .socket b{color:var(--amber);font-family:Menlo,monospace;font-size:.72rem}
+    .socket span{font-size:.92rem}
+    .socket.pass{border-left:7px solid var(--green)}
+    .socket.stop{border-left:7px solid var(--red)}
+    .machine-arrow{text-align:center;color:var(--amber);font-family:Menlo,monospace;letter-spacing:.16em}
+    .section{padding:clamp(4.3rem,8vw,8rem) clamp(1.1rem,7vw,8rem);border-top:1px solid var(--line)}
+    .section-head{display:grid;grid-template-columns:minmax(14rem,.38fr) minmax(0,1fr);gap:clamp(1.5rem,5vw,5rem);align-items:start;margin-bottom:3rem}
+    h2{max-width:12ch;margin:0;font-size:clamp(2.2rem,4.8vw,5rem);line-height:1;letter-spacing:-.045em}
+    .section-head>div>p,.section-head>p{max-width:51rem;margin:.25rem 0 0;font-size:1.05rem}
+    .legend{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:1.8rem;background:var(--line);border:1px solid var(--line)}
+    .legend div{min-height:7rem;padding:1rem;background:var(--paper-2);font-size:.9rem}
+    .legend b{display:block;margin-bottom:.35rem;color:#8d2d1f;font-size:1.45rem}
+    .terms{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line)}
+    .term{padding:1.35rem;background:rgba(248,244,233,.72);border-right:1px solid var(--line)}
+    .term:last-child{border-right:0}
+    .term h3{margin:0 0 .5rem;font-size:1.12rem}
+    .term p{margin:0;color:#4f544c}
+    .dark{color:#f2eee2;background:var(--soot)}
+    .dark .section-head p{color:#c7c3b8}
+    .timeline{position:relative;display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #5d635a;background:#292c28}
+    .timeline:before{content:"";position:absolute;left:8.33%;right:8.33%;top:3.72rem;height:3px;background:var(--amber)}
+    .step{position:relative;min-height:19rem;padding:1.3rem;border-right:1px solid #5d635a}
+    .step:last-child{border-right:0}
+    .step-no{position:relative;z-index:1;display:grid;place-items:center;width:2.25rem;height:2.25rem;margin:1.22rem 0 2.8rem;border:3px solid var(--amber);border-radius:50%;background:var(--soot);color:var(--amber);font-family:Menlo,monospace;font-size:.72rem}
+    .step h3{margin:0 0 .7rem;font-size:1.08rem}
+    .step p{margin:0;color:#c7c3b8;font-size:.9rem}
+    .flow-board{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(17rem,.8fr);gap:clamp(1.5rem,4vw,4rem)}
+    .wiring{position:relative;padding:1.2rem;border:2px solid var(--line);background:var(--paper-2);box-shadow:8px 8px 0 var(--grid)}
+    .wire-row{display:grid;grid-template-columns:9rem 1fr 2.2rem;gap:1rem;align-items:center;padding:1rem .3rem;border-bottom:1px dotted #777c72}
+    .wire-row:last-child{border-bottom:0}
+    .wire-row b{font-family:Menlo,monospace;font-size:.75rem;color:#8d2d1f}
+    .wire-row i{width:1rem;height:1rem;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(47,143,98,.13)}
+    .wire-row.off i{background:var(--red);box-shadow:0 0 0 4px rgba(201,74,50,.13)}
+    .boundary{padding:1.2rem;border-left:8px solid var(--amber);background:#d9d3c5}
+    .boundary h3{margin:.1rem 0 .8rem}
+    .boundary p{margin:.6rem 0}
+    .boundary a{font-weight:700}
+    .fail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+    .fail{position:relative;padding:1.4rem;background:var(--paper-2);border:1px solid var(--line);box-shadow:5px 5px 0 var(--line)}
+    .fail:before{content:"";position:absolute;left:1.4rem;top:-.58rem;width:3.2rem;height:.82rem;background:var(--red)}
+    .fail.ok:before{background:var(--green)}
+    .fail.warn:before{background:var(--amber)}
+    .fail h3{margin:.4rem 0 .7rem}
+    .fail ul{margin:0;padding-left:1.1rem}
+    .notice{margin-top:2rem;padding:1.15rem 1.3rem;color:#f5f0e4;background:var(--soot);border-left:8px solid var(--amber)}
+    .access-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem}
+    .access{padding:1.25rem;border:1px solid var(--line);background:#ddd7c8}
+    .access h3{margin:0 0 .6rem;font-size:1.08rem}
+    .access p{margin:0}
+    .experiment{background:#d8d3c6}
+    .verdict{display:grid;grid-template-columns:minmax(12rem,.3fr) 1fr;border:2px solid var(--line);background:var(--paper-2)}
+    .verdict strong{display:grid;place-items:center;padding:2rem 1rem;color:#171815;background:var(--amber);font-family:Menlo,monospace;font-size:clamp(1.4rem,3vw,2.8rem);text-align:center}
+    .verdict>div{padding:1.4rem 1.8rem}
+    .verdict p{margin:.3rem 0 1rem}.verdict p:last-child{margin-bottom:.3rem}
+    table{width:100%;border-collapse:collapse;background:var(--paper-2);font-size:.93rem}
+    th,td{padding:.85rem;text-align:left;vertical-align:top;border:1px solid var(--line)}
+    th{color:#fff;background:var(--soot)}
+    details{padding:1rem 0;border-top:1px solid var(--line)}
+    details:last-child{border-bottom:1px solid var(--line)}
+    summary{cursor:pointer;font-weight:700}
+    details p{max-width:54rem;margin:.8rem 0}
+    .unknown-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+    .unknown{padding:1.25rem;border:1px dashed var(--line);background:rgba(248,244,233,.66)}
+    .unknown b{display:block;margin-bottom:.5rem;color:#8d2d1f;font-family:Menlo,monospace}
+    .unknown p{margin:0}
+    .sources{background:#d5cfc0}
+    .source-list{margin:0;padding:0;list-style:none;border-top:1px solid var(--line)}
+    .source-list li{display:grid;grid-template-columns:4.5rem 1fr;gap:1rem;padding:1.15rem 0;border-bottom:1px solid var(--line)}
+    .source-list span{font-family:Menlo,monospace;color:#8d2d1f}
+    .repro{margin-top:2rem;padding:1.2rem;border:1px solid var(--line);background:var(--paper-2)}
+    .repro h3{margin:.1rem 0 .8rem}.repro ol{margin:0;padding-left:1.25rem}
+    footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.3rem clamp(1rem,4vw,4rem);color:#e9e4d8;background:var(--soot);font-family:Menlo,monospace;font-size:.74rem}
+    footer a{color:#fff}
+    @media (max-width:1080px){.timeline{grid-template-columns:repeat(3,1fr)}.timeline:before{display:none}.step{min-height:14rem;border-bottom:1px solid #5d635a}.step-no{margin:.3rem 0 1.4rem}.flow-board{grid-template-columns:1fr}.terms{grid-template-columns:1fr 1fr}.term:nth-child(2){border-right:0}.term:nth-child(-n+2){border-bottom:1px solid var(--line)}}
+    @media (max-width:820px){.hero{min-height:auto;grid-template-columns:1fr}.section-head{grid-template-columns:1fr}.legend{grid-template-columns:1fr 1fr}.fail-grid,.access-grid{grid-template-columns:1fr}.unknown-grid{grid-template-columns:1fr}}
+    @media (max-width:540px){.mast{align-items:flex-start;flex-direction:column}.hero{padding-top:3rem}.machine{box-shadow:6px 6px 0 rgba(23,24,21,.2)}.socket{grid-template-columns:1fr}.section{padding-top:4rem;padding-bottom:4rem}.terms,.timeline,.legend{grid-template-columns:1fr}.term,.term:nth-child(2){border-right:0;border-bottom:1px solid var(--line)}.term:last-child{border-bottom:0}.step{min-height:auto;border-right:0}.wire-row{grid-template-columns:1fr 1.5rem}.wire-row span{grid-column:1/-1}.verdict{grid-template-columns:1fr}.source-list li{grid-template-columns:3rem 1fr}footer{align-items:flex-start;flex-direction:column}}
+    @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Corporate Launcher 与 Process Wrapper。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-process-wrapper/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-ADM-PROCESS-WRAPPER · Corporate Launcher 与 Process Wrapper">
+  <meta property="og:description" content="Claude Code X-Ray：Corporate Launcher 与 Process Wrapper。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-process-wrapper/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-ADM-PROCESS-WRAPPER · Corporate Launcher 与 Process Wrapper">
+  <meta name="twitter:description" content="Claude Code X-Ray：Corporate Launcher 与 Process Wrapper。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-ADM-PROCESS-WRAPPER</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="mast">
+    <span class="plate">CLAUDE CODE XRY / 伴页 / DOCUMENTED</span>
+    <a href="../index.html">返回总索引</a>
+  </header>
+  <nav class="rail-nav" aria-label="页内导航">
+    <a href="#answer">短答</a><a href="#terms">名词</a><a href="#sequence">顺序</a><a href="#flow">流向</a><a href="#limits">失败</a><a href="#experiment">核验</a><a href="#implementation">版本</a><a href="#unknowns">未知</a><a href="#sources">来源</a>
+  </nav>
+  <main>
+    <section class="hero" data-xray-section="answer" id="answer">
+      <div class="hero-copy">
+        <div class="kicker">COMP-ADM-PROCESS-WRAPPER</div>
+        <h1>先过组织入口，再成为 Claude 进程</h1>
+        <p class="lede">管理员配置 launcher 后，Claude Code 把自己派生的后台服务、Agent View host 与会话交给它启动。launcher 满足 argv 与 exec 契约，目标进程接管；路径无效或脚本提前退出，相关进程停在启动处，原因回到 Agent View 或后台服务错误。<span class="mono">O</span></p>
+        <div class="evidence" aria-label="页面状态">
+          <span>状态 DOCUMENTED</span><span>Claude Code 2.1.247</span><span>R 本轮缺席</span>
+        </div>
+      </div>
+      <div class="machine" aria-label="corporate launcher 启动链简图">
+        <div class="machine-head"><span>SELF-SPAWN CONTROL</span><span class="lights" aria-hidden="true"><i></i><i></i><i></i></span></div>
+        <div class="socket"><b>请求</b><span>Claude Code 要启动自己的子进程</span></div>
+        <div class="machine-arrow">▼ argv prefix ▼</div>
+        <div class="socket"><b>launcher</b><span>组织先施加 sandbox、网络控制或凭据</span></div>
+        <div class="machine-arrow">▼ exec "$@" ▼</div>
+        <div class="socket pass"><b>通过</b><span>目标 Claude Code 进程替换 launcher</span></div>
+        <div class="socket stop"><b>拒绝</b><span>配置错误或未 exec，启动失败并回传原因</span></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="terms" id="terms">
+      <div class="section-head">
+        <h2>四个角色就够</h2>
+        <div>
+          <p>我对照了 corporate launcher、Agent View、错误参考和本机 2.1.247 帮助。这里的 wrapper 管 Claude Code 自身的进程创建。Bash、hooks 与 stdio MCP 走另一项 shell prefix 契约。<span class="mono">O + L</span></p>
+          <div class="legend" aria-label="证据图例">
+            <div><b>O</b>官方契约<br>说明公开支持范围</div>
+            <div><b>L</b>本机帮助<br>说明目标二进制入口</div>
+            <div><b>R</b>真实实验<br>说明本轮跑过的路径</div>
+            <div><b>I</b>研究推断<br>说明证据怎样接上</div>
+          </div>
+        </div>
+      </div>
+      <div class="terms">
+        <article class="term"><h3>launcher</h3><p>组织维护的可执行入口。它可以进入 sandbox、加网络控制或注入凭据。</p></article>
+        <article class="term"><h3>self-spawn</h3><p>Claude Code 从自己的二进制路径再启动后台服务、host、会话或 relaunch。</p></article>
+        <article class="term"><h3>supervisor</h3><p>每用户后台服务。它承载 Agent View 会话，并维护一个预热 worker。</p></article>
+        <article class="term"><h3>exec</h3><p>launcher 用目标进程替换自己，让 supervisor 能追踪正确的进程身份与退出状态。</p></article>
+      </div>
+      <p>Agent View 派发后台会话时，supervisor 把工作目录、设置与凭据交给预热 worker，随后再补一个 standby。每个后台会话仍有自己的 Claude Code 进程。会话第一次创建、崩溃后重启或更新后重新拉起，都各自经过 launcher。<span class="mono">O</span></p>
+    </section>
+
+    <section class="section dark" data-xray-section="sequence" id="sequence">
+      <div class="section-head">
+        <h2>一次启动怎样走</h2>
+        <p>这条链从配置被新进程读到开始，到目标进程接管或错误返回为止。已运行的服务不会靠保存设置立即换壳，需要重启。<span class="mono">O</span></p>
+      </div>
+      <div class="timeline">
+        <article class="step"><span class="step-no">01</span><h3>管理员下发</h3><p>环境变量放进 user 或 managed settings，也可用顶层 processWrapper。</p></article>
+        <article class="step"><span class="step-no">02</span><h3>新进程读取</h3><p>环境变量优先。项目与 local 配置不能给整机进程插 launcher。</p></article>
+        <article class="step"><span class="step-no">03</span><h3>解析参数</h3><p>值成为 argv 前缀。它不经过 shell 展开，非法操作符直接报配置错。</p></article>
+        <article class="step"><span class="step-no">04</span><h3>调用入口</h3><p>launcher 收到目标二进制与原始参数。继承环境要原样保留。</p></article>
+        <article class="step"><span class="step-no">05</span><h3>目标接管</h3><p>脚本约三秒内走到 exec。嵌套 self-spawn 仍会再次经过它。</p></article>
+        <article class="step"><span class="step-no">06</span><h3>成功或失败</h3><p>成功后 supervisor 继续追踪；失败时受影响进程不启动，调用面收到原因。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" id="flow">
+      <div class="section-head">
+        <h2>哪些进程过闸</h2>
+        <p>判断标准很具体。进程若由 Claude Code 自身二进制直接派生，就进入 process wrapper。由用户 shell、操作系统、浏览器或 tmux 启动的第一层进程留在外面。<span class="mono">O</span></p>
+      </div>
+      <div class="flow-board">
+        <div class="wiring" aria-label="wrapper 覆盖范围">
+          <div class="wire-row"><b>WRAPPED</b><span>按需启动的 background supervisor</span><i aria-hidden="true"></i></div>
+          <div class="wire-row"><b>WRAPPED</b><span>Agent View terminal host、session 与 warm standby</span><i aria-hidden="true"></i></div>
+          <div class="wire-row"><b>WRAPPED</b><span>crash 或 update 后的 respawn 与 self-relaunch</span><i aria-hidden="true"></i></div>
+          <div class="wire-row"><b>WRAPPED</b><span>Remote Control 启动的会话与 split-pane teammate</span><i aria-hidden="true"></i></div>
+          <div class="wire-row off"><b>OUTSIDE</b><span>用户直接运行的第一层 claude 与深链第一进程</span><i aria-hidden="true"></i></div>
+          <div class="wire-row off"><b>OUTSIDE</b><span>Chrome native host 与 worktree 配合 tmux 的 relaunch</span><i aria-hidden="true"></i></div>
+        </div>
+        <aside class="boundary">
+          <h3>网络从下一页继续</h3>
+          <p>launcher 可以先放入企业网络变量或凭据。目标进程接管以后，请求怎样经过代理、CA 与 mTLS，交给 <a href="../20260827-adm-03-enterprise-network/explainer.html">ADM-03 企业网络主页面</a>。</p>
+          <p>用户在终端直接运行的第一层 claude 由 shell 启动，不在 corporate launcher 覆盖内。组织若也要包住这一层，需要把单独入口放在 PATH 前部。Claude Code 自己派生进程时使用二进制绝对路径，随后转入 process wrapper，两段入口不会自动叠成同一个包装。<span class="mono">O</span></p>
+          <p>工具进程要分开看。shell prefix 承接 Bash、hooks 与 stdio MCP 命令，收到的是一段 shell 字符串。process wrapper 收到目标二进制与原始 argv。组织可以同时配置两项控制，但脚本必须分别满足各自契约，不能拿一份脚本直接替换。<span class="mono">O</span></p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="limits" id="limits">
+      <div class="section-head">
+        <h2>失败停在哪里</h2>
+        <p>组织强制入口若不可用，Claude Code 选择拒绝受影响的启动。Windows 是明示例外，它忽略这项配置并无 wrapper 运行。<span class="mono">O</span></p>
+      </div>
+      <div class="fail-grid">
+        <article class="fail"><h3>解析前就停</h3><ul><li>路径未指向绝对路径下的可执行普通文件</li><li>shell 操作符或 argv 格式非法</li><li>消息以变量名开头并点明原因</li></ul></article>
+        <article class="fail warn"><h3>launcher 启动后停</h3><ul><li>脚本 fork 后退出，没有 exec</li><li>Agent View 行进入 failed</li><li>提示必须 exec，并附脚本先前输出</li></ul></article>
+        <article class="fail ok"><h3>恢复路径</h3><ul><li>修正 launcher 与环境传递</li><li>停止旧 supervisor</li><li>下一次派发重启，再查 Self-exec</li></ul></article>
+      </div>
+      <p class="notice"><b>权限门</b> managed settings 可以压住 user 与 shell 的同名环境值，仓库配置不能接管整台机器的 self-spawn。Windows 上这道门没有执行能力，debug log 只会给警告。</p>
+      <div class="access-grid" aria-label="登录与费用边界">
+        <article class="access"><h3>会话先要可用凭据</h3><p>Agent View 不另建一套认证。supervisor 与后台会话复用交互会话已保存的凭据。派发若报 <code>Could not resolve authentication method</code>，说明 supervisor 没拿到可用凭据。先在交互会话运行 <code>/login</code>，或按组织方案配置 API key，再停止旧 supervisor 后重试。<span class="mono">O</span></p></article>
+        <article class="access"><h3>费用跟着认证入口走</h3><p>wrapper 只改启动路径，不提供账号或额度。后台会话与交互会话共用同一用量入口。Pro、Max、Team 与 Enterprise 计入订阅用量，Claude Console 消耗预付 API credits，Amazon Bedrock、Google Cloud 的 Agent Platform 与 Microsoft Foundry 由对应云账户结算。并行派发会更快消耗额度。<span class="mono">O</span></p></article>
+      </div>
+      <p>错误沿着发起启动的界面返回。launcher 文件无效，进程创建前就报告配置错误；脚本已经运行却没有 exec，Agent View 会把对应行标成 failed，并附上 wrapper 先前写出的内容。后台服务若在可连接前退出，2.1.246 起会直接带回首行原因，2.1.247 继承这项行为。<span class="mono">O</span></p>
+    </section>
+
+    <section class="section experiment" data-xray-section="experiment" id="experiment">
+      <div class="section-head">
+        <h2>这轮核到哪里</h2>
+        <p>我没有启动新的 Claude 会话，也没有列出本机现有会话。触发这项机制要启动 supervisor 或 Agent View 进程。真实派发还需要可用凭据，并会消耗对应订阅、Console 或云提供商额度，所以本轮停在官方契约与无会话帮助。</p>
+      </div>
+      <div class="verdict">
+        <strong>DOCUMENTED</strong>
+        <div>
+          <p><b>L 已核</b> 目标二进制实际返回 2.1.247。它的帮助公开了 agents、background 与 daemon 的生命周期入口。</p>
+          <p><b>R 缺席</b> 没有测试 launcher 的调用计数、argv 摘要、进程树或退出状态。帮助只能证明入口存在，不能证明 wrapper 在本机执行过。</p>
+          <p><b>哈希边界</b> 任务给定二进制 SHA-256 固定基线。本轮普通文件读取受 macOS 权限拒绝，没有把该值写成本轮重算结果。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" id="implementation">
+      <div class="section-head">
+        <h2>实现与版本边界</h2>
+        <p>process wrapper 控制 argv 与进程身份，Agent View 管会话状态与恢复。两条机制在 supervisor 的进程创建处相接，本页只沿前一条追到失败回传。<span class="mono">O + L + I</span></p>
+      </div>
+      <table>
+        <thead><tr><th>版本</th><th>本页相关变化</th><th>证据</th></tr></thead>
+        <tbody>
+          <tr><td>早于 2.1.208</td><td>环境变量入口被忽略，自派生进程无 wrapper 启动。</td><td>O</td></tr>
+          <tr><td>2.1.208</td><td>加入 corporate process wrapper，Agent View 与后台服务的 self-spawn 开始受控。</td><td>O</td></tr>
+          <tr><td>2.1.210</td><td>顶层设置生效，Remote Control 会话与 split-pane teammate 进入覆盖。</td><td>O</td></tr>
+          <tr><td>2.1.246</td><td>后台服务在可连接前退出时，错误开始直接带回首行原因。</td><td>O</td></tr>
+          <tr><td>2.1.247</td><td>本页目标版本；Agent View 能识别 terminal host 已死并给重启入口。</td><td>O + L</td></tr>
+        </tbody>
+      </table>
+      <details><summary>为什么 shell export 不适合长期部署</summary><p>后台服务按需启动，也可能活得比当前 shell 久。官方要求把环境变量放进 user 或 managed settings，让 detached supervisor 继承。已运行的进程只在启动时读取这项值。</p></details>
+      <details><summary>为什么要求 exec</summary><p>supervisor 需要追踪自己启动的 Claude Code 进程。launcher 若 fork 出子进程后自己退出，supervisor 留下一个无法按契约追踪的孤儿，Agent View 会把这次启动判为失败。</p></details>
+      <details><summary>怎样判断配置真的生效</summary><p>新会话中的 /status 会显示 resolved launch command 与不匹配警告。shell 里的 claude daemon status 能给同类信息，也能在变量已经取消后检查仍在运行的旧服务。</p></details>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" id="unknowns">
+      <div class="section-head">
+        <h2>还缺哪几块</h2>
+        <p>这些问题会影响企业验收或错误分流。本页没有把它们偷偷补成首屏事实。</p>
+      </div>
+      <div class="unknown-grid">
+        <div class="unknown"><b>UNKNOWN 01</b><p>2.1.247 在本机为每类 self-spawn 组装的完整 argv 顺序没有 R。</p></div>
+        <div class="unknown"><b>UNKNOWN 02</b><p>launcher 接近三秒边界才 exec 时，各类进程的定时误差与重试差异没有公开。</p></div>
+        <div class="unknown"><b>UNKNOWN 03</b><p>launcher 输出多行文本后目标进程成功，各个前端怎样保留或隐藏这些文本没有实测。</p></div>
+        <div class="unknown"><b>UNKNOWN 04</b><p>远程 managed settings 下发与旧 supervisor 自动退休同时发生时，精确竞争窗口没有 R。</p></div>
+      </div>
+    </section>
+
+    <section class="section sources" data-xray-section="sources" id="sources">
+      <div class="section-head">
+        <h2>一手来源与复现</h2>
+        <p>官方 corporate launcher 页给主契约，Agent View 页给 supervisor、凭据和用量边界，错误参考给失败回传。环境变量、changelog、Quickstart 与组织部署说明补上配置、版本、登录和计费入口。</p>
+      </div>
+      <ol class="source-list">
+        <li><span>O-01</span><a href="https://code.claude.com/docs/en/corporate-launcher">Corporate launcher 说明，证明覆盖范围、argv、exec、设置优先级与排除项</a></li>
+        <li><span>O-02</span><a href="https://code.claude.com/docs/en/agent-view">Agent View 说明，证明 supervisor、预热 worker、会话进程和停止条件</a></li>
+        <li><span>O-03</span><a href="https://code.claude.com/docs/en/errors#claude-code-process-wrapper-launcher-errors">错误参考，证明拒绝启动、must exec 与错误回传</a></li>
+        <li><span>O-04</span><a href="https://code.claude.com/docs/en/env-vars#variables">环境变量参考，证明配置范围、版本门槛和 Windows 边界</a></li>
+        <li><span>O-05</span><a href="https://code.claude.com/docs/en/changelog#2-1-208">官方 changelog，证明 2.1.208 首次加入 process wrapper</a></li>
+        <li><span>O-06</span><a href="https://code.claude.com/docs/en/quickstart">Quickstart，证明支持的登录账户与 Console 预付 credits</a></li>
+        <li><span>O-07</span><a href="https://code.claude.com/docs/en/admin-setup">组织部署说明，证明订阅、Console 与云提供商的计费归属</a></li>
+      </ol>
+      <div class="repro">
+        <h3>安全复现</h3>
+        <ol>
+          <li>用隔离配置固定 2.1.247，写一个只记匿名计数与退出状态的 launcher，末尾执行 <code>exec "$@"</code>。</li>
+          <li>从 user 或 managed settings 设置变量，停掉测试 supervisor，再打开空 Agent View。不要派发 prompt。</li>
+          <li>依次换成不可执行路径和不 exec 的脚本，核对配置拒绝与 Agent View failed 行。</li>
+          <li>恢复脚本，用 <code>/status</code> 或 <code>claude daemon status</code> 检查 Self-exec，随后移除测试配置。</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+  <footer><span>COMP-ADM-PROCESS-WRAPPER / documented / Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></footer>
+</body>
+</html>

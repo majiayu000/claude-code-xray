@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="AUTO-04">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>AUTO-04 · Headless 模式、流式输入输出与结构化结果</title>
+  <style>
+    :root {
+      --ink: #e9f2ee;
+      --muted: #98aaa4;
+      --panel: #101916;
+      --panel-2: #14211d;
+      --line: #31453e;
+      --signal: #b9f43a;
+      --cyan: #55d6be;
+      --amber: #ffb44c;
+      --red: #ff776d;
+      --black: #07100d;
+      --paper: #f3f0df;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--black); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(85, 214, 190, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(85, 214, 190, .035) 1px, transparent 1px),
+        radial-gradient(circle at 84% 7%, rgba(185, 244, 58, .12), transparent 25rem),
+        var(--black);
+      background-size: 32px 32px, 32px 32px, auto, auto;
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.72;
+    }
+    a { color: var(--signal); text-underline-offset: .22em; }
+    a:hover { color: #ddff87; }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; border-radius: 2px; }
+    code, pre, .mono, .eyebrow, .chip, th {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    .topbar {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 22px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .08em; }
+    .lamp { width: 11px; height: 11px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 18px var(--signal); }
+    .back { font-size: .9rem; color: var(--muted); }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding-bottom: 90px; }
+    .hero {
+      min-height: 82vh;
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      align-items: center;
+      gap: clamp(28px, 6vw, 92px);
+      padding: 72px 0 60px;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow { color: var(--cyan); letter-spacing: .16em; text-transform: uppercase; font-size: .78rem; }
+    h1, h2, h3 { font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif; font-weight: 700; }
+    h1 { margin: 18px 0 24px; max-width: 850px; font-size: clamp(2.7rem, 7vw, 6.8rem); line-height: .98; letter-spacing: -.055em; }
+    h1 span { color: var(--signal); }
+    .lede { max-width: 720px; font-size: clamp(1.06rem, 2vw, 1.32rem); color: #c8d6d1; }
+    .statusline { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
+    .chip { border: 1px solid var(--line); color: var(--muted); padding: 6px 10px; font-size: .76rem; background: rgba(16,25,22,.82); }
+    .chip.status { border-color: #739427; color: var(--signal); }
+    .port {
+      position: relative;
+      min-height: 460px;
+      border: 1px solid var(--line);
+      background: rgba(16, 25, 22, .86);
+      padding: 30px;
+      box-shadow: 16px 16px 0 rgba(0,0,0,.28);
+    }
+    .port::before, .port::after { content: ""; position: absolute; border-radius: 50%; background: var(--signal); box-shadow: 0 0 15px rgba(185,244,58,.75); }
+    .port::before { width: 9px; height: 9px; top: 18px; right: 18px; }
+    .port::after { width: 5px; height: 5px; bottom: 18px; left: 18px; background: var(--cyan); }
+    .port-label { color: var(--muted); font-size: .72rem; letter-spacing: .12em; }
+    .rail { margin: 56px 0 40px; position: relative; height: 120px; }
+    .rail::before { content: ""; position: absolute; left: 0; right: 0; top: 57px; border-top: 3px solid var(--signal); box-shadow: 0 0 12px rgba(185,244,58,.36); }
+    .packet { position: absolute; top: 35px; width: 45px; height: 45px; border: 2px solid var(--signal); background: var(--black); transform: rotate(45deg); }
+    .p1 { left: 4%; } .p2 { left: 42%; border-color: var(--cyan); } .p3 { right: 4%; border-color: var(--amber); }
+    .rail-ends { display: flex; justify-content: space-between; color: var(--muted); font-size: .77rem; }
+    .mode-readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .mode-readout b { display: block; padding: 13px 8px; border: 1px solid var(--line); color: var(--ink); font-size: .8rem; text-align: center; }
+    .mode-readout b:last-child { border-color: var(--amber); color: var(--amber); }
+    nav.local { display: flex; gap: 8px; flex-wrap: wrap; padding: 22px 0; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; background: rgba(7,16,13,.94); backdrop-filter: blur(12px); }
+    nav.local a { text-decoration: none; color: var(--muted); border: 1px solid var(--line); padding: 5px 9px; font-size: .78rem; }
+    nav.local a:hover { color: var(--ink); border-color: var(--cyan); }
+    section { padding: clamp(54px, 8vw, 100px) 0; border-bottom: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: 130px 1fr; gap: 24px; margin-bottom: 36px; }
+    .section-no { color: var(--cyan); font-family: monospace; font-size: .76rem; letter-spacing: .12em; }
+    h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.08; letter-spacing: -.025em; }
+    h3 { font-size: 1.35rem; margin: 0 0 12px; }
+    p { margin: 0 0 1em; }
+    .copy { max-width: 810px; margin-left: 154px; color: #c5d2ce; }
+    .legend, .terms, .limits, .unknown-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .card { border: 1px solid var(--line); background: rgba(16,25,22,.76); padding: 22px; min-height: 160px; }
+    .card strong { color: var(--signal); font-family: monospace; font-size: 1.25rem; }
+    .card p { margin-top: 12px; color: var(--muted); font-size: .92rem; }
+    .terms { grid-template-columns: repeat(4, 1fr); }
+    .terms .card:nth-child(2) { border-color: #3d6d63; }
+    .terms .card:nth-child(3) { border-color: #7a5d31; }
+    .sequence { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .step { background: var(--panel); padding: 24px 18px; min-height: 230px; }
+    .step .num { color: var(--signal); font-family: monospace; font-size: .75rem; }
+    .step h3 { margin-top: 42px; font-size: 1.12rem; }
+    .step p { color: var(--muted); font-size: .88rem; }
+    .flow-board { border: 1px solid var(--line); background: var(--panel); padding: clamp(20px, 4vw, 44px); overflow: hidden; }
+    .flow-row { display: grid; grid-template-columns: 1fr 42px 1fr 42px 1fr; align-items: stretch; gap: 8px; }
+    .node { border: 1px solid var(--line); padding: 18px; background: var(--panel-2); }
+    .node small { color: var(--cyan); display: block; margin-bottom: 7px; }
+    .arrow { display: grid; place-items: center; color: var(--signal); font-size: 1.4rem; }
+    .flow-note { margin-top: 20px; color: var(--muted); font-size: .9rem; }
+    .limits { grid-template-columns: repeat(2, 1fr); }
+    .limit { padding: 25px; border-left: 4px solid var(--amber); background: rgba(255,180,76,.055); }
+    .limit.stop { border-color: var(--red); }
+    .limit p { color: #c9d0cc; }
+    pre { margin: 26px 0; padding: 22px; overflow-x: auto; border: 1px solid var(--line); background: #050b09; color: #dce8e4; font-size: .84rem; line-height: 1.7; }
+    .result-strip { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 18px; border: 1px solid #557120; background: rgba(185,244,58,.06); }
+    .result-strip .ok { color: var(--signal); font-family: monospace; }
+    .result-strip .bad { color: var(--amber); font-family: monospace; }
+    table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    th, td { padding: 14px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+    th { color: var(--cyan); font-size: .75rem; letter-spacing: .06em; }
+    td { color: #c3d0cc; }
+    details { border-top: 1px solid var(--line); padding: 17px 0; }
+    summary { cursor: pointer; color: var(--ink); font-weight: 700; }
+    details p { color: var(--muted); padding: 12px 0 0 22px; max-width: 820px; }
+    .unknown-grid { grid-template-columns: repeat(2, 1fr); }
+    .unknown-grid .card strong { color: var(--amber); }
+    .sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .source { display: block; color: var(--ink); text-decoration: none; border: 1px solid var(--line); padding: 18px; background: var(--panel); }
+    .source:hover { border-color: var(--signal); color: var(--signal); }
+    .source small { display: block; margin-top: 6px; color: var(--muted); }
+    footer { padding-top: 30px; color: var(--muted); display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .port { min-height: 360px; }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+      .terms, .sequence { grid-template-columns: 1fr 1fr; }
+      .sequence .step:last-child { grid-column: 1 / -1; }
+      .flow-row { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); min-height: 28px; }
+    }
+    @media (max-width: 560px) {
+      .topbar, main { width: min(100% - 22px, 1180px); }
+      .topbar { align-items: flex-start; }
+      .hero { padding-top: 52px; }
+      h1 { font-size: clamp(2.6rem, 14vw, 4.5rem); }
+      .port { padding: 20px; min-height: 330px; }
+      nav.local { overflow-x: auto; flex-wrap: nowrap; margin: 0 -11px; padding-left: 11px; padding-right: 11px; }
+      nav.local a { white-space: nowrap; }
+      .section-head { grid-template-columns: 1fr; gap: 9px; }
+      .copy { margin-left: 0; }
+      .legend, .terms, .sequence, .limits, .unknown-grid, .sources { grid-template-columns: 1fr; }
+      .sequence .step:last-child { grid-column: auto; }
+      .step { min-height: 180px; }
+      .step h3 { margin-top: 25px; }
+      .result-strip { grid-template-columns: 1fr; }
+      table { font-size: .82rem; }
+      th, td { padding: 10px 7px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Headless 模式、流式输入输出与结构化结果。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-auto-04-headless-structured-io/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="AUTO-04 · Headless 模式、流式输入输出与结构化结果">
+  <meta property="og:description" content="Claude Code X-Ray：Headless 模式、流式输入输出与结构化结果。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-auto-04-headless-structured-io/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="AUTO-04 · Headless 模式、流式输入输出与结构化结果">
+  <meta name="twitter:description" content="Claude Code X-Ray：Headless 模式、流式输入输出与结构化结果。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>AUTO-04</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="brand"><span class="lamp" aria-hidden="true"></span><span>XRY / AUTO-04</span></div>
+    <a class="back" href="../index.html">返回总索引</a>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" id="answer">
+      <div>
+        <div class="eyebrow">Headless · structured I/O · process boundary</div>
+        <h1>一条命令进来，<span>一条可判定结果</span>出去</h1>
+        <p class="lede">非交互调用把 Claude Code 变成脚本里的一个进程。外部程序送入提示或事件，Claude Code 完成一次 agent 工作流，把文本、JSON 或逐行事件写到标准输出，最后交回退出状态。进程启动前，调用者还要选定加载边界、凭据来源和付费方式。</p>
+        <div class="statusline" aria-label="页面状态">
+          <span class="chip status">当前状态 documented</span>
+          <span class="chip">Claude Code 2.1.247</span>
+          <span class="chip">冻结基线 2026-08-27</span>
+        </div>
+      </div>
+      <aside class="port" aria-label="输入输出端口示意">
+        <div class="port-label mono">PROCESS / CLAUDE -P</div>
+        <div class="rail" aria-hidden="true">
+          <i class="packet p1"></i><i class="packet p2"></i><i class="packet p3"></i>
+        </div>
+        <div class="rail-ends"><span>stdin</span><span>agent loop</span><span>stdout</span></div>
+        <div class="mode-readout" aria-label="三种输出模式"><b>text</b><b>json</b><b>stream-json</b></div>
+      </aside>
+    </section>
+
+    <nav class="local" aria-label="页内导航">
+      <a href="#terms">名词</a><a href="#sequence">时序</a><a href="#flow">数据流</a><a href="#limits">权限与停止</a><a href="#experiment">实验</a><a href="#implementation">实现边界</a><a href="#unknowns">未知项</a><a href="#sources">来源</a>
+    </nav>
+
+    <section data-xray-section="terms" id="terms">
+      <div class="section-head"><span class="section-no">01 / TERMS</span><h2>先分清输入、运行与输出</h2></div>
+      <div class="terms">
+        <article class="card"><strong>stdin</strong><p>文本输入可以来自管道，也可以与命令行提示一起交给本次调用。官方给管道输入设了 10MB 上限。O</p></article>
+        <article class="card"><strong>print mode</strong><p>启用 print mode 后，终端不再等人持续对话。进程运行、打印并退出。普通调用会加载与交互会话相同的项目和用户上下文，也会建立可续接的会话。O L</p></article>
+        <article class="card"><strong>output framing</strong><p>文本适合人读，单个 JSON 适合一次性脚本，逐行事件适合实时消费者。Schema 约束的是最终业务结果。O</p></article>
+        <article class="card"><strong>bare mode</strong><p>脚本与 CI 推荐加 <span class="mono">--bare</span>，跳过自动发现的上下文和扩展。所需设置、MCP 与 agent 要由调用者显式传入。O R</p></article>
+      </div>
+      <div class="legend" aria-label="证据图例" style="margin-top:12px">
+        <article class="card"><strong>O</strong><p>Anthropic 官方契约</p></article>
+        <article class="card"><strong>L</strong><p>2.1.247 本机静态证据</p></article>
+        <article class="card"><strong>R</strong><p>本轮无网络参数实验</p></article>
+        <article class="card"><strong>I</strong><p>研究者推断与保守合并</p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="sequence" id="sequence">
+      <div class="section-head"><span class="section-no">02 / SEQUENCE</span><h2>一次调用按进程时序走</h2></div>
+      <div class="sequence">
+        <article class="step"><span class="num">T+00</span><h3>外部程序启动</h3><p>选择输入封装、输出封装、权限模式和会话参数。无效参数会在模型运行前失败。O R</p></article>
+        <article class="step"><span class="num">T+01</span><h3>读取输入</h3><p>文本模式消费 stdin。流式输入允许进程持续接收消息，但官方 CLI 页面没有公开完整的原始行 schema。O</p></article>
+        <article class="step"><span class="num">T+02</span><h3>建立会话</h3><p>新调用生成 session ID，resume 则装入既有上下文。非交互续接会重新采用新 print run 的权限起点。O</p></article>
+        <article class="step"><span class="num">T+03</span><h3>执行 agent loop</h3><p>模型可以读文件或调用工具。工具能否运行，由 permission mode、allow 与 deny 共同决定。O</p></article>
+        <article class="step"><span class="num">T+04</span><h3>写出并退出</h3><p>结果进入 stdout，启动前诊断进入 stderr。成功退出 0，失败为非零，SIGTERM 固定为 143。O R</p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="flow" id="flow">
+      <div class="section-head"><span class="section-no">03 / FLOW</span><h2>输入格式与输出格式各管一边</h2></div>
+      <div class="flow-board">
+        <div class="flow-row">
+          <div class="node"><small>INPUT</small><b>text 或 stream-json</b><p>输入封装决定 stdin 怎样被消费。</p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node"><small>SESSION</small><b>新建、继续或精确恢复</b><p>会话负责保留上下文，权限在非交互续接时另按规则选择。</p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node"><small>OUTPUT</small><b>text、json 或 stream-json</b><p>输出封装决定 stdout 的机器可读程度。</p></div>
+        </div>
+        <p class="flow-note">Schema 位于输出末端。它让最终业务对象进入 <span class="mono">structured_output</span>，外层仍保留 session、用量和成本等运行元数据。O</p>
+      </div>
+      <div class="copy" style="margin-top:32px">
+        <p>文本输入适合一次送完的任务。调用者可以把提示写在命令行，也可以从管道送进 stdin，两者还能合在同一次调用里。管道内容超过 10MB 时，进程会报错并返回非零状态。stdin 已经断开而命令行仍有提示时，警告写到 stderr，提示本身继续执行。O</p>
+        <p>流式输入解决的是另一件事。进程保持开启，调用者继续送入消息，输出端则逐行吐出事件。普通事件流给出完整消息；若还要看令牌级增量，需要同时启用 verbose 和 partial messages。输入流的原始逐行 schema 没有在 CLI 文档里完整公开，这一段只能写到官方已经承诺的格式边界。O</p>
+      </div>
+      <pre aria-label="推荐的单次结构化调用示例"><code>claude -p "提取函数名" \
+  --output-format json \
+  --json-schema '{"type":"object","properties":{"functions":{"type":"array","items":{"type":"string"}}},"required":["functions"]}'</code></pre>
+      <div class="result-strip"><span class="ok">业务终态 result</span><span>逐行事件可以先报告 init、assistant、tool result 与 API retry。可选尾随事件让物理末行存在例外，消费者应一直读到 EOF。</span><span class="bad">O + I</span></div>
+    </section>
+
+    <section data-xray-section="limits" id="limits">
+      <div class="section-head"><span class="section-no">04 / LIMITS</span><h2>先关启动面，再配工具权限</h2></div>
+      <div class="flow-board" style="margin-bottom:24px">
+        <div class="flow-row">
+          <div class="node"><small>DISCOVERY</small><b>工作目录与用户配置</b><p>项目设置、CLAUDE.md、hooks、插件和 MCP 都可能成为启动输入。</p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node"><small>PLAIN -P</small><b>自动发现并加载</b><p>普通非交互调用沿用交互会话的上下文加载面。</p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node"><small>BEFORE TURN</small><b>hook 可运行，MCP 可连接</b><p>随后 agent 的工具调用才进入 allow、deny 与 permission mode。</p></div>
+        </div>
+        <p class="flow-note">普通 <span class="mono">-p</span> 在陌生目录中不会显示 workspace trust 对话框，也不会逐个询问 MCP 服务器。脚本不能把没有交互提示当作没有加载项目内容。O</p>
+      </div>
+      <div class="limits">
+        <article class="limit stop"><h3>普通启动面</h3><p>不加 <span class="mono">--bare</span> 时，项目与用户范围的 hooks、skills、自定义命令、subagents、插件、MCP、auto memory 和 CLAUDE.md 都会自动发现。项目 hook 可以运行，项目 MCP 可以连接。O</p></article>
+        <article class="limit"><h3>Bare 启动面</h3><p><span class="mono">--bare</span> 跳过这些自动发现项，适合需要跨机器复现的脚本和 CI。它仍提供 Bash、文件读取和编辑工具，所需上下文通过 flags 显式加入，工具权限仍要另配。O</p></article>
+        <article class="limit"><h3>凭据门</h3><p>普通 <span class="mono">-p</span> 可以沿用 Pro、Max、Team 或 Enterprise 的订阅登录，也可以使用 Console API 凭据和 Bedrock、Google Cloud Agent Platform、Foundry 等提供商凭据。<span class="mono">--bare</span> 不读订阅 OAuth 或系统钥匙串，Anthropic API 需环境变量中的 key 或经 <span class="mono">--settings</span> 传入的 <span class="mono">apiKeyHelper</span>，云提供商仍读各自凭据。O</p></article>
+        <article class="limit"><h3>费用门</h3><p>一次真实模型调用会消耗所用订阅的额度，或进入 Anthropic API、云提供商的账单。JSON 里的 <span class="mono">total_cost_usd</span> 和分模型成本都由客户端估算，可能与实际账单不同。O</p></article>
+        <article class="limit"><h3>权限门</h3><p>Print mode 的官方起点是 Manual。脚本应显式列出允许的工具，或选择合适的权限模式。<span class="mono">dontAsk</span> 会拒绝没有预批准的动作，适合锁紧的 CI。O</p></article>
+        <article class="limit"><h3>输入门</h3><p>管道文本最多 10MB。stdin 断开且无法读取时，警告进入 stderr，命令行提示仍可继续。O</p></article>
+        <article class="limit stop"><h3>主动停止</h3><p>预算上限和 turn 上限可以让任务自行停下。达到 turn 上限按错误结束。后台 Bash 与后台 agent 还有各自的退出等待规则。O</p></article>
+        <article class="limit stop"><h3>进程信号</h3><p>SIGTERM 返回 143，当前 turn 不记录 result，并终止仍在运行的 Bash 进程树。持久化会话以后可以续接未完成的 turn。O</p></article>
+      </div>
+      <div class="copy" style="margin-top:32px">
+        <p>这里有两个结果要分别保存。退出码回答进程有没有正常结束，stdout 里的 result 回答 agent 做出了什么结果。有输出不等于成功，运行中的失败也可能作为结果写到 stdout。参数解析失败则更早发生，诊断留在 stderr。脚本要先看退出码，再解析与所选输出格式相符的内容。O R</p>
+        <p>续接也不会替调用者保存权限决定。JSON 结果里的 session ID 能交给下一次 <span class="mono">--resume</span>，上下文由此接上；新的 print run 仍从它自己的权限设置开始。若调用时关闭会话持久化，这个 ID 不能再用来恢复。O</p>
+      </div>
+    </section>
+
+    <section data-xray-section="experiment" id="experiment">
+      <div class="section-head"><span class="section-no">05 / EXPERIMENT</span><h2>本轮只碰启动前校验</h2></div>
+      <div class="copy">
+        <p>本机保留了 2.1.247 归档二进制。版本输出和指定 SHA-256 完全吻合。它的帮助文本列出两种输入、三种输出、Schema、权限、resume 与禁用持久化等选项。L</p>
+        <p>实验显式使用 bare mode，让项目与用户范围的 hooks、插件、MCP 和 CLAUDE.md 留在启动边界之外；同时移除进程环境里的 Anthropic 认证变量，阻止模型请求。无效输出格式、无效 JSON Schema、非数字 turn 上限都在发起模型请求前退出 1。第三项也说明 2.1.247 的解析器认识帮助里没有显示的 turn 上限。R</p>
+        <pre><code>claude-2.1.247 --bare -p --output-format invalid-format "x"
+# exit 1
+
+claude-2.1.247 --bare -p --json-schema 'not-json' "x"
+# exit 1
+
+claude-2.1.247 --bare -p --max-turns not-a-number "x"
+# exit 1</code></pre>
+        <p>这组 R 没有生成真实响应，也没有验证权限拒绝、续接、SIGTERM 或事件顺序。核心协议仍靠官方契约，所以页面状态保持 documented。</p>
+      </div>
+    </section>
+
+    <section data-xray-section="implementation" id="implementation">
+      <div class="section-head"><span class="section-no">06 / IMPLEMENTATION</span><h2>会话、流和退出码要分开判断</h2></div>
+      <table>
+        <thead><tr><th>调用者要判断的事</th><th>首选信号</th><th>容易踩的边界</th></tr></thead>
+        <tbody>
+          <tr><td>进程有没有正常完成</td><td>退出码</td><td>参数错误写到 stderr，运行中失败可作为结果写到 stdout。</td></tr>
+          <tr><td>agent 工作流得到了什么</td><td>JSON result 或流中 result</td><td>不要把 stdout 有内容等同于成功。</td></tr>
+          <tr><td>结构化业务对象是否可用</td><td><span class="mono">structured_output</span></td><td><span class="mono">format</span> 关键字只作注解，客户端不校验它。</td></tr>
+          <tr><td>本次用了哪种访问与计费路径</td><td>实际凭据来源与提供商账单</td><td>Bare 不读订阅 OAuth；JSON 成本字段只是客户端估算。</td></tr>
+          <tr><td>启动前加载了什么</td><td><span class="mono">--bare</span> 与显式配置</td><td>普通 <span class="mono">-p</span> 没有 trust 提示，也可能运行项目 hook、连接项目 MCP。</td></tr>
+          <tr><td>下一次怎样接着问</td><td><span class="mono">session_id</span></td><td>普通 picker 和交互式 continue 会跳过 print 会话，精确 resume 最稳妥。</td></tr>
+          <tr><td>流是否彻底结束</td><td>EOF</td><td>主文档称 result 是最后一行，SDK 文档允许少量尾随事件。</td></tr>
+        </tbody>
+      </table>
+      <div class="copy" style="margin-top:32px">
+        <p><span class="mono">--bare</span> 在 2.1.81 已进入官方 changelog，早于本页的 2.1.247 基线。本轮 R 只证明 2.1.247 接受这个参数，没有采样自动加载和认证运行路径；这些细节采用当前官方契约，身份保持 O。研究时默认启动器已经升到 2.1.248，本页只把它记作版本漂移。能力字段比单纯比较版本号更适合长期消费者。O L R</p>
+      </div>
+    </section>
+
+    <section data-xray-section="unknowns" id="unknowns">
+      <div class="section-head"><span class="section-no">07 / UNKNOWNS</span><h2>还有六块不能写死</h2></div>
+      <div class="unknown-grid">
+        <article class="card"><strong>01</strong><p>官方 CLI 页面没有发布 stream-json stdin 每行的完整 schema、控制消息全集和输入错误恢复规则。</p></article>
+        <article class="card"><strong>02</strong><p>2.1.247 的真实 JSON 外层字段与失败 subtype 本轮没有采样。</p></article>
+        <article class="card"><strong>03</strong><p>result 后是否出现可选事件，官方两处文字需要消费者用 EOF 保守处理。</p></article>
+        <article class="card"><strong>04</strong><p>Manual 遇到每种需审批工具时，2.1.247 的无 TTY 输出形态没有实测。</p></article>
+        <article class="card"><strong>05</strong><p>SIGINT 与 SIGTERM 的完整退出码对照，官方没有在同一张进程状态表里列出。</p></article>
+        <article class="card"><strong>06</strong><p>2.1.247 的 bare 参数已经过解析实验，自动发现与凭据分支没有做真实启动采样，细节仍依赖官方契约。</p></article>
+      </div>
+      <div class="copy" style="margin-top:34px">
+        <details><summary>怎样补完真实协议实验</summary><p>获准后，用禁用全部工具的固定短答分别采样三种输出，再用不含私人内容的临时会话验证 resume。最后在受控进程里发送 SIGTERM，只保留匿名化字段名、事件类型和退出码。</p></details>
+        <details><summary>本页没有展开什么</summary><p>会话落盘与分叉回到 CTX-02，权限规则状态机回到 SAFE-01，Python 与 TypeScript 的 SDK 对象和回调回到 SDK-01，交互终端里的排队输入回到 UI-01。</p></details>
+      </div>
+    </section>
+
+    <section data-xray-section="sources" id="sources">
+      <div class="section-head"><span class="section-no">08 / SOURCES</span><h2>直达一手资料</h2></div>
+      <div class="sources">
+        <a class="source" href="https://code.claude.com/docs/en/headless">非交互调用的主契约<small>证明 stdin、bare 启动面、凭据、成本估算、输出格式与退出行为</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/cli-reference">CLI 参数参考<small>证明输入输出选项、组合约束、上限与持久化开关</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/sessions">会话管理说明<small>证明 print 会话的可见性、continue 与精确 resume</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/permission-modes">权限模式说明<small>证明 Manual、dontAsk、acceptEdits 与受保护路径</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/authentication">认证说明<small>证明订阅登录、API 与云提供商凭据，以及 bare 的认证边界</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/agent-sdk/agent-loop">Agent loop 消息边界<small>证明 result、尾随事件与消息类型</small></a>
+        <a class="source" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md">官方版本变更记录<small>核对 2.1.81 的 bare 引入点及 2.1.247 前后边界</small></a>
+      </div>
+      <footer><span>AUTO-04 · 当前状态 documented · Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></footer>
+    </section>
+  </main>
+</body>
+</html>

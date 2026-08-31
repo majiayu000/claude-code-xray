@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-CTX-ADVISOR">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>伴页 Advisor Tool 的升级咨询、返回与失败边界</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f2ead8;
+      --paper-deep: #e3d6bd;
+      --ink: #171a18;
+      --muted: #5f625b;
+      --red: #b62f25;
+      --blue: #174f6e;
+      --green: #42643f;
+      --amber: #b66a13;
+      --line: rgba(23, 26, 24, .28);
+      --ghost: rgba(23, 26, 24, .055);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 18% 12%, rgba(255,255,255,.62), transparent 24rem),
+        repeating-linear-gradient(0deg, transparent 0 27px, var(--ghost) 27px 28px),
+        var(--paper);
+      font-family: "Kaiti SC", "STKaiti", "KaiTi", "Songti SC", serif;
+      line-height: 1.72;
+    }
+    a { color: var(--blue); text-underline-offset: .22em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    .skip {
+      position: fixed;
+      left: 1rem;
+      top: -5rem;
+      z-index: 20;
+      padding: .6rem .9rem;
+      color: #fff;
+      background: var(--blue);
+    }
+    .skip:focus { top: 1rem; }
+    .masthead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 1rem;
+      padding: .65rem clamp(.8rem, 4vw, 3.5rem);
+      border-bottom: 2px solid var(--ink);
+      background: rgba(242, 234, 216, .94);
+      backdrop-filter: blur(9px);
+      font-family: "SFMono-Regular", "Cascadia Mono", monospace;
+      font-size: .77rem;
+      letter-spacing: .06em;
+    }
+    .id { font-weight: 900; color: var(--red); }
+    .state { padding: .18rem .48rem; color: var(--paper); background: var(--ink); }
+    main { overflow: hidden; }
+    section {
+      width: min(1180px, calc(100% - 2rem));
+      margin-inline: auto;
+      padding: clamp(3.6rem, 8vw, 7rem) 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .hero {
+      min-height: 88vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(290px, .7fr);
+      gap: clamp(2rem, 7vw, 7rem);
+      align-items: center;
+    }
+    .kicker, .section-no, .stamp, .mark, code {
+      font-family: "SFMono-Regular", "Cascadia Mono", monospace;
+    }
+    .kicker {
+      margin: 0 0 1.2rem;
+      color: var(--red);
+      font-size: .76rem;
+      font-weight: 900;
+      letter-spacing: .14em;
+    }
+    h1, h2, h3 { margin-top: 0; line-height: 1.14; }
+    h1 {
+      max-width: 12ch;
+      margin-bottom: 1.5rem;
+      font-family: "FangSong", "STFangsong", "Songti SC", serif;
+      font-size: clamp(3rem, 7.8vw, 7.2rem);
+      font-weight: 600;
+      letter-spacing: -.055em;
+    }
+    h2 {
+      max-width: 18ch;
+      font-family: "FangSong", "STFangsong", "Songti SC", serif;
+      font-size: clamp(2rem, 4.7vw, 4.2rem);
+      font-weight: 600;
+      letter-spacing: -.035em;
+    }
+    h3 { margin-bottom: .6rem; font-size: 1.05rem; }
+    p { max-width: 72ch; }
+    .lead {
+      margin: 0;
+      max-width: 55ch;
+      font-size: clamp(1.12rem, 2vw, 1.42rem);
+    }
+    .consult-slip {
+      position: relative;
+      transform: rotate(1.2deg);
+      padding: 2.2rem 1.6rem 1.7rem;
+      color: #f8efda;
+      background: var(--red);
+      box-shadow: 14px 18px 0 rgba(23,26,24,.15);
+    }
+    .consult-slip::before {
+      content: "ADVISOR";
+      position: absolute;
+      top: -1rem;
+      right: 1.2rem;
+      padding: .25rem .65rem;
+      color: var(--ink);
+      background: #e8b34c;
+      border: 2px solid var(--ink);
+      font: 900 .68rem/1 "SFMono-Regular", monospace;
+      letter-spacing: .13em;
+    }
+    .slip-row {
+      padding: .9rem 0;
+      border-bottom: 1px solid rgba(255,255,255,.35);
+    }
+    .slip-row:last-child { border-bottom: 0; }
+    .slip-row b { display: block; font-size: 1.08rem; }
+    .slip-row span { font-size: .87rem; opacity: .86; }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem 1rem;
+      margin-top: 1.5rem;
+      font-size: .83rem;
+    }
+    .legend span { white-space: nowrap; }
+    .mark {
+      display: inline-grid;
+      place-items: center;
+      width: 1.55rem;
+      height: 1.55rem;
+      margin-right: .35rem;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      font-size: .68rem;
+      font-weight: 900;
+      vertical-align: middle;
+    }
+    .o { color: var(--green); }
+    .l { color: var(--blue); }
+    .r { color: var(--red); }
+    .i { color: var(--amber); }
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(100px, .28fr) 1fr;
+      gap: 2rem;
+      align-items: end;
+      margin-bottom: 2.7rem;
+    }
+    .section-no {
+      padding-top: .55rem;
+      border-top: 5px solid var(--red);
+      color: var(--red);
+      font-size: .72rem;
+      font-weight: 900;
+      letter-spacing: .12em;
+    }
+    .grid-2, .grid-3 { display: grid; gap: 1rem; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card {
+      padding: 1.35rem;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.28);
+    }
+    .card p:last-child { margin-bottom: 0; }
+    .card h3 { color: var(--blue); }
+    .note {
+      margin-top: 1.5rem;
+      padding: 1rem 1.2rem;
+      border-left: 5px solid var(--red);
+      background: rgba(255,255,255,.25);
+    }
+    .timeline { position: relative; }
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 1rem;
+      bottom: 1rem;
+      left: 2rem;
+      width: 2px;
+      background: var(--ink);
+    }
+    .step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 4rem 1fr;
+      gap: 1.25rem;
+      padding: 1.2rem 0;
+    }
+    .step-no {
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 4rem;
+      height: 4rem;
+      color: #fff;
+      background: var(--ink);
+      border: 5px solid var(--paper);
+      border-radius: 50%;
+      font: 900 .78rem/1 "SFMono-Regular", monospace;
+    }
+    .step p { margin: .2rem 0 0; color: var(--muted); }
+    .flow-board {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr 1fr;
+      gap: 1rem;
+      align-items: stretch;
+    }
+    .node {
+      position: relative;
+      min-height: 11rem;
+      padding: 1.25rem;
+      border: 2px solid var(--ink);
+      background: rgba(255,255,255,.24);
+    }
+    .node.main { color: #fff; background: var(--blue); }
+    .node.advisor { color: #fff; background: var(--red); }
+    .node .stamp { font-size: .66rem; letter-spacing: .1em; opacity: .8; }
+    .node p { margin-bottom: 0; }
+    .flow-caption { margin: 1.3rem auto 0; text-align: center; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,.25); }
+    th, td { padding: 1rem; text-align: left; vertical-align: top; border: 1px solid var(--line); }
+    th { color: #fff; background: var(--ink); font-size: .8rem; }
+    td:first-child { font-weight: 800; }
+    .stop { color: var(--red); font-weight: 800; }
+    .go { color: var(--green); font-weight: 800; }
+    code {
+      padding: .08em .3em;
+      color: var(--blue);
+      background: rgba(255,255,255,.35);
+      border: 1px solid var(--line);
+      font-size: .84em;
+    }
+    .observation {
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      gap: 1rem;
+    }
+    .terminal {
+      padding: 1.4rem;
+      color: #f4ead3;
+      background: var(--ink);
+      font-family: "SFMono-Regular", "Cascadia Mono", monospace;
+      font-size: .82rem;
+    }
+    .terminal b { color: #e8b34c; }
+    .terminal p { margin: .55rem 0; }
+    details { border-top: 1px solid var(--line); padding: 1rem 0; }
+    summary { cursor: pointer; color: var(--blue); font-weight: 800; }
+    details p { color: var(--muted); }
+    .source-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 1rem;
+    }
+    .source-list a {
+      display: block;
+      min-height: 7.5rem;
+      padding: 1.2rem;
+      color: var(--ink);
+      border: 2px solid var(--ink);
+      background: rgba(255,255,255,.27);
+      text-decoration: none;
+    }
+    .source-list a:hover { color: #fff; background: var(--blue); }
+    .source-list small { display: block; margin-top: .45rem; opacity: .75; }
+    .footer-line { margin-top: 2rem; font-size: .88rem; color: var(--muted); }
+    @media (prefers-reduced-motion: no-preference) {
+      .consult-slip { animation: settle .55s ease-out both; transform-origin: top center; }
+      @keyframes settle {
+        from { opacity: 0; transform: translateY(-18px) rotate(-2deg); }
+        to { opacity: 1; transform: translateY(0) rotate(1.2deg); }
+      }
+    }
+    @media (max-width: 760px) {
+      .masthead { position: static; grid-template-columns: 1fr auto; }
+      .masthead a { grid-column: 1 / -1; }
+      .hero { min-height: auto; grid-template-columns: 1fr; padding-top: 4.2rem; }
+      h1 { font-size: clamp(3rem, 15.5vw, 5.4rem); }
+      .section-head, .observation { grid-template-columns: 1fr; gap: .8rem; }
+      .grid-2, .grid-3, .flow-board, .source-list { grid-template-columns: 1fr; }
+      .flow-board { gap: .65rem; }
+      .node { min-height: auto; }
+      table { display: block; overflow-x: auto; white-space: normal; }
+      th, td { min-width: 10rem; }
+      section { width: min(100% - 1.2rem, 1180px); }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Advisor Tool 的升级咨询、返回与失败边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-advisor-tool/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-CTX-ADVISOR · Advisor Tool 的升级咨询、返回与失败边界">
+  <meta property="og:description" content="Claude Code X-Ray：Advisor Tool 的升级咨询、返回与失败边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-advisor-tool/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-CTX-ADVISOR · Advisor Tool 的升级咨询、返回与失败边界">
+  <meta name="twitter:description" content="Claude Code X-Ray：Advisor Tool 的升级咨询、返回与失败边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-CTX-ADVISOR</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <a class="skip" href="#main">跳到正文</a>
+  <header class="masthead">
+    <span class="id">COMP-CTX-ADVISOR · 伴页</span>
+    <span class="state">documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <main id="main">
+    <section class="hero" data-xray-section="answer">
+      <div>
+        <p class="kicker">升级咨询、返回与失败边界</p>
+        <h1>难题递出去，决定仍留在主模型</h1>
+        <p class="lead">主模型在关键决策点把完整对话交给 advisor。建议或 advisor 自己的错误返回以后，主模型继续生成并核对证据。Advisor 子推理限流时，主请求可以继续；若限制来自主请求这一层，这条继续保证就不适用。<span class="mark o">O</span><span class="mark i">I</span></p>
+        <div class="legend" aria-label="证据图例">
+          <span><i class="mark o">O</i>官方契约</span>
+          <span><i class="mark l">L</i>本机静态与帮助</span>
+          <span><i class="mark r">R</i>真实实验</span>
+          <span><i class="mark i">I</i>研究者推断</span>
+        </div>
+      </div>
+      <aside class="consult-slip" aria-label="Advisor 咨询笺">
+        <div class="slip-row"><b>何时递交</b><span>方案落定前，错误反复时，完成检查前</span></div>
+        <div class="slip-row"><b>递交什么</b><span>完整 transcript，由服务端组装</span></div>
+        <div class="slip-row"><b>谁来收尾</b><span>主模型保留执行和判断权</span></div>
+      </aside>
+    </section>
+
+    <section data-xray-section="terms">
+      <div class="section-head"><span class="section-no">01 / TERMS</span><h2>四个角色先分开</h2></div>
+      <div class="grid-2">
+        <article class="card"><h3>用户</h3><p>用户先选择 advisor，随后可以在 prompt 里要求咨询。选择只让工具具备资格，不能保证每回合调用。<span class="mark o">O</span></p></article>
+        <article class="card"><h3>主模型</h3><p>官方 API 称它 executor。它决定调用时机，拿回建议以后继续生成，也会用文件与运行结果核对建议。<span class="mark o">O</span></p></article>
+        <article class="card"><h3>Advisor</h3><p>它是 Anthropic 服务端的一次独立推理。它能读完整对话，却没有工具，也不会直接改文件或运行命令。<span class="mark o">O</span></p></article>
+        <article class="card"><h3>Claude Code</h3><p>它负责配置资格门和界面状态。Advisor 没有可写进权限规则或 hook matcher 的本地工具名。<span class="mark o">O</span></p></article>
+      </div>
+      <p class="note">本页的独有状态转换很窄。主模型从执行进入咨询等待，拿到建议或 advisor 子调用错误后重新掌握生成控制权。模型选择留给 CTX-05，高速路由与费率回退见 <a href="../20260827-ctx-06-fast-mode/explainer.html">CTX-06 Fast Mode</a>。</p>
+    </section>
+
+    <section data-xray-section="sequence">
+      <div class="section-head"><span class="section-no">02 / SEQUENCE</span><h2>一次咨询怎样走完</h2></div>
+      <div class="timeline">
+        <article class="step"><span class="step-no">01</span><div><h3>用户先让 advisor 可用</h3><p>交互会话可用 <code>/advisor</code>，持久设置可用 <code>advisorModel</code>，单次启动还可用隐藏的 <code>--advisor</code>。模型组合、组织 allowlist 和服务提供商会先过资格检查。<span class="mark o">O</span></p></div></article>
+        <article class="step"><span class="step-no">02</span><div><h3>主模型遇到关键决策点</h3><p>常见时机包括方案确定前、同一错误反复出现时和宣布完成前。这些是模型倾向，没有固定触发规则。用户能提出调用要求，仍没有强制次数的设置。<span class="mark o">O</span></p></div></article>
+        <article class="step"><span class="step-no">03</span><div><h3>主模型发出空调用</h3><p><code>server_tool_use</code> 的 input 为空。主模型只发出咨询信号，不能在 input 里另塞一个问题。<span class="mark o">O</span></p></div></article>
+        <article class="step"><span class="step-no">04</span><div><h3>服务端组装完整上下文</h3><p>Advisor 收到 system prompt、工具定义、此前轮次、工具结果和本轮已经生成的文字。它按自己的系统提示单独推理。<span class="mark o">O</span></p></div></article>
+        <article class="step"><span class="step-no">05</span><div><h3>建议回到主模型</h3><p>结果进入 <code>advisor_tool_result</code>。主模型继续生成，通常采用建议；具体主张若和文件或真实运行冲突，它会说明冲突并调整。<span class="mark o">O</span></p></div></article>
+      </div>
+    </section>
+
+    <section data-xray-section="flow">
+      <div class="section-head"><span class="section-no">03 / FLOW</span><h2>上下文整份过去，控制权原路回来</h2></div>
+      <div class="flow-board" role="img" aria-label="用户、主模型和 advisor 的数据流">
+        <article class="node"><span class="stamp">USER</span><h3>用户要求</h3><p>任务、约束与本轮提示进入主对话。用户可以要求在某个节点咨询。</p></article>
+        <article class="node main"><span class="stamp">EXECUTOR</span><h3>主模型</h3><p>空 input 发出调用。完整对话不会由主模型手工摘录，Anthropic 服务端负责组装。</p></article>
+        <article class="node advisor"><span class="stamp">ADVISOR</span><h3>只读顾问</h3><p>单独推理后返回建议。没有工具，没有文件写入，也没有自己的 context management。</p></article>
+      </div>
+      <p class="flow-caption">用户输入 → 主模型判断时机 → 服务端附上完整 transcript → advisor 返回建议 → 主模型继续</p>
+      <div class="grid-2" style="margin-top: 1.5rem">
+        <article class="card"><h3>看得见的状态</h3><p>咨询期间，CLI 显示 <code>Advising</code> 和模型名。结束后显示 <code>Reviewed</code> 或 <code>Declined</code>。有可读内容时，按 <code>Ctrl+O</code> 展开。<span class="mark o">O</span></p></article>
+        <article class="card"><h3>看不见的思考</h3><p>Advisor 的 thinking blocks 在结果返回前被丢弃。主模型收到建议文本或服务端可处理的加密结果，不会接到 advisor 的内部思考。<span class="mark o">O</span></p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="limits">
+      <div class="section-head"><span class="section-no">04 / LIMITS</span><h2>失败发生在哪一层，决定还能不能继续</h2></div>
+      <table>
+        <thead><tr><th>触发点</th><th>返回或状态</th><th>主模型随后怎样走</th><th>停止边界</th></tr></thead>
+        <tbody>
+          <tr><td>Advisor 子推理限流或过载</td><td>工具结果带 <code>too_many_requests</code> 或 <code>overloaded</code></td><td class="go">主请求继续，没有本次建议</td><td>不能把它误读成主模型 HTTP 429</td></tr>
+          <tr><td>完整 transcript 太长或咨询超时</td><td>返回 <code>prompt_too_long</code> 或 <code>execution_time_exceeded</code></td><td class="go">主模型沿现有证据继续</td><td>官方没有承诺自动压缩后重试 advisor</td></tr>
+          <tr><td>Advisor 模型不存在或临时不可用</td><td>返回 <code>model_not_found</code> 或 <code>unavailable</code></td><td class="go">主请求本身不失败</td><td>用户不能从错误码推断恢复时间</td></tr>
+          <tr><td>组合不受支持或组织不允许</td><td>Advisor 不附加；部分交互式 <code>--advisor</code> 启动直接报错退出</td><td>已有会话通常无 advisor 工作，错误启动没有主循环</td><td class="stop">启动退出时到此停止</td></tr>
+          <tr><td>订阅计划的用量边界</td><td>Advisor 用量计入计划用量限制</td><td>能否继续取决于主请求还能否获批；本轮没有运行证据</td><td>不能把计划限制写成 advisor 子调用错误</td></tr>
+          <tr><td>主模型自身收到 HTTP 429</td><td>整个 Messages 请求失败</td><td>不能套用 advisor 工具错误的继续规则</td><td class="stop">进入 Claude Code 的通用限流流程</td></tr>
+        </tbody>
+      </table>
+      <p class="note"><span class="mark o">O</span><span class="mark i">I</span>“没有 advisor 也继续”有明确前提。API 只保证 advisor 子调用错误不会拖垮主请求。主模型限流和错误启动都落在这条保证之外；订阅计划只公开了 advisor 用量会计入限制，本页不再推断触发限制后的界面与恢复时机。</p>
+    </section>
+
+    <section data-xray-section="experiment">
+      <div class="section-head"><span class="section-no">05 / OBSERVATION</span><h2>本轮没有花 token，也没有读取私人会话</h2></div>
+      <div class="observation">
+        <div class="terminal" aria-label="本机只读命令摘要">
+          <p><b>$</b> claude --version</p>
+          <p>command not found</p>
+          <p><b>$</b> claude --help</p>
+          <p>command not found</p>
+          <p><b>R</b> absent</p>
+        </div>
+        <article class="card"><h3>它能证明的很少</h3><p>当前 shell 的 PATH 没有可调用的 Claude CLI，常见安装路径也没有找到可执行文件。任务给定的基线仍是 2.1.247，本轮不能把它写成本机命令实测。<span class="mark l">L</span></p><p>真实 advisor 咨询会启动付费请求，还会让服务端读取完整对话。研究边界禁止这样做，所以没有 R，页面保持 documented。</p></article>
+      </div>
+      <p class="note">本轮只读了相邻主页面的唯一允许证据文件。它把 Advisor 明确留给独立 companion，并把 Fast Mode 保持为另一条路由状态机。<span class="mark l">L</span></p>
+    </section>
+
+    <section data-xray-section="implementation">
+      <div class="section-head"><span class="section-no">06 / IMPLEMENTATION</span><h2>配置、请求、结果各守一层</h2></div>
+      <div class="grid-3">
+        <article class="card"><h3>配置层</h3><p><code>advisorModel</code> 保存默认选择。<code>/advisor off</code> 清除它；禁用环境变量会让命令消失，并忽略已保存选择。<span class="mark o">O</span></p></article>
+        <article class="card"><h3>请求层</h3><p>这是 Anthropic API 执行的 server tool。Claude Code 权限规则与 hooks 没有对应 matcher，第三方云提供商也不承诺可用。<span class="mark o">O</span></p></article>
+        <article class="card"><h3>结果层</h3><p>成功结果可能是明文，也可能是加密块。后续轮次保留完整 result，服务端才能把加密建议重新提供给主模型。<span class="mark o">O</span></p></article>
+      </div>
+      <div class="grid-2" style="margin-top: 1rem">
+        <article class="card"><h3>缓存边界</h3><p>中途开关 advisor 不会让主模型的 prompt cache 失效，返回建议会进入后续 transcript。Claude Code 产品页写明 advisor 每次重读完整对话，没有跨调用复用。底层 API 后来提供可选缓存参数，本页没有证据证明 2.1.247 会启用它。<span class="mark o">O</span><span class="mark i">I</span></p></article>
+        <article class="card"><h3>费用边界</h3><p>每次咨询都增加 advisor 模型的输入与输出用量。订阅账户计入套餐池，API 账户按所选 advisor 模型费率结算。Advisor 选择生效以后才可能产生这部分用量。<span class="mark o">O</span></p></article>
+        <article class="card"><h3>登录与账户资格</h3><p>Claude Code 首次启动要完成登录或批准 API key。Advisor 随后还要求走 Anthropic API，并归属订阅账户或 API 计费账户。Bedrock、Google Cloud 与 Microsoft Foundry 的认证能用于 Claude Code，却不支持 advisor。未登录时命令是否可见，官方没有说明。<span class="mark o">O</span></p></article>
+        <article class="card"><h3>产品 surface</h3><p>本页确认的是官方写明的交互 CLI、设置与启动参数。后台会话只确认了错误参数下会无 advisor 启动。VS Code、JetBrains、Desktop、Remote Control 和 headless 会话都没有 advisor 专属的一手说明，本页不推断它们支持或不支持。<span class="mark o">O</span><span class="mark i">I</span></p></article>
+      </div>
+      <p class="note">官方 changelog 在 2.1.117 记录过 Advisor Tool 的实验标签、说明链接、启动通知和错误恢复修复。2.1.247 的发布项没有单列 advisor 行为变化。这个版本边界只能说明公开记录，不能代替 2.1.247 的真实运行。<span class="mark o">O</span></p>
+    </section>
+
+    <section data-xray-section="unknowns">
+      <div class="section-head"><span class="section-no">07 / UNKNOWNS</span><h2>账户和各端也还有缺口</h2></div>
+      <details open><summary>未登录时命令怎样显示</summary><p>Claude Code 首次使用会要求登录或批准 API key，失效且无法刷新的登录会让请求失败。官方没有说明重新认证以前是否隐藏 <code>/advisor</code>，也没有给出 advisor 专属报错。</p></details>
+      <details><summary>哪些产品 surface 已经接入 advisor</summary><p>交互 CLI、设置和启动参数有官方说明。错误的后台启动有一条降级规则。VS Code、JetBrains、Desktop、Remote Control、headless 会话以及后台会话的成功咨询路径均未得到 advisor 专属文档或本轮运行证据。</p></details>
+      <details><summary>主模型到底按什么规则决定调用</summary><p>官方只给了方案确定前、错误反复时和完成检查前这些倾向。2.1.247 的隐藏提示与启发式没有公开，不能写成固定时序。</p></details>
+      <details><summary>Claude Code 给底层调用加了哪些上限</summary><p>API 支持每请求调用上限和 advisor 输出上限。产品页没有公开 2.1.247 是否设置这些参数，也没有公开具体值。</p></details>
+      <details><summary>加密建议在终端里怎样展开</summary><p>API 文档说明部分 advisor 返回加密结果，Claude Code 文档只承诺有可读建议时可用 Ctrl+O 查看。本轮没有付费会话，无法核对逐字显示。</p></details>
+      <details><summary>本机会话怎样保存 advisor 结果</summary><p>隐私边界禁止读取私人 transcript、调试目录和会话文件。本页只确认官方要求后续轮次保留结果，没有猜测本机文件名或匿名化结构。</p></details>
+    </section>
+
+    <section data-xray-section="sources">
+      <div class="section-head"><span class="section-no">08 / SOURCES</span><h2>五份官方资料可以重做这页</h2></div>
+      <div class="grid-2" style="margin-bottom: 1.5rem">
+        <article class="card"><h3>免费复核</h3><p>先对照产品页的触发与界面，再到 API 页核对空 input、完整 transcript、结果块和错误后继续。最后用官方 changelog 固定版本边界。</p></article>
+        <article class="card"><h3>真实复现</h3><p>取得付费实验批准以后，在不含私人材料的临时目录启动 2.1.247，要求主模型在方案落定前咨询。只记录匿名化状态与先后顺序，不保存建议正文。Advisor 限流与主请求限流应在测试租户或 mock gateway 中分别复现。</p></article>
+      </div>
+      <div class="source-list">
+        <a href="https://code.claude.com/docs/en/advisor">Claude Code Advisor 文档<small>证明启用、触发、界面、成本、缓存与资格门</small></a>
+        <a href="https://code.claude.com/docs/en/authentication">Claude Code Authentication<small>证明登录、API key 与账户认证边界</small></a>
+        <a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/advisor-tool">Claude Platform Advisor tool<small>证明服务端上下文、返回形状、错误码与继续规则</small></a>
+        <a href="https://code.claude.com/docs/en/tools-reference">Claude Code 工具参考<small>证明 advisor 没有权限规则或 hook matcher 名称</small></a>
+        <a href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md">Claude Code 官方 changelog<small>证明实验功能的版本记录与 2.1.247 发布边界</small></a>
+        <a href="../20260827-ctx-06-fast-mode/explainer.html">CTX-06 Fast Mode 主页面<small>回看高速路由、计费和标准速度回退，本页不重讲</small></a>
+      </div>
+      <p class="footer-line">页面状态 documented · Claude Code 2.1.247 · 缺少 R。复现时先核对官方文档，再在获准的隔离账户里做匿名化付费实验。</p>
+      <p><a href="../index.html">返回总索引</a></p>
+    </section>
+  </main>
+</body>
+</html>

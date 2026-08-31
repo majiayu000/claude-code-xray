@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="EXT-06">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>EXT-06 LSP 与代码智能</title>
+  <style>
+    :root{--ink:#071111;--panel:#0d1b1a;--panel2:#102321;--paper:#e8f0df;--muted:#9eb0a5;--line:#29463f;--signal:#b9f34b;--cyan:#55ddcb;--amber:#ffbd4a;--red:#ff6b57;--max:1180px}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth;background:var(--ink)}
+    body{margin:0;color:var(--paper);background:radial-gradient(circle at 82% 12%,rgba(85,221,203,.08),transparent 24rem),linear-gradient(rgba(185,243,75,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(185,243,75,.025) 1px,transparent 1px),var(--ink);background-size:auto,32px 32px,32px 32px;font-family:"Noto Serif CJK SC","Songti SC","STSong",serif;line-height:1.75}
+    a{color:var(--signal);text-underline-offset:.25em}
+    a:hover{color:#e2ff9e}
+    a:focus-visible,summary:focus-visible{outline:3px solid var(--amber);outline-offset:4px;border-radius:3px}
+    code,.mono,.tag,.eyebrow,nav{font-family:"SFMono-Regular","Cascadia Mono","Liberation Mono",monospace}
+    header{max-width:var(--max);margin:auto;padding:26px 24px 12px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.04em}.brand b{display:inline-grid;place-items:center;width:42px;height:42px;background:var(--signal);color:var(--ink);clip-path:polygon(0 0,100% 0,100% 75%,75% 100%,0 100%)}
+    .back{font-size:.9rem}
+    nav{max-width:var(--max);margin:auto;padding:12px 24px;display:flex;gap:8px;overflow-x:auto;white-space:nowrap;font-size:.74rem;text-transform:uppercase}
+    nav a{text-decoration:none;border:1px solid var(--line);padding:5px 10px;color:var(--muted)}nav a:hover{border-color:var(--signal);color:var(--signal)}
+    main{max-width:var(--max);margin:auto;padding:0 24px 90px}
+    section{scroll-margin-top:16px;border-top:1px solid var(--line);padding:72px 0}
+    .hero{border-top:0;min-height:620px;display:grid;grid-template-columns:minmax(0,1.22fr) minmax(280px,.78fr);gap:56px;align-items:center;padding:64px 0 80px}
+    .eyebrow{color:var(--cyan);letter-spacing:.14em;font-size:.78rem;text-transform:uppercase;margin:0 0 22px}
+    h1{font-size:clamp(3rem,8vw,7rem);line-height:.9;letter-spacing:-.07em;margin:0 0 30px;max-width:780px}h1 span{display:block;color:var(--signal)}
+    .lead{font-size:clamp(1.18rem,2.2vw,1.7rem);line-height:1.55;max-width:790px;margin:0}.lead strong{color:var(--signal)}
+    .hero-note{margin-top:26px;color:var(--muted);max-width:740px;font-size:.96rem}
+    .scope-line{display:flex;flex-wrap:wrap;gap:8px;margin-top:30px}.tag{border:1px solid var(--line);padding:6px 10px;font-size:.76rem;color:var(--muted)}.tag.live{border-color:var(--signal);color:var(--signal)}
+    .scope{background:var(--panel);border:1px solid var(--line);padding:22px;box-shadow:12px 12px 0 rgba(185,243,75,.06)}
+    .scope-top{display:flex;justify-content:space-between;color:var(--muted);font:.74rem/1.4 "SFMono-Regular",monospace;margin-bottom:24px}
+    .trace{display:grid;gap:13px}.trace-row{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;font-family:"SFMono-Regular",monospace;font-size:.78rem}.lamp{width:10px;height:10px;border-radius:50%;background:var(--line);box-shadow:0 0 0 5px rgba(41,70,63,.25)}.ok .lamp{background:var(--signal);box-shadow:0 0 16px rgba(185,243,75,.7)}.warn .lamp{background:var(--amber)}.trace-row em{font-style:normal;color:var(--muted)}
+    .trace-path{height:1px;background:linear-gradient(90deg,var(--signal),var(--cyan),transparent);margin:7px 0 7px 14px}
+    h2{font-size:clamp(2rem,4.5vw,3.6rem);letter-spacing:-.04em;line-height:1.05;margin:0 0 34px}h3{font-size:1.12rem;margin:0 0 10px;color:var(--signal)}
+    .section-head{display:grid;grid-template-columns:140px 1fr;gap:26px;align-items:start;margin-bottom:40px}.section-no{font:.78rem/1.4 "SFMono-Regular",monospace;color:var(--cyan);letter-spacing:.12em}
+    .terms{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}.term{background:var(--panel);padding:25px}.term p{margin:0;color:var(--muted)}
+    .sequence-intro{max-width:920px;margin:-12px 0 28px;color:var(--muted)}.sequence{counter-reset:step;display:grid;gap:0}.step{counter-increment:step;display:grid;grid-template-columns:90px 1fr 110px;gap:24px;padding:25px 0;border-bottom:1px solid var(--line);align-items:start}.step:before{content:"0" counter(step);font:800 2rem/1 "SFMono-Regular",monospace;color:var(--signal)}.step p{margin:0;color:var(--muted)}.proof{justify-self:end;font:.74rem/1.4 "SFMono-Regular",monospace;color:var(--cyan);border:1px solid var(--line);padding:5px 8px}
+    .split-flow{display:grid;grid-template-columns:1fr 80px 1fr;gap:18px;align-items:stretch}.lane{background:var(--panel);border:1px solid var(--line);padding:28px}.lane.pull{border-top:4px solid var(--cyan)}.lane.push{border-top:4px solid var(--signal)}.lane ul{margin:18px 0 0;padding-left:1.2em;color:var(--muted)}.divider{display:grid;place-items:center;color:var(--line);font:2rem "SFMono-Regular",monospace;writing-mode:vertical-rl}
+    .failure-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}.failure{border:1px solid var(--line);background:linear-gradient(135deg,rgba(255,107,87,.06),transparent 60%),var(--panel);padding:24px}.failure b{display:block;color:var(--red);font-family:"SFMono-Regular",monospace;margin-bottom:9px}.failure p{margin:0;color:var(--muted)}
+    .fallback{margin-top:24px;border:1px solid var(--amber);padding:24px;background:rgba(255,189,74,.05)}.fallback strong{color:var(--amber)}
+    .experiment{display:grid;grid-template-columns:.8fr 1.2fr;gap:24px}.terminal{background:#030807;border:1px solid var(--line);padding:22px;font:.78rem/1.8 "SFMono-Regular",monospace;color:var(--muted);overflow:auto}.terminal .cmd{color:var(--paper)}.terminal .yes{color:var(--signal)}.terminal .dim{color:#63756c}.verdict{padding:28px;background:var(--panel2);border-left:4px solid var(--amber)}.verdict p{margin:0 0 15px}.verdict p:last-child{margin:0;color:var(--muted)}
+    .impl{display:grid;grid-template-columns:1.2fr .8fr;gap:20px}.spec{border:1px solid var(--line);background:var(--panel);padding:26px}.spec dl{margin:0;display:grid;grid-template-columns:150px 1fr;gap:12px 20px}.spec dt{font-family:"SFMono-Regular",monospace;color:var(--cyan)}.spec dd{margin:0;color:var(--muted)}.version{border:1px solid var(--line);padding:26px}.version ol{margin:0;padding-left:1.25em}.version li{margin-bottom:12px}
+    details{border-top:1px solid var(--line);padding:20px 0}summary{cursor:pointer;font-size:1.08rem;color:var(--paper)}details p{color:var(--muted);max-width:900px}
+    .sources{display:grid;gap:12px}.source{display:grid;grid-template-columns:52px 1fr;gap:18px;border:1px solid var(--line);padding:18px 20px;text-decoration:none;color:var(--paper);background:var(--panel)}.source:hover{border-color:var(--signal);color:var(--paper)}.source span{color:var(--signal);font-family:"SFMono-Regular",monospace}.source small{display:block;color:var(--muted);font-size:.88rem;margin-top:4px}
+    footer{max-width:var(--max);margin:auto;padding:28px 24px 52px;border-top:1px solid var(--line);color:var(--muted);display:flex;justify-content:space-between;gap:20px;font-size:.86rem}
+    @media (max-width:760px){header{align-items:flex-start}.back{max-width:110px;text-align:right}nav{padding-left:18px}main{padding:0 18px 60px}.hero{grid-template-columns:1fr;min-height:auto;gap:38px;padding-top:48px}.section-head{grid-template-columns:1fr;gap:8px}.terms,.failure-grid{grid-template-columns:1fr}.step{grid-template-columns:58px 1fr}.proof{grid-column:2;justify-self:start}.split-flow{grid-template-columns:1fr}.divider{writing-mode:horizontal-tb;height:34px}.experiment,.impl{grid-template-columns:1fr}.spec dl{grid-template-columns:1fr;gap:4px}.spec dd{margin-bottom:12px}.source{grid-template-columns:38px 1fr}footer{display:block}footer span{display:block;margin-top:8px}}
+    @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
+  <meta name="description" content="Claude Code X-Ray：LSP 与代码智能。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ext-06-lsp-code-intelligence/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="EXT-06 · LSP 与代码智能">
+  <meta property="og:description" content="Claude Code X-Ray：LSP 与代码智能。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ext-06-lsp-code-intelligence/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="EXT-06 · LSP 与代码智能">
+  <meta name="twitter:description" content="Claude Code X-Ray：LSP 与代码智能。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>EXT-06</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header>
+    <div class="brand"><b>27</b><span>CLAUDE CODE XRY</span></div>
+    <a class="back" href="../index.html">返回总索引</a>
+  </header>
+  <nav aria-label="页内导航">
+    <a href="#answer">答案</a><a href="#terms">名词</a><a href="#sequence">时序</a><a href="#flow">数据流</a><a href="#access">使用边界</a><a href="#limits">失败</a><a href="#experiment">实验</a><a href="#implementation">实现</a><a href="#unknowns">未知</a><a href="#sources">来源</a>
+  </nav>
+  <main>
+    <section class="hero" id="answer" data-xray-section="answer">
+      <div>
+        <p class="eyebrow">EXT-06 · documented · Claude Code 2.1.247</p>
+        <h1>LSP <span>接通代码语义</span></h1>
+        <p class="lead">用户要求查一个符号的定义或引用后，Claude 才会发起这页的主动作。插件提供<strong>文件扩展名到语言服务器的映射</strong>，LSP 工具把语义位置送回模型。服务器起不来时，这次调用只得到错误，普通搜索没有自动接管保证。</p>
+        <p class="hero-note">编辑后诊断来自另一种触发动作，本页把它留在主链旁边说明。Grep、Glob、Read 可以继续帮 Claude 找文本和读文件，是否改用它们由模型下一步决定。</p>
+        <div class="scope-line"><span class="tag live">状态 DOCUMENTED</span><span class="tag">主结论 O + I</span><span class="tag">固定版本 2.1.247</span><span class="tag">研究日期 2026-08-29</span></div>
+      </div>
+      <aside class="scope" aria-label="主链示意">
+        <div class="scope-top"><span>CODE INTELLIGENCE BUS</span><span>stdio</span></div>
+        <div class="trace">
+          <div class="trace-row ok"><i class="lamp"></i><span>用户要求查符号</span><em>definition</em></div>
+          <div class="trace-path"></div>
+          <div class="trace-row ok"><i class="lamp"></i><span>工具与路径可用</span><em>no prompt</em></div>
+          <div class="trace-path"></div>
+          <div class="trace-row ok"><i class="lamp"></i><span>映射选中 server</span><em>.ts → typescript</em></div>
+          <div class="trace-path"></div>
+          <div class="trace-row ok"><i class="lamp"></i><span>语义位置返回</span><em>LSP → model</em></div>
+          <div class="trace-path"></div>
+          <div class="trace-row warn"><i class="lamp"></i><span>失败只回错误</span><em>no auto grep</em></div>
+        </div>
+      </aside>
+    </section>
+
+    <section id="terms" data-xray-section="terms">
+      <div class="section-head"><span class="section-no">01 / TERMS</span><h2>先分清三个角色</h2></div>
+      <div class="terms">
+        <article class="term"><h3>代码智能插件</h3><p>保存 server 命令与扩展名映射。它负责接线，不包含语言服务器二进制。</p></article>
+        <article class="term"><h3>语言服务器</h3><p>用户另外安装的本机进程。它读项目语义，通过 stdio 回答定义、引用、类型和符号查询。</p></article>
+        <article class="term"><h3>LSP 工具</h3><p>Claude 可调用的内置工具。定义、引用等导航结果从这里回到 agent 循环。编辑后诊断另走自动注入旁路。</p></article>
+      </div>
+    </section>
+
+    <section id="sequence" data-xray-section="sequence">
+      <div class="section-head"><span class="section-no">02 / SEQUENCE</span><h2>一次查询怎样走完</h2></div>
+      <p class="sequence-intro">这条主链只跟随一次导航查询。用户让 Claude 查某个符号的定义或引用，Claude 选择 LSP 工具，客户端再根据目标文件的扩展名找到已登记的 server。语言服务器程序要由用户另外装进 PATH。官方没有说明 2.1.247 在插件登记后何时创建进程，所以图中把映射登记和进程启动分开，后者保留为未知。</p>
+      <div class="sequence">
+        <article class="step"><div><h3>用户提出导航问题</h3><p>例如查一个符号在哪里定义，或列出它的引用。模型随后决定调用 LSP，这一步是本页唯一的主要用户动作。</p></div><span class="proof">O + I</span></article>
+        <article class="step"><div><h3>先过可用性边界</h3><p>LSP 必须留在本次会话的工具集合里，代码智能插件也要启用。调用本身无需常规审批，<code>Read</code> 路径 deny 规则仍会约束它。</p></div><span class="proof">O + L</span></article>
+        <article class="step"><div><h3>扩展名选 server</h3><p>Claude Code 从 <code>.lsp.json</code> 或 <code>plugin.json</code> 取得映射。同一扩展名冲突时，先注册者接管。</p></div><span class="proof">O</span></article>
+        <article class="step"><div><h3>进程通过 stdio 对话</h3><p>命令需要出现在 PATH。stdout 只走协议，日志写 stderr。启动时点的完整内部顺序仍未公开。</p></div><span class="proof">O</span></article>
+        <article class="step"><div><h3>结果回到模型</h3><p>server 成功时，定义或引用位置经 LSP 工具返回。server 无法启动时，同一次调用返回错误结果。</p></div><span class="proof">O</span></article>
+      </div>
+    </section>
+
+    <section id="flow" data-xray-section="flow">
+      <div class="section-head"><span class="section-no">03 / FLOW</span><h2>主链只有一次导航查询</h2></div>
+      <div class="split-flow">
+        <article class="lane pull"><h3>本页状态转换</h3><p>用户的自然语言问题先变成一次 LSP 工具调用。server 返回定义位置、引用位置或类型信息，工具层把语义结果交回模型。模型随后可以读取目标文件，继续回答或修改代码。</p><ul><li>起点是用户要求查符号</li><li>终点是语义结果进入模型</li><li>错误也作为这次工具结果返回</li></ul></article>
+        <div class="divider" aria-hidden="true">≠</div>
+        <aside class="lane push"><h3>编辑诊断属于旁路</h3><p>Claude 修改文件才会触发这条路。默认配置把类型错误和警告直接放进 Claude 的上下文，不需要新的导航查询。<code>diagnostics: false</code> 可以关闭它，定义与引用仍可使用。</p><ul><li>触发动作是文件编辑</li><li>结果直接注入上下文</li><li>不计入本页主要状态转换</li></ul></aside>
+      </div>
+    </section>
+
+    <section id="access" data-xray-section="access">
+      <div class="section-head"><span class="section-no">04 / ACCESS</span><h2>登录、费用与权限</h2></div>
+      <div class="terms">
+        <article class="term"><h3>先有可用会话</h3><p>个人可以用 Claude.ai 的 Pro 或 Max 账户登录。组织还可以用 Team、Enterprise、Claude Console，或通过 Bedrock、Google Cloud 与 Microsoft Foundry 接入。</p></article>
+        <article class="term"><h3>费用跟随认证方式</h3><p>订阅用户先消耗套餐额度，超额能否继续取决于 usage credits 与组织设置。Console 和云提供商按 token 计费。官方没有为 LSP 单列一项附加价格，模型回合仍照常计入用量。</p></article>
+        <article class="term"><h3>免询问不等于无边界</h3><p>LSP 在工具表中无需常规审批。<code>--tools</code> 可以限制会话里的工具，裸工具名 deny 可以移除 LSP，<code>Read</code> 路径 deny 规则可以拒绝匹配调用。allow 与 <code>--allowedTools</code> 只让匹配调用免于询问，不负责限制工具。插件未启用、<code>--safe-mode</code> 关闭插件或 <code>--bare</code> 跳过 LSP 时，查询不会进入 server。</p></article>
+      </div>
+    </section>
+
+    <section id="limits" data-xray-section="limits">
+      <div class="section-head"><span class="section-no">05 / LIMITS</span><h2>四个停止位置</h2></div>
+      <div class="failure-grid">
+        <article class="failure"><b>CONFIG SKIPPED</b><p>缺 command 或扩展名映射的配置会被跳过。它不占住扩展名，后面的有效 server 仍有机会接管。</p></article>
+        <article class="failure"><b>EXECUTABLE MISSING</b><p>command 不在 PATH，插件 Errors 页会显示可执行文件不存在。插件只带配置，不替用户安装 server。</p></article>
+        <article class="failure"><b>PROTOCOL BROKEN</b><p>stdout 混入日志、header 超过 64 KiB 或 body 超过 32 MiB，Claude Code 会断开 server，并把它计作 crash。</p></article>
+        <article class="failure"><b>RESTARTS EXHAUSTED</b><p>崩溃默认会重启。<code>restartOnCrash</code> 可以关闭，<code>maxRestarts</code> 限制次数，耗尽以后 server 停止。</p></article>
+      </div>
+      <div class="fallback"><strong>普通搜索是一条可选支路。</strong> LSP 返回错误后，Claude 仍可能调用 Grep、Glob 或 Read。官方没有承诺客户端自动替换这次调用。Grep 找的是文本，Glob 找的是路径，Read 负责读取文件。它们能帮模型继续排查，却没有类型、引用和接口实现的语义保证，也不会补回编辑后的自动诊断。</div>
+    </section>
+
+    <section id="experiment" data-xray-section="experiment">
+      <div class="section-head"><span class="section-no">06 / EXPERIMENT</span><h2>这次停在只读核对</h2></div>
+      <div class="experiment">
+        <div class="terminal" aria-label="本机观察摘要"><span class="dim">$</span> <span class="cmd">archived-claude --version</span><br><span class="yes">2.1.247</span><br><br><span class="dim">$</span> <span class="cmd">shasum -a 256 archived-claude</span><br><span class="yes">5086b9b6…cca8f7</span><br><br><span class="dim">$</span> <span class="cmd">claude --version</span><br>2.1.250<br><br><span class="dim">help</span><br>--bare skips LSP</div>
+        <div class="verdict"><p>归档的 <code>2.1.247</code> 文件仍在，版本号和指定摘要都相符。它的帮助明确写着 <code>--bare</code> 跳过 LSP，也保留了会话级本地插件入口。</p><p>Claude 会话没有启动，插件 validator 也没有执行，真实 LSP 进程更没有运行。启动、诊断、导航、崩溃与搜索接手都缺少 R 证据，页面保持 documented。</p></div>
+      </div>
+    </section>
+
+    <section id="implementation" data-xray-section="implementation">
+      <div class="section-head"><span class="section-no">07 / IMPLEMENTATION</span><h2>配置旋钮与版本线</h2></div>
+      <p class="sequence-intro">工具是否处于 active，和眼前这个文件能否得到结果，是两件需要分开看的事。没有代码智能插件时，LSP 工具保持 inactive。2.1.247 的会话只要曾经有一个可用 server，工具便会在余下会话中保持 active。后来打开的文件若没有匹配 server，或匹配的 server 已经启动失败，工具仍可能显示可用，单次调用会返回错误。这个状态不能证明进程还健康，也不能证明每种文件都有语言支持。</p>
+      <p class="sequence-intro">注册阶段还会处理扩展名冲突。几个已启用 server 同时声明一种扩展名时，先注册者取得它，其他 server 不会为这种扩展名启动。无效配置会先被跳过，不会占住扩展名。这样一来，配置错误、命令缺失和运行中崩溃会停在不同位置，排查时也应分别查看插件错误、PATH 和协议进程。</p>
+      <div class="impl">
+        <article class="spec"><h3>公开配置</h3><dl><dt>command</dt><dd>必须能从 PATH 执行</dd><dt>extensionToLanguage</dt><dd>把文件扩展名映射到语言标识</dd><dt>diagnostics</dt><dd>默认开启编辑后诊断推送</dd><dt>startupTimeout</dt><dd>限制启动等待</dd><dt>restartOnCrash</dt><dd>默认开启崩溃重启</dd><dt>maxRestarts</dt><dd>给重启设置终点</dd></dl></article>
+        <article class="version"><h3>版本边界</h3><ol><li><code>2.0.74</code> 加入 LSP 工具。</li><li><code>2.1.50</code> 加入启动超时。</li><li><code>2.1.205</code> 起崩溃重启和关闭超时可用。</li><li><code>2.1.235</code> 起工具曾经有 server 可用便保持 active。</li><li>本页固定在 <code>2.1.247</code>。</li></ol></article>
+      </div>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns">
+      <div class="section-head"><span class="section-no">08 / UNKNOWNS</span><h2>还缺哪几块证据</h2></div>
+      <details open><summary>server 究竟在哪个事件上 spawn</summary><p>官方公开了插件注册、文件映射与失败行为，没有给出固定版本从编辑或首次导航请求走到进程创建的完整内部时序。</p></details>
+      <details><summary>LSP 结果怎样裁剪和排序</summary><p>文档列出能力，没有发布固定到 2.1.247 的完整输入输出 schema、所有错误码与大结果整形规则。</p></details>
+      <details><summary>错误以后模型怎样选下一步</summary><p>它可以重试 LSP，也可以调用 Grep、Glob、Read，还可以停下来说明限制。官方没有确定性 fallback 策略。</p></details>
+      <details><summary>诊断与工具事件怎样精确交错</summary><p>编辑结果、诊断注入、hooks 与下一次模型请求的精确排序需要一次获准的隔离会话实验。</p></details>
+    </section>
+
+    <section id="sources" data-xray-section="sources">
+      <div class="section-head"><span class="section-no">09 / SOURCES</span><h2>一手来源与复现入口</h2></div>
+      <div class="sources">
+        <a class="source" href="https://code.claude.com/docs/en/tools-reference"><span>O-01</span><div>Tools reference<small>证明 LSP 能力、激活状态、错误结果、普通文件工具和权限。</small></div></a>
+        <a class="source" href="https://code.claude.com/docs/en/plugins-reference#lsp-servers"><span>O-02</span><div>Plugins reference<small>证明配置位置、扩展名选择、stdio、诊断、协议上限与崩溃控制。</small></div></a>
+        <a class="source" href="https://code.claude.com/docs/en/discover-plugins#code-intelligence"><span>O-03</span><div>Discover plugins<small>证明官方代码智能插件、编辑后诊断、导航精度与普通搜索退路。</small></div></a>
+        <a class="source" href="https://code.claude.com/docs/en/changelog"><span>O-04</span><div>Claude Code changelog<small>证明 LSP 工具从 2.0.74 开始及后续版本变化。</small></div></a>
+        <a class="source" href="https://code.claude.com/docs/en/authentication"><span>O-05</span><div>Authentication<small>证明个人、组织、Console 与云提供商的登录路径。</small></div></a>
+        <a class="source" href="https://code.claude.com/docs/en/costs"><span>O-06</span><div>Costs<small>证明订阅额度、usage credits 与按 token 计费的边界。</small></div></a>
+        <a class="source" href="https://code.claude.com/docs/en/cli-reference"><span>O-07</span><div>CLI reference<small>区分工具可用性限制、deny 规则与免询问放行。</small></div></a>
+      </div>
+      <p class="hero-note">复现实验应在隔离用户和合成项目中进行。先固定 2.1.247，再用免费 server 制造成功和缺命令两种结果，随后分别测试超时、协议污染和 crash。只有获得会话与费用授权以后，才观察真实导航、诊断和普通搜索接手。</p>
+    </section>
+  </main>
+  <footer><a href="../index.html">返回总索引</a><span>EXT-06 · documented · Claude Code 2.1.247 · O 官方 · L 本机 · R 实验 · I 推断</span></footer>
+</body>
+</html>

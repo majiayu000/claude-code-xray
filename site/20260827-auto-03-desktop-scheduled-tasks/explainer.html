@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="AUTO-03">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>Desktop Scheduled Tasks 的持久调度</title>
+  <style>
+    :root {
+      --paper: #f4efdf;
+      --paper-deep: #e8dfc8;
+      --ink: #17211f;
+      --muted: #5e665f;
+      --line: #a79f88;
+      --signal: #b83a25;
+      --blue: #1e5b78;
+      --green: #2d6a4f;
+      --shadow: rgba(31, 35, 29, .14);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--paper-deep); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 49.7%, rgba(23, 33, 31, .035) 50%, transparent 50.3%),
+        repeating-linear-gradient(0deg, rgba(23, 33, 31, .025) 0 1px, transparent 1px 5px),
+        var(--paper);
+      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      line-height: 1.65;
+    }
+    a { color: inherit; text-underline-offset: .24em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--signal); }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--signal); outline-offset: 4px; border-radius: 2px; }
+    code {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .88em;
+      padding: .12em .38em;
+      background: rgba(30, 91, 120, .09);
+      border: 1px solid rgba(30, 91, 120, .25);
+      border-radius: 3px;
+    }
+    .masthead {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 20px 28px 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+      font-size: .78rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .idline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .stamp {
+      display: inline-block;
+      padding: 4px 9px;
+      border: 1px solid var(--ink);
+      background: rgba(244, 239, 223, .72);
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    .stamp.status { border-color: var(--signal); color: var(--signal); box-shadow: 3px 3px 0 var(--signal); }
+    .hero {
+      min-height: 76vh;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: clamp(64px, 11vw, 140px) 28px 72px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(260px, .55fr);
+      gap: clamp(44px, 8vw, 110px);
+      align-items: end;
+    }
+    .kicker { margin: 0 0 22px; color: var(--signal); font-size: .82rem; letter-spacing: .18em; font-weight: 700; }
+    h1, h2, h3 { font-family: "Iowan Old Style", "Songti SC", "STSong", serif; line-height: 1.12; font-weight: 650; }
+    h1 { margin: 0; max-width: 820px; font-size: clamp(3rem, 7vw, 7rem); letter-spacing: -.055em; }
+    .lede { max-width: 760px; margin: 34px 0 0; font-size: clamp(1.12rem, 2vw, 1.48rem); line-height: 1.65; }
+    .hero-note { border-top: 5px solid var(--ink); padding-top: 18px; font-size: .95rem; }
+    .hero-note strong { display: block; margin-bottom: 8px; color: var(--signal); letter-spacing: .08em; }
+    .hero-note p:last-child { margin-bottom: 0; }
+    .railnav {
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      background: rgba(232, 223, 200, .78);
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      backdrop-filter: blur(10px);
+    }
+    .railnav ol {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 28px;
+      list-style: none;
+      display: flex;
+      overflow-x: auto;
+    }
+    .railnav a { display: block; padding: 12px 16px 11px 0; margin-right: 22px; white-space: nowrap; text-decoration: none; font-size: .78rem; }
+    main { max-width: 1180px; margin: 0 auto; padding: 26px 28px 100px; }
+    section { scroll-margin-top: 70px; padding: clamp(54px, 8vw, 96px) 0; border-bottom: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 26px; align-items: baseline; margin-bottom: 34px; }
+    .section-no { color: var(--signal); font: 700 .76rem/1 "SFMono-Regular", monospace; letter-spacing: .14em; }
+    h2 { margin: 0; font-size: clamp(2rem, 4vw, 4rem); letter-spacing: -.035em; }
+    h3 { margin: 0 0 10px; font-size: 1.28rem; }
+    p { margin: 0 0 1em; }
+    .evidence-mark {
+      display: inline-grid;
+      place-items: center;
+      width: 1.7em;
+      height: 1.7em;
+      margin-right: .35em;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      font: 700 .68rem/1 "SFMono-Regular", monospace;
+      vertical-align: .12em;
+    }
+    .claim-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--ink); border: 1px solid var(--ink); }
+    .claim-grid article { background: var(--paper); padding: 24px; }
+    .claim-grid .wide { grid-column: span 2; }
+    .claim-grid .signal { background: var(--signal); color: #fff8e8; }
+    .terms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+    .term { border-top: 4px solid var(--blue); padding-top: 14px; }
+    .term:nth-child(2) { border-color: var(--signal); }
+    .term:nth-child(3) { border-color: var(--green); }
+    .timeline { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+    .timeline::before { content: ""; position: absolute; left: 3%; right: 3%; top: 22px; height: 3px; background: var(--ink); }
+    .stop { position: relative; padding-top: 52px; font-size: .88rem; }
+    .stop::before { content: ""; position: absolute; top: 13px; left: 0; width: 17px; height: 17px; background: var(--paper); border: 4px solid var(--ink); border-radius: 50%; z-index: 1; }
+    .stop.alert::before { border-color: var(--signal); background: var(--signal); }
+    .stop b { display: block; margin-bottom: 6px; font-size: 1rem; }
+    .dispatch {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr);
+      border: 1px solid var(--ink);
+      box-shadow: 10px 10px 0 var(--shadow);
+    }
+    .dispatch-label { padding: 28px; color: #f9f3e4; background: var(--ink); font: 700 .78rem/1.45 "SFMono-Regular", monospace; letter-spacing: .1em; }
+    .dispatch-body { padding: 28px; }
+    .fork { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 26px; }
+    .route { position: relative; padding: 24px; border: 1px solid var(--ink); background: rgba(255,255,255,.18); }
+    .route::after { content: ""; position: absolute; inset: 7px -7px -7px 7px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); pointer-events: none; }
+    .route.local { border-top: 7px solid var(--blue); }
+    .route.cloud { border-top: 7px solid var(--signal); }
+    .route ul, .limit-list, .source-list { margin: 14px 0 0; padding-left: 1.2em; }
+    li { margin-bottom: .55em; }
+    .matrix { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    .matrix th, .matrix td { padding: 13px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .matrix th { color: var(--muted); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; }
+    .matrix td:first-child { font-weight: 700; }
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; }
+    .legend div { padding: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.15); }
+    .legend b { display: block; color: var(--blue); margin-bottom: 5px; }
+    .callout { max-width: 820px; padding: 22px 24px; border-left: 7px solid var(--signal); background: rgba(221, 75, 47, .08); }
+    .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .fact { padding-top: 15px; border-top: 1px solid var(--ink); }
+    details { border-top: 1px solid var(--line); padding: 17px 0; }
+    summary { cursor: pointer; font-weight: 700; }
+    details p { max-width: 820px; margin: 12px 0 0; color: var(--muted); }
+    .source-list a { font-weight: 650; }
+    footer { max-width: 1180px; margin: 0 auto; padding: 0 28px 50px; color: var(--muted); font-size: .82rem; }
+    @media (max-width: 820px) {
+      .hero { min-height: auto; grid-template-columns: 1fr; padding-top: 68px; }
+      .hero-note { max-width: 420px; }
+      .claim-grid, .terms, .facts { grid-template-columns: 1fr; }
+      .claim-grid .wide { grid-column: auto; }
+      .timeline { grid-template-columns: 1fr 1fr; gap: 26px 18px; }
+      .timeline::before { display: none; }
+      .stop { padding: 0 0 0 28px; }
+      .stop::before { top: 3px; }
+      .dispatch { grid-template-columns: 1fr; }
+      .dispatch-label { padding: 15px 22px; }
+      .fork, .legend { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 520px) {
+      .masthead, .hero, main, footer { padding-left: 18px; padding-right: 18px; }
+      .masthead { grid-template-columns: 1fr; }
+      .hero { padding-top: 54px; gap: 42px; }
+      h1 { font-size: clamp(2.7rem, 15vw, 4.2rem); }
+      .railnav ol { padding: 0 18px; }
+      .section-head { grid-template-columns: 1fr; gap: 9px; }
+      .timeline, .fork, .legend { grid-template-columns: 1fr; }
+      .matrix { display: block; overflow-x: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Desktop Scheduled Tasks 的持久调度。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-auto-03-desktop-scheduled-tasks/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="AUTO-03 · Desktop Scheduled Tasks 的持久调度">
+  <meta property="og:description" content="Claude Code X-Ray：Desktop Scheduled Tasks 的持久调度。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-auto-03-desktop-scheduled-tasks/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="AUTO-03 · Desktop Scheduled Tasks 的持久调度">
+  <meta name="twitter:description" content="Claude Code X-Ray：Desktop Scheduled Tasks 的持久调度。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>AUTO-03</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="masthead">
+    <div class="idline">
+      <span class="stamp">AUTO-03</span>
+      <span class="stamp status">documented</span>
+      <span>Claude Code 2.1.247</span>
+    </div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <div class="hero">
+    <div>
+      <p class="kicker">桌面值班表 · 持久计划</p>
+      <h1>电脑醒着，计划才会出发</h1>
+      <p class="lede">Desktop 把任务保存成独立计划。到点以后，应用检查计划并新建一次会话，结果留在侧栏和运行历史里。电脑睡着时它不会把电脑唤醒，恢复后七天内只补最近错过的一次。</p>
+    </div>
+    <aside class="hero-note">
+      <strong>使用门槛</strong>
+      <p>先登录 Anthropic 账户，并确认 Pro、Max、Team 或 Enterprise 付费订阅仍然有效。Cloud routine 也只向这四类套餐开放。</p>
+      <p>本地计划能碰当前文件和未提交改动。需要关机后继续跑，就选 Cloud routine，让远端环境克隆仓库再开会话。</p>
+    </aside>
+  </div>
+
+  <nav class="railnav" aria-label="本页章节">
+    <ol>
+      <li><a href="#answer">最短答案</a></li>
+      <li><a href="#sequence">一次运行</a></li>
+      <li><a href="#flow">两种运行位置</a></li>
+      <li><a href="#limits">停在哪里</a></li>
+      <li><a href="#unknowns">未知项</a></li>
+      <li><a href="#sources">一手来源</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <section id="answer" data-xray-section="answer">
+      <div class="section-head"><span class="section-no">01 / ANSWER</span><h2>保存的是值班计划，每次运行仍是新会话</h2></div>
+      <div class="claim-grid">
+        <article class="wide"><h3><span class="evidence-mark">O</span>创建时</h3><p>用户在 Routines 里新建本地任务，填写名称、说明、指令和时间，再选工作文件夹、模型、权限模式和是否隔离 worktree。文件夹未经信任时，保存前会先出现信任提示。</p></article>
+        <article class="signal"><h3>到期时</h3><p>Desktop 每分钟看一次计划。应用开着、电脑醒着，才会新建一次 Scheduled 会话。</p></article>
+        <article><h3><span class="evidence-mark">O</span>运行后</h3><p>系统通知提醒用户，侧栏出现新会话。用户可以读结果、看改动，也可以处理停住的权限请求。</p></article>
+        <article class="wide"><h3><span class="evidence-mark">O</span>持久性到哪里</h3><p>计划跨应用重启保留。电脑睡眠期间的旧班次不会逐次重放，醒来时只补七天内最近的一次，更早的全部丢弃。</p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="terms">
+      <div class="section-head"><span class="section-no">02 / TERMS</span><h2>三个名词够用</h2></div>
+      <div class="terms">
+        <article class="term"><h3>计划</h3><p>一组保存下来的指令、时间和运行选择。提示正文可在任务目录里的 <code>SKILL.md</code> 修改，时间、文件夹、模型和启用状态另由 Desktop 管理。</p></article>
+        <article class="term"><h3>运行</h3><p>计划每次触发都会开一个新会话。历史里的一个条目对应一次启动、一次跳过或一次停住。</p></article>
+        <article class="term"><h3>运行位置</h3><p>Local 读取电脑上的文件。Cloud routine 克隆所选 GitHub 仓库，在指定环境里跑，不依赖这台电脑保持开机。</p></article>
+      </div>
+    </section>
+
+    <section id="sequence" data-xray-section="sequence">
+      <div class="section-head"><span class="section-no">03 / SEQUENCE</span><h2>一次本地任务怎样走完</h2></div>
+      <div class="timeline" aria-label="计划从保存到查看结果的六步时序">
+        <div class="stop"><b>保存</b>写下提示和计划，指定文件夹与权限。</div>
+        <div class="stop"><b>等待</b>状态为 Active，Desktop 按分钟检查。</div>
+        <div class="stop alert"><b>到期</b>固定的小延迟分散同时启动的请求。</div>
+        <div class="stop"><b>开会话</b>创建独立 Scheduled 会话。</div>
+        <div class="stop"><b>执行</b>读写文件，必要时等待批准。</div>
+        <div class="stop"><b>回报</b>通知、侧栏会话和历史留下结果。</div>
+      </div>
+      <div class="callout" style="margin-top:40px"><p><span class="evidence-mark">O</span>到点时若上一次还在跑，调度器也可能因其他计划正在运行而跳过这次。官方页面公开了这些原因，没有给出并发名额的具体数字。</p></div>
+    </section>
+
+    <section id="flow" data-xray-section="flow">
+      <div class="section-head"><span class="section-no">04 / FLOW</span><h2>文件夹留在本机，仓库交给云端</h2></div>
+      <div class="dispatch">
+        <div class="dispatch-label">ROUTINES<br>NEW<br>LOCAL / CLOUD</div>
+        <div class="dispatch-body">
+          <p>同一个入口分出两条因果链。选择取决于任务要接触哪份状态，以及电脑能否一直醒着。</p>
+          <div class="fork">
+            <article class="route local"><h3>Local</h3><ul><li>绑定一个受信任的本地文件夹</li><li>默认看见该目录当时的状态，含未提交改动</li><li>可让每次运行进入独立 Git worktree</li><li>沿用配置文件和本任务的权限选择</li></ul></article>
+            <article class="route cloud"><h3>Cloud routine</h3><ul><li>保存一个或多个 GitHub 仓库</li><li>每次从默认分支新克隆</li><li>环境提供网络、变量和安装脚本</li><li>连接器随任务配置，运行中不弹权限确认</li></ul></article>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:30px"><span class="evidence-mark">I</span>可以把选择规则压成一句话。任务必须读取本地未提交状态，就留在 Local。任务必须在合盖后继续，就交给 Cloud routine，并接受新克隆、云环境和账户限额这一组条件。</p>
+    </section>
+
+    <section id="limits" data-xray-section="limits">
+      <div class="section-head"><span class="section-no">05 / LIMITS</span><h2>它会跳过，也会停住</h2></div>
+      <table class="matrix">
+        <thead><tr><th>位置</th><th>条件</th><th>可见结果</th><th>怎样继续</th></tr></thead>
+        <tbody>
+          <tr><td>进入前</td><td>尚未登录，或没有有效的 Pro、Max、Team、Enterprise 付费订阅</td><td>无法使用 Desktop Code；Cloud routine 也不开放</td><td>登录 Anthropic 账户并确认订阅有效</td></tr>
+          <tr><td>保存前</td><td>没选文件夹，或文件夹尚未信任</td><td>不能直接保存，先要求选择或信任</td><td>确认目标文件夹</td></tr>
+          <tr><td>到期时</td><td>应用关闭或电脑睡眠</td><td>这次不启动</td><td>七天内醒来时只补最近一次</td></tr>
+          <tr><td>调度时</td><td>上一次仍在运行，或调度器因其他计划正在运行而跳过</td><td>历史记为 skipped，并显示原因</td><td>等下一班，或手动 Run now</td></tr>
+          <tr><td>执行时</td><td>Manual 模式遇到未获准工具</td><td>会话留在侧栏并等待用户</td><td>批准，或调整本任务的允许项</td></tr>
+          <tr><td>暂停后</td><td>任务状态为 Paused</td><td>计划不再按期启动</td><td>改回 Active</td></tr>
+          <tr><td>删除时</td><td>用户确认删除</td><td>任务删除，既有会话归档</td><td>可另外勾选删除磁盘上的任务文件</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section data-xray-section="experiment">
+      <div class="section-head"><span class="section-no">06 / EVIDENCE</span><h2>本页有 O 和 L，没有 R</h2></div>
+      <div class="legend">
+        <div><b>O 官方契约</b>产品公开承诺与边界</div>
+        <div><b>L 本机证据</b>版本、帮助与静态字符串</div>
+        <div><b>R 真实实验</b>本页未创建任务</div>
+        <div><b>I 研究推断</b>从相邻证据收窄出的判断</div>
+      </div>
+      <p><span class="evidence-mark">O</span>登录和套餐是使用入口。Desktop Code 要求登录 Anthropic 账户，并持有有效的 Pro、Max、Team 或 Enterprise 付费订阅。Cloud routine 当前也只向这四类套餐开放。</p>
+      <p>我把 Desktop 本地计划、会话内调度和 Cloud routine 三份官方页逐段对过，再核本机保留的基线程序。本机 Claude Code <code>2.1.247</code> 二进制返回同一版本号，SHA-256 与研究基线一致。公开帮助列出云会话、worktree 和权限模式，静态字符串能找到 <code>CronCreate</code>、<code>CronList</code>、<code>CronDelete</code> 与 <code>scheduled-tasks</code>。这些 L 证据只说明基线程序带有相邻调度词面，不能证明 Desktop 的保存、唤醒或补跑路径真的执行过。</p>
+      <p>创建本地计划会写用户配置并可能触发付费会话，创建 Cloud routine 还会写远端账户。研究边界不允许这两种动作，因此状态保持 documented。</p>
+    </section>
+
+    <section data-xray-section="implementation">
+      <div class="section-head"><span class="section-no">07 / IMPLEMENTATION</span><h2>提示文件只装提示</h2></div>
+      <div class="facts">
+        <article class="fact"><h3><span class="evidence-mark">O</span>磁盘提示</h3><p>任务名会转成小写 kebab-case，并成为任务目录名。目录中的 <code>SKILL.md</code> 用 YAML frontmatter 保存名称与说明，正文保存提示。改完以后从下一次运行生效。</p></article>
+        <article class="fact"><h3><span class="evidence-mark">O</span>调度元数据</h3><p>时间、文件夹、模型和启用状态明确不在这份 <code>SKILL.md</code> 里。官方要求从 Edit 表单或会话里让 Claude 修改，公开文档没有给出另一份文件的名称和格式。</p></article>
+        <article class="fact"><h3><span class="evidence-mark">O</span>本地文件流</h3><p>不启用 worktree 时，运行直接面对工作目录当时的内容。启用以后，每次运行有自己的 Git worktree，隔离方式与并行会话一致。</p></article>
+        <article class="fact"><h3><span class="evidence-mark">O</span>结果记录</h3><p>通知负责叫人来看，Scheduled 会话承载过程和改动，历史再记录运行或跳过。对 Cloud routine 来说，绿色状态只证明会话没有基础设施错误，任务是否做成还得打开会话确认。</p></article>
+      </div>
+      <p style="margin-top:30px"><span class="evidence-mark">O</span>版本线也要分开。官方要求 Claude Desktop 至少达到 <code>1.1.5368</code> 才有本地 scheduled tasks。Claude Code <code>2.1.247</code> 是这套 XRY 的 CLI 基线，它不能替代 Desktop 应用版本。</p>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns">
+      <div class="section-head"><span class="section-no">08 / UNKNOWNS</span><h2>公开契约留下的空白</h2></div>
+      <details open><summary>完整计划究竟存在哪份文件里</summary><p>官方只公开提示文件，并明确排除了时间、文件夹、模型和启用状态。本轮遵守隐私限制，没有读取用户的 scheduled-tasks 目录。</p></details>
+      <details><summary>本地计划最多能同时跑几个</summary><p>历史会显示因其他计划正在运行而跳过，文档没有公布并发上限，也没有说明多个同分钟任务的排序规则。</p></details>
+      <details><summary>本地历史保留多久</summary><p>详情页可以 Show more 加载旧条目。官方没有写明本地历史的保留期、清理条件或最大条数。</p></details>
+      <details><summary>夏令时和跨时区移动怎样处理</summary><p>界面用本地时间排班，公开页没有说明本地计划在夏令时切换或电脑时区改变后的精确行为。</p></details>
+      <details><summary>一次本地运行怎样计入用量</summary><p>Cloud routine 的账户限额有单独说明，本地 scheduled task 页面没有给出同等精度的用量与并发口径。</p></details>
+    </section>
+
+    <section data-xray-section="sources" id="sources">
+      <div class="section-head"><span class="section-no">09 / SOURCES</span><h2>一手来源与复现</h2></div>
+      <ul class="source-list">
+        <li><a href="https://code.claude.com/docs/en/desktop-quickstart">Desktop 入门官方页</a>，证明登录要求和 Pro、Max、Team、Enterprise 付费订阅门槛。</li>
+        <li><a href="https://code.claude.com/docs/en/desktop-scheduled-tasks">Desktop scheduled tasks 官方页</a>，证明保存字段、按分钟检查、补跑、权限、历史和提示文件。</li>
+        <li><a href="https://code.claude.com/docs/en/scheduled-tasks">会话内调度官方页</a>，证明 <code>/loop</code> 的会话边界、恢复条件和七天到期。</li>
+        <li><a href="https://code.claude.com/docs/en/routines">Cloud routines 官方页</a>，证明支持套餐、仓库克隆、云环境、连接器、无交互权限和结果会话。</li>
+        <li><a href="https://code.claude.com/docs/en/desktop">Desktop 官方参考</a>，证明 Desktop 与 CLI 的版本和界面边界。</li>
+      </ul>
+      <div class="callout" style="margin-top:34px"><p>安全复现先核对 <code>2.1.247 --version</code> 与二进制哈希，再读取同版本 <code>--help</code>。随后在可付费的隔离测试账号里新建一分钟一次的本地任务，记录保存前后的状态，并观察准点运行和睡眠错过。另做一次权限停住，再确认暂停有效。不要读取私人会话或把真实工作目录写进日志。</p></div>
+    </section>
+  </main>
+
+  <footer>AUTO-03 · 状态 documented · 研究基线 2026-08-27 · Claude Code 2.1.247</footer>
+</body>
+</html>

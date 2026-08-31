@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-UI-IDE-MATRIX">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>VS Code 与 JetBrains 能力差异矩阵</title>
+  <style>
+    :root {
+      --ink: #17201d;
+      --paper: #f3f0e6;
+      --panel: #fffdf7;
+      --line: #17201d;
+      --muted: #46514d;
+      --lime: #c9f266;
+      --coral: #ff795f;
+      --blue: #7dc9d3;
+      --yellow: #f4ce55;
+      --ghost: #e4e1d7;
+      --shadow: 6px 6px 0 #17201d;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(23,32,29,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23,32,29,.045) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: "IBM Plex Sans", "Noto Sans CJK SC", "PingFang SC", sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: inherit; text-decoration-thickness: 2px; text-underline-offset: .22em; }
+    a:hover { text-decoration-color: var(--coral); }
+    a:focus-visible, summary:focus-visible {
+      outline: 4px solid var(--ink);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    .topbar a:focus-visible { outline-color: var(--panel); }
+    code {
+      padding: .1em .35em;
+      border: 1px solid currentColor;
+      background: #fff;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .88em;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .72rem clamp(1rem, 4vw, 3.5rem);
+      border-bottom: 2px solid var(--line);
+      background: rgba(243,240,230,.96);
+      backdrop-filter: blur(8px);
+      font-size: .82rem;
+      font-weight: 750;
+      letter-spacing: .04em;
+    }
+    .top-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem 1rem; }
+    .status {
+      padding: .18rem .52rem;
+      border: 2px solid var(--line);
+      background: var(--yellow);
+      box-shadow: 2px 2px 0 var(--ink);
+    }
+    .top-links { display: flex; gap: 1rem; white-space: nowrap; }
+
+    main { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; }
+    section { scroll-margin-top: 5rem; }
+
+    .hero {
+      min-height: calc(100vh - 52px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(340px, .98fr);
+      align-items: center;
+      gap: clamp(2rem, 6vw, 5rem);
+      padding: clamp(3rem, 8vw, 7rem) 0;
+    }
+    .eyebrow, .section-no {
+      margin: 0 0 .75rem;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { margin-top: 0; line-height: 1.15; }
+    h1 {
+      max-width: 9ch;
+      margin-bottom: 1.15rem;
+      font-family: "Iowan Old Style", "Songti SC", serif;
+      font-size: clamp(3rem, 7vw, 6.5rem);
+      font-weight: 900;
+      letter-spacing: -.055em;
+    }
+    .lede { max-width: 35rem; margin: 0 0 1.3rem; font-size: clamp(1.12rem, 2vw, 1.45rem); line-height: 1.58; }
+    .verdict {
+      display: inline-block;
+      max-width: 36rem;
+      margin: .4rem 0 0;
+      padding: .72rem .9rem;
+      border-left: 6px solid var(--coral);
+      background: var(--panel);
+      font-weight: 700;
+    }
+
+    .editor-plate {
+      position: relative;
+      border: 3px solid var(--line);
+      background: var(--panel);
+      box-shadow: 12px 12px 0 var(--ink);
+      transform: rotate(1deg);
+    }
+    .windowbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .62rem .8rem;
+      border-bottom: 3px solid var(--line);
+      background: var(--lime);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .76rem;
+      font-weight: 800;
+    }
+    .dots { letter-spacing: .25em; }
+    .editor-body { display: grid; grid-template-columns: 2.1rem 1fr 1fr; min-height: 390px; }
+    .gutter {
+      padding-top: 1.25rem;
+      border-right: 2px solid var(--line);
+      background: var(--ink);
+      color: var(--paper);
+      text-align: center;
+      font: .72rem/2.85 "SFMono-Regular", Consolas, monospace;
+    }
+    .lane { padding: 1.2rem 1rem 1.4rem; }
+    .lane + .lane { border-left: 2px dashed var(--line); }
+    .lane h2 { font-size: 1.02rem; }
+    .slot {
+      min-height: 74px;
+      margin-top: .7rem;
+      padding: .7rem;
+      border: 2px solid var(--line);
+      font-size: .84rem;
+      line-height: 1.45;
+    }
+    .slot b { display: block; margin-bottom: .25rem; font-size: .72rem; letter-spacing: .08em; }
+    .slot.same { background: var(--blue); }
+    .slot.vs { background: var(--lime); }
+    .slot.jb { background: var(--yellow); }
+    .slot.gap { background: repeating-linear-gradient(135deg, #fff 0 8px, var(--ghost) 8px 16px); }
+    .plate-note {
+      position: absolute;
+      right: -1.1rem;
+      bottom: -1.25rem;
+      padding: .45rem .72rem;
+      border: 2px solid var(--line);
+      background: var(--coral);
+      box-shadow: 3px 3px 0 var(--ink);
+      font-size: .75rem;
+      font-weight: 800;
+      transform: rotate(-3deg);
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin: 0 0 5rem;
+      border: 2px solid var(--line);
+      background: var(--panel);
+    }
+    .legend div { display: flex; align-items: center; gap: .65rem; padding: .7rem .85rem; }
+    .legend div + div { border-left: 2px solid var(--line); }
+    .legend b, .badge {
+      display: inline-grid;
+      place-items: center;
+      min-width: 1.75rem;
+      height: 1.75rem;
+      border: 2px solid var(--line);
+      background: var(--lime);
+      font: 800 .72rem/1 "SFMono-Regular", Consolas, monospace;
+    }
+    .badge.i { background: var(--yellow); }
+    .legend span { font-size: .82rem; }
+
+    .block {
+      margin: 0 0 6rem;
+      padding-top: .2rem;
+    }
+    .block > h2 {
+      max-width: 18ch;
+      margin-bottom: 1rem;
+      font-family: "Iowan Old Style", "Songti SC", serif;
+      font-size: clamp(2rem, 4vw, 3.8rem);
+      letter-spacing: -.035em;
+    }
+    .intro { max-width: 48rem; margin-bottom: 2rem; color: #38433f; font-size: 1.04rem; }
+
+    .term-grid, .limit-grid, .lab-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    .card {
+      padding: 1.15rem;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      box-shadow: 4px 4px 0 var(--ink);
+    }
+    .card h3 { margin-bottom: .45rem; font-size: 1.05rem; }
+    .card p { margin: 0; font-size: .91rem; }
+    .card:nth-child(2) { background: #f9f2ce; }
+    .card:nth-child(3) { background: #dff1ed; }
+
+    .sequence { position: relative; margin-top: 2.2rem; }
+    .sequence::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 1.25rem;
+      width: 3px;
+      background: var(--line);
+    }
+    .step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 2.6rem minmax(0, 1fr) auto;
+      gap: 1rem;
+      align-items: start;
+      margin: 0 0 1.2rem;
+    }
+    .step-no {
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 2.6rem;
+      height: 2.6rem;
+      border: 3px solid var(--line);
+      background: var(--paper);
+      font: 800 .8rem/1 "SFMono-Regular", Consolas, monospace;
+    }
+    .step-body { padding: .15rem 1rem 1.15rem; border-bottom: 2px solid var(--line); }
+    .step-body h3 { margin-bottom: .4rem; font-size: 1.08rem; }
+    .step-body p { margin: 0; }
+
+    .matrix {
+      border: 3px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .matrix-row {
+      display: grid;
+      grid-template-columns: minmax(9rem, .7fr) minmax(0, 1.35fr) minmax(0, 1.35fr);
+    }
+    .matrix-row + .matrix-row { border-top: 2px solid var(--line); }
+    .matrix-cell { padding: .95rem 1rem; }
+    .matrix-cell + .matrix-cell { border-left: 2px solid var(--line); }
+    .matrix-head { background: var(--ink); color: var(--paper); font-weight: 800; }
+    .matrix-label { background: var(--ghost); font-weight: 800; }
+    .matrix-cell p { margin: 0; font-size: .9rem; }
+    .signal {
+      display: inline-block;
+      margin-bottom: .45rem;
+      padding: .1rem .45rem;
+      border: 1.5px solid currentColor;
+      background: var(--lime);
+      color: var(--ink);
+      font-size: .7rem;
+      font-weight: 850;
+      letter-spacing: .06em;
+    }
+    .signal.partial { background: var(--yellow); }
+    .signal.limit { background: var(--coral); }
+
+    .flowstrip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 3px solid var(--line);
+      background: var(--panel);
+    }
+    .flow-item { position: relative; min-height: 150px; padding: 1rem; }
+    .flow-item + .flow-item { border-left: 2px solid var(--line); }
+    .flow-item + .flow-item::before {
+      content: "›";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 1.6rem;
+      transform: translate(-50%, -50%);
+      border: 2px solid var(--line);
+      background: var(--yellow);
+      text-align: center;
+      font-size: 1.5rem;
+      line-height: 1.35rem;
+    }
+    .flow-item b { display: block; margin-bottom: .45rem; }
+    .flow-item p { margin: 0; font-size: .86rem; }
+
+    .limit-grid { grid-template-columns: repeat(2, 1fr); }
+    .limit-grid .card { box-shadow: none; }
+    .limit-grid .card:nth-child(odd) { border-left: 8px solid var(--coral); }
+    .limit-grid .card:nth-child(even) { border-left: 8px solid var(--yellow); }
+    .limit-grid .access-card {
+      grid-column: 1 / -1;
+      border-left: 8px solid var(--blue);
+      background: #dff1ed;
+    }
+
+    .lab-grid { grid-template-columns: repeat(2, 1fr); }
+    .lab-grid .card:first-child { background: var(--ink); color: var(--paper); }
+    .lab-grid .card:last-child { background: var(--coral); }
+    .lab-note { max-width: 48rem; margin-top: 1.5rem; }
+
+    .version-band {
+      display: grid;
+      grid-template-columns: .75fr 1.25fr;
+      border: 3px solid var(--line);
+      background: var(--panel);
+    }
+    .version-stamp {
+      display: grid;
+      place-items: center;
+      min-height: 220px;
+      padding: 1rem;
+      border-right: 3px solid var(--line);
+      background: var(--blue);
+      font: 900 clamp(2.2rem, 5vw, 4rem)/1 "Iowan Old Style", "Songti SC", serif;
+      text-align: center;
+    }
+    .version-copy { padding: 1.4rem; }
+    .version-copy p { margin-top: 0; }
+
+    .unknown-list { padding: 0; list-style: none; counter-reset: unknown; }
+    .unknown-list li {
+      counter-increment: unknown;
+      display: grid;
+      grid-template-columns: 3.4rem 1fr;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-top: 2px solid var(--line);
+    }
+    .unknown-list li::before {
+      content: "U" counter(unknown);
+      font: 900 1rem/1.7 "SFMono-Regular", Consolas, monospace;
+      color: #a33c2c;
+    }
+
+    .sources-list { padding-left: 1.2rem; }
+    .sources-list li { margin: .75rem 0; }
+    details {
+      margin-top: 1.5rem;
+      border: 2px solid var(--line);
+      background: var(--panel);
+    }
+    summary { cursor: pointer; padding: .9rem 1rem; background: var(--lime); font-weight: 800; }
+    details ol { margin: 0; padding: 1rem 1.2rem 1.2rem 2.5rem; }
+    details li { margin: .6rem 0; }
+    .boundary {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border: 2px dashed var(--line);
+      background: #fff;
+    }
+    .footerline {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-top: 3rem;
+      padding: 1rem 0 2rem;
+      border-top: 3px solid var(--line);
+      font-size: .86rem;
+      font-weight: 750;
+    }
+
+    @media (max-width: 820px) {
+      .topbar { position: static; align-items: flex-start; }
+      .top-links { flex-direction: column; gap: .25rem; text-align: right; }
+      .hero { min-height: auto; grid-template-columns: 1fr; padding-top: 3.5rem; }
+      .editor-plate { width: calc(100% - .8rem); transform: none; }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+      .legend div:nth-child(3) { border-left: 0; border-top: 2px solid var(--line); }
+      .legend div:nth-child(4) { border-top: 2px solid var(--line); }
+      .term-grid { grid-template-columns: 1fr; }
+      .flowstrip { grid-template-columns: 1fr 1fr; }
+      .flow-item:nth-child(3) { border-left: 0; border-top: 2px solid var(--line); }
+      .flow-item:nth-child(3)::before { display: none; }
+      .flow-item:nth-child(4) { border-top: 2px solid var(--line); }
+      .matrix-row { grid-template-columns: 1fr 1fr; }
+      .matrix-head .matrix-cell:first-child, .matrix-label { grid-column: 1 / -1; }
+      .matrix-head .matrix-cell:nth-child(2) { border-left: 0; }
+      .matrix-label { border-bottom: 2px solid var(--line); }
+      .matrix-cell:nth-child(2) { border-left: 0; }
+      .limit-grid, .lab-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      main { width: min(100% - 1.15rem, 1180px); }
+      .topbar { flex-direction: column; padding: .65rem .75rem; font-size: .72rem; }
+      .top-links { width: 100%; flex-direction: row; flex-wrap: wrap; text-align: left; }
+      .top-meta span:last-child { display: none; }
+      h1 { font-size: clamp(2.8rem, 16vw, 4.4rem); }
+      .editor-body { grid-template-columns: 1.75rem 1fr; }
+      .lane + .lane { grid-column: 2; border-left: 0; border-top: 2px dashed var(--line); }
+      .gutter { grid-row: 1 / 3; }
+      .plate-note { position: static; display: block; border-width: 2px 0 0; box-shadow: none; transform: none; }
+      .legend { margin-bottom: 4rem; }
+      .legend div { padding: .55rem; }
+      .legend span { font-size: .74rem; }
+      .block { margin-bottom: 4.5rem; }
+      .step { grid-template-columns: 2.6rem minmax(0, 1fr); gap: .6rem; }
+      .step .badge { grid-column: 2; }
+      .step-body { padding-right: 0; }
+      .matrix { box-shadow: 4px 4px 0 var(--ink); }
+      .matrix-row { display: block; }
+      .matrix-cell + .matrix-cell { border-left: 0; border-top: 1px dashed var(--line); }
+      .matrix-head .matrix-cell:first-child { display: none; }
+      .matrix-head { display: none; }
+      .matrix-label { border-bottom: 0; background: var(--ink); color: var(--paper); }
+      .matrix-cell:nth-child(2)::before, .matrix-cell:nth-child(3)::before {
+        display: block;
+        margin-bottom: .35rem;
+        font-size: .72rem;
+        font-weight: 900;
+        letter-spacing: .08em;
+      }
+      .matrix-cell:nth-child(2)::before { content: "VS CODE"; }
+      .matrix-cell:nth-child(3)::before { content: "JETBRAINS"; }
+      .flowstrip { grid-template-columns: 1fr; }
+      .flow-item + .flow-item { border-left: 0; border-top: 2px solid var(--line); }
+      .flow-item + .flow-item::before { display: none; }
+      .version-band { grid-template-columns: 1fr; }
+      .version-stamp { min-height: 140px; border-right: 0; border-bottom: 3px solid var(--line); }
+      .footerline { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：VS Code 与 JetBrains 能力差异矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-ide-platform-matrix/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-UI-IDE-MATRIX · VS Code 与 JetBrains 能力差异矩阵">
+  <meta property="og:description" content="Claude Code X-Ray：VS Code 与 JetBrains 能力差异矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-ide-platform-matrix/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-UI-IDE-MATRIX · VS Code 与 JetBrains 能力差异矩阵">
+  <meta name="twitter:description" content="Claude Code X-Ray：VS Code 与 JetBrains 能力差异矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-UI-IDE-MATRIX</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="top-meta">
+      <strong>COMP-UI-IDE-MATRIX</strong>
+      <span class="status">当前状态 documented</span>
+      <span>Claude Code 2.1.247</span>
+    </div>
+    <nav class="top-links" aria-label="跨页导航">
+      <a href="../20260827-ui-04-ide-session-bridge/explainer.html">查看公共会话桥 UI-04</a>
+      <a href="../index.html">返回总索引</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" id="answer">
+      <div>
+        <p class="eyebrow">伴页 · IDE capability matrix</p>
+        <h1>同一条路，两种工作台</h1>
+        <p class="lede">VS Code 把 Claude 做成图形面板，计划批注和改动审阅都留在编辑器里。JetBrains 把插件接到独立 CLI，工作从终端起步，diff 可以回到 IDE。</p>
+        <p class="verdict">选择 VS Code 时，你得到更完整的图形审阅面。选择 JetBrains 时，终端仍是主入口。两边共享的会话桥由 UI-04 解释。</p>
+      </div>
+
+      <div class="editor-plate" aria-label="两类 IDE 的能力落点概览">
+        <div class="windowbar"><span class="dots">● ● ●</span><span>PLATFORM SPLIT</span></div>
+        <div class="editor-body">
+          <div class="gutter">01<br>02<br>03<br>04<br>05</div>
+          <div class="lane">
+            <h2>VS Code</h2>
+            <div class="slot vs"><b>入口</b>扩展提供图形面板</div>
+            <div class="slot same"><b>上下文</b>选区、引用和隐藏开关</div>
+            <div class="slot vs"><b>审阅</b>并排 diff 与 Markdown 计划批注</div>
+          </div>
+          <div class="lane">
+            <h2>JetBrains</h2>
+            <div class="slot jb"><b>入口</b>独立 CLI 加插件</div>
+            <div class="slot same"><b>上下文</b>选区、活动标签与文件引用</div>
+            <div class="slot gap"><b>审阅</b>IDE 或终端 diff，图形计划批注未见官方承诺</div>
+          </div>
+        </div>
+        <div class="plate-note">O + L · 无 R</div>
+      </div>
+    </section>
+
+    <aside class="legend" aria-label="O L R I 证据图例">
+      <div><b>O</b><span>官方契约</span></div>
+      <div><b>L</b><span>本机静态与帮助</span></div>
+      <div><b>R</b><span>本轮真实实验</span></div>
+      <div><b>I</b><span>研究者推断</span></div>
+    </aside>
+
+    <section class="block" data-xray-section="terms" id="terms">
+      <p class="section-no">01 · terms</p>
+      <h2>先认清三个落点</h2>
+      <p class="intro">本页看的是用户动作最后落在哪个界面。会话怎样连接、令牌怎样鉴权和选区怎样穿过本地服务，都由 UI-04 继续讲。</p>
+      <div class="term-grid">
+        <article class="card">
+          <h3>图形面板</h3>
+          <p>VS Code 扩展默认打开它。提示与会话入口都在面板里，计划和 diff 也在编辑器中审阅。</p>
+        </article>
+        <article class="card">
+          <h3>独立 CLI</h3>
+          <p>JetBrains 插件靠它运行。VS Code 的终端入口是否复用扩展所带 CLI，必须按实际扩展版本核对。</p>
+        </article>
+        <article class="card">
+          <h3>宿主 IDE</h3>
+          <p>它掌握选区与活动文件，也处理快捷键和原生 diff。插件把这些入口接给 Claude Code。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="sequence" id="sequence">
+      <p class="section-no">02 · sequence</p>
+      <h2>一次动作怎样分叉</h2>
+      <p class="intro">用户从安装走到审阅，中间有四个检查点。plan 与 default 两个配置值把流程送往不同审阅支路，权限仍决定改动能否继续。</p>
+      <div class="sequence">
+        <article class="step">
+          <div class="step-no">01</div>
+          <div class="step-body"><h3>先让插件和运行入口都就位</h3><p>VS Code 安装扩展后获得图形面板。JetBrains 要求独立 CLI 与插件同时存在，装完插件还要重启 IDE。VS Code 的最低宿主版本和终端 CLI 打包方式缺少与 2.1.247 配对的冻结资料，本页不作确定断言。</p></div>
+          <span class="badge i">O + I</span>
+        </article>
+        <article class="step">
+          <div class="step-no">02</div>
+          <div class="step-body"><h3>用户选中代码并发送提示</h3><p>VS Code 可以自动附上高亮文本，也能隐藏选区。JetBrains 连接后会共享当前选区或活动标签页。两边都有插入文件引用的快捷键。</p></div>
+          <span class="badge">O</span>
+        </article>
+        <article class="step">
+          <div class="step-no">03</div>
+          <div class="step-body"><h3>当前模式选定审阅支路</h3><p>选用 plan 时，VS Code 会打开完整 Markdown 计划并允许行内评论，JetBrains 沿用 CLI 的审阅与批准。选用 default 时，流程跳过计划文档，等文件改动进入 diff。</p></div>
+          <span class="badge i">O + I</span>
+        </article>
+        <article class="step">
+          <div class="step-no">04</div>
+          <div class="step-body"><h3>分支各自在审阅门停住</h3><p>plan 等用户批准计划。default 下，VS Code 展示并排差异；JetBrains 则按 Diff tool 使用 IDE viewer 或 terminal。批准或接受让对应分支继续，拒绝会停掉这次应用。</p></div>
+          <span class="badge">O</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="flow" id="flow">
+      <p class="section-no">03 · flow</p>
+      <h2>七项差异放在一张表里</h2>
+      <p class="intro">表里的“未见承诺”只描述官方公开范围。它不等于证明某个插件版本绝无该能力。</p>
+      <div class="matrix" role="table" aria-label="VS Code 与 JetBrains 能力矩阵">
+        <div class="matrix-row matrix-head" role="row">
+          <div class="matrix-cell" role="columnheader">对照点</div>
+          <div class="matrix-cell" role="columnheader">VS Code</div>
+          <div class="matrix-cell" role="columnheader">JetBrains</div>
+        </div>
+        <div class="matrix-row" role="row">
+          <div class="matrix-cell matrix-label" role="rowheader">安装</div>
+          <div class="matrix-cell" role="cell"><span class="signal partial">I · 基线待核</span><p>安装扩展即可使用图形面板。官方在线资料对最低宿主版本和终端 CLI 打包方式出现过冲突；没有 2.1.247 同日快照，本页不固定这两项。</p></div>
+          <div class="matrix-cell" role="cell"><span class="signal partial">双件套</span><p>先装独立 CLI，再装 Marketplace 插件并重启。插件不自带 CLI。</p></div>
+        </div>
+        <div class="matrix-row" role="row">
+          <div class="matrix-cell matrix-label" role="rowheader">上下文选择</div>
+          <div class="matrix-cell" role="cell"><span class="signal">可见开关</span><p>自动看见高亮文本。用户能隐藏选区，也能插入带路径和行号的引用。</p></div>
+          <div class="matrix-cell" role="cell"><span class="signal">规则阻断</span><p>连接时共享选区或活动标签。匹配的 Read deny 会挡住选区和活动文件提示。</p></div>
+        </div>
+        <div class="matrix-row" role="row">
+          <div class="matrix-cell matrix-label" role="rowheader">Diff</div>
+          <div class="matrix-cell" role="cell"><span class="signal">明确交互</span><p>default 提供并排差异。用户能接受或拒绝，也可改写建议稿后继续给指令。</p></div>
+          <div class="matrix-cell" role="cell"><span class="signal partial">位置可选</span><p>Diff tool 可选 IDE viewer 或 terminal。官方没有写出与 VS Code 相同的按钮组。</p></div>
+        </div>
+        <div class="matrix-row" role="row">
+          <div class="matrix-cell matrix-label" role="rowheader">Plan review</div>
+          <div class="matrix-cell" role="cell"><span class="signal">专用文档</span><p>计划作为完整 Markdown 文档打开，支持行内评论，批准后才进入改动。</p></div>
+          <div class="matrix-cell" role="cell"><span class="signal limit">终端审阅</span><p>Plan 沿用 CLI 的审阅与批准。官方 JetBrains 页面没有写专用图形计划批注面。</p></div>
+        </div>
+        <div class="matrix-row" role="row">
+          <div class="matrix-cell matrix-label" role="rowheader">Terminal handoff</div>
+          <div class="matrix-cell" role="cell"><span class="signal partial">O + I · 可切换</span><p>useTerminal 可把入口切到终端。集成终端能否直接调用扩展所带 CLI 要按扩展版本核对；外部终端用 /ide 接回。</p></div>
+          <div class="matrix-cell" role="cell"><span class="signal">原生入口</span><p>常规用法就是在 IDE 终端运行 claude。外部终端同样通过 /ide 连接。</p></div>
+        </div>
+        <div class="matrix-row" role="row">
+          <div class="matrix-cell matrix-label" role="rowheader">快捷键</div>
+          <div class="matrix-cell" role="cell"><span class="signal">焦点与会话</span><p>Cmd 或 Ctrl 加 Esc 切焦点。再加 Shift 可开新会话标签，Option 或 Alt 加 K 插入引用。</p></div>
+          <div class="matrix-cell" role="cell"><span class="signal">启动与引用</span><p>Cmd 或 Ctrl 加 Esc 快速启动。Cmd 加 Option 加 K，或 Alt 加 Ctrl 加 K 插入引用。</p></div>
+        </div>
+        <div class="matrix-row" role="row">
+          <div class="matrix-cell matrix-label" role="rowheader">平台限制</div>
+          <div class="matrix-cell" role="cell"><span class="signal limit">宿主门槛</span><p>Restricted Mode 不工作；缺少对应预编译二进制时会报告 unsupported platform，系统也可能先截走 Cmd 加 Esc。</p></div>
+          <div class="matrix-cell" role="cell"><span class="signal limit">部署位置</span><p>Remote Development 要装在远端 host。WSL2 的 NAT 或防火墙可能挡住 IDE 检测。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="limits" id="limits">
+      <p class="section-no">04 · limits</p>
+      <h2>五个地方会停下来</h2>
+      <div class="limit-grid">
+        <article class="card access-card"><h3>账户还没有准入</h3><p>两类 IDE 第一次运行都要登录。直接使用 Anthropic 服务时，需要付费 Claude 订阅或 Claude Console 账户，不要求另填 API key。VS Code 官方还列出 Amazon Bedrock、Google Cloud 的 Agent Platform 等第三方提供商入口，认证与计费随后服从对应提供商。<span class="badge">O</span></p></article>
+        <article class="card"><h3>CLI 不在 PATH</h3><p>JetBrains 会直接无法启动 Claude Code。VS Code 的图形面板与终端入口不是同一项保证；当前扩展能否把所带 CLI 暴露给集成终端，需按版本核对。<span class="badge i">O + I</span></p></article>
+        <article class="card"><h3>上下文被用户或规则挡住</h3><p>VS Code 的隐藏开关和 JetBrains 的 Read deny 都会让下一次提示少带一部分编辑器上下文。<span class="badge">O</span></p></article>
+        <article class="card"><h3>审阅尚未批准</h3><p>plan 等计划批准，default 等 diff 决定。自动编辑模式减少停顿，也会扩大 IDE 配置文件被改写的风险。<span class="badge">O</span></p></article>
+        <article class="card"><h3>宿主或连接错位</h3><p>JetBrains 插件装在本地 client、WSL2 网络受阻或外部终端没有 /ide 时，原生 diff 和选区共享都不会接上。<span class="badge">O</span></p></article>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="experiment" id="experiment">
+      <p class="section-no">05 · local check</p>
+      <h2>这轮只做了静态核对</h2>
+      <div class="lab-grid">
+        <article class="card"><h3>查过什么</h3><p>本轮尝试读取 claude、code 与 cursor 的版本和帮助，并定点检查两类 IDE 的标准插件位置。还只读打开了允许使用的 UI-04 主页面。</p></article>
+        <article class="card"><h3>得到什么</h3><p>当前隔离 shell 找不到这些命令，标准位置也没有返回 Claude Code 插件。任务固定的本机基线是 Claude Code 2.1.247。</p></article>
+      </div>
+      <p class="lab-note">这些结果只能算 L。它们不能证明另一条 PATH、远端 host 或正在运行的 GUI 没有插件，更不能证明选区、计划和 diff 在本轮真实走过。任务禁止启动新的付费会话，本页因此没有 R，状态保持 documented。</p>
+    </section>
+
+    <section class="block" data-xray-section="implementation" id="implementation">
+      <p class="section-no">06 · implementation</p>
+      <h2>版本和边界要一起看</h2>
+      <div class="version-band">
+        <div class="version-stamp">2.1.247<br>documented</div>
+        <div class="version-copy">
+          <p>固定基线来自 2026-08-27。官方索引当日有 202 个入口。2.1.246 已修复 VS Code 恢复 Plan 模式的问题，目标版本包含这项修复。</p>
+          <p>在线 IDE 文档会继续更新，官方没有提供与 2.1.247 同日冻结的两类插件兼容表。最低 VS Code 版本与终端 CLI 打包方式在审查前后出现过冲突，本页撤掉固定答案。页面只把稳定的官方差异当作 O；JetBrains 专用图形计划批注面继续列为未知。</p>
+          <p><a href="../20260827-ui-04-ide-session-bridge/explainer.html">公共 session bridge 留在 UI-04</a>。本页只处理宿主、入口、视图和平台限制，是非计数 companion。</p>
+        </div>
+      </div>
+      <div class="flowstrip" aria-label="平台分叉的停止顺序">
+        <div class="flow-item"><b>安装完成</b><p>VS Code 具备图形面板，JetBrains 具备独立 CLI 与插件。</p></div>
+        <div class="flow-item"><b>选择上下文</b><p>高亮文本、活动文件和引用在发送提示时确定。</p></div>
+        <div class="flow-item"><b>等待审阅</b><p>plan 等计划决定，default 等 diff 决定。</p></div>
+        <div class="flow-item"><b>继续或停止</b><p>接受后应用这次改动。拒绝、断线或宿主错位会停在当前门。</p></div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="unknowns" id="unknowns">
+      <p class="section-no">07 · unknowns</p>
+      <h2>还缺五块证据</h2>
+      <ol class="unknown-list">
+        <li>2.1.247 与基线当日两类插件的精确版本配对，包括最低 VS Code 版本和终端 CLI 打包方式。</li>
+        <li>JetBrains 各 IDE 处理部分接受、冲突和文件已变化时的统一行为。</li>
+        <li>JetBrains 是否在某个插件版本里提供官方未写明的专用图形 plan review。</li>
+        <li>VS Code 用户改写建议稿以后，插件传回 Claude 的具体差异格式。</li>
+        <li>不同键盘布局与系统级占用下的冲突，以及用户自定义映射后的结果。</li>
+      </ol>
+    </section>
+
+    <section class="block" data-xray-section="sources" id="sources">
+      <p class="section-no">08 · sources</p>
+      <h2>一手来源与复现办法</h2>
+      <ul class="sources-list">
+        <li><a href="https://code.claude.com/docs/en/vs-code">VS Code 官方文档，证明 VS Code 这一列的七个操作面</a></li>
+        <li><a href="https://code.claude.com/docs/en/jetbrains">JetBrains 官方文档，证明 JetBrains 这一列的入口与限制</a></li>
+        <li><a href="https://code.claude.com/docs/en/permission-modes">权限模式官方文档，证明 JetBrains 沿用 CLI 的 Plan 审阅与批准</a></li>
+        <li><a href="https://code.claude.com/docs/en/changelog">Claude Code 官方 changelog，限定 2.1.247 与相邻版本变化</a></li>
+        <li><a href="https://github.com/anthropics/claude-code/blob/v2.1.247/CHANGELOG.md">Anthropic 官方仓库的 2.1.247 changelog 快照，证明目标版本标签</a></li>
+      </ul>
+
+      <details>
+        <summary>展开安全复现步骤</summary>
+        <ol>
+          <li>建一个不含私人内容的一次性仓库，固定 Claude Code 2.1.247，并记录两类插件版本。</li>
+          <li>分别安装官方插件。JetBrains 另装独立 CLI。</li>
+          <li>用 default 模式新建会话；选中两行无敏感信息的文本，再用隐藏开关或 Read deny 重发。</li>
+          <li>请求改一个字面量，记录 diff 的位置，分别接受和拒绝，并比较文件哈希。</li>
+          <li>进入 Plan，记录计划出现位置、批注入口和批准后的文件哈希。</li>
+          <li>从集成终端和外部终端重复连接，只保存匿名结果，不保存提示、会话 ID、令牌或 transcript 名。</li>
+        </ol>
+      </details>
+
+      <div class="boundary">本页只比较七个操作面。会话桥的连接、鉴权、选区传输与会话历史统一回到 <a href="../20260827-ui-04-ide-session-bridge/explainer.html">UI-04 主页面</a>。</div>
+      <div class="footerline">
+        <span>COMP-UI-IDE-MATRIX · documented · O + L · 无 R</span>
+        <a href="../index.html">返回总索引</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

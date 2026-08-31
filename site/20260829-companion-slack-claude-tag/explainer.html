@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-UI-CHAT-DELEGATION">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>Slack 与 Claude Tag 的委派和退役矩阵</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f2eadc;
+      --ink: #20231f;
+      --muted: #62645e;
+      --rule: #252923;
+      --soft-rule: #b9b2a6;
+      --panel: #e8dece;
+      --cream: #fffaf0;
+      --red: #c5423f;
+      --green: #278b69;
+      --blue: #247a9b;
+      --yellow: #dfad36;
+      --old: #646864;
+      --display: "Iowan Old Style", "Songti SC", "STSong", serif;
+      --body: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--paper); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 0 31px, rgba(197,66,63,.13) 31px 32px, transparent 32px),
+        repeating-linear-gradient(0deg, rgba(32,35,31,.025) 0 1px, transparent 1px 6px),
+        var(--paper);
+      font-family: var(--body);
+      line-height: 1.68;
+    }
+    a { color: #075f76; text-underline-offset: .2em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      padding: .08em .3em;
+      border: 1px solid #a59e92;
+      background: #f9f2e7;
+      color: #2b4f57;
+      font: .88em var(--mono);
+      overflow-wrap: anywhere;
+    }
+    .wrap { width: min(1200px, calc(100% - 48px)); margin: 0 auto; }
+    .topline {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+      padding: 20px 0 15px;
+      border-bottom: 3px double var(--rule);
+      font: 700 .73rem/1.4 var(--mono);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .mast { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tag { padding: 5px 8px; border: 1px solid var(--rule); background: rgba(255,250,240,.62); }
+    .tag.state { color: #fff; background: var(--red); border-color: var(--red); }
+    .hero {
+      min-height: min(770px, calc(100vh - 62px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr);
+      gap: clamp(38px, 7vw, 92px);
+      align-items: center;
+      padding: 68px 0 78px;
+    }
+    .issue { color: var(--red); font: 800 .78rem var(--mono); letter-spacing: .15em; }
+    h1, h2, h3 { margin: 0; font-family: var(--display); }
+    h1 {
+      max-width: 720px;
+      margin-top: 17px;
+      font-size: clamp(3.25rem, 8.5vw, 7.5rem);
+      line-height: .88;
+      letter-spacing: -.07em;
+      text-wrap: balance;
+    }
+    h1 em { color: var(--red); font-style: normal; }
+    .dek {
+      max-width: 710px;
+      margin: 30px 0 0;
+      padding-left: 18px;
+      border-left: 5px solid var(--yellow);
+      font: 600 clamp(1.06rem, 1.8vw, 1.35rem)/1.62 var(--body);
+    }
+    .hero-note { max-width: 680px; margin: 20px 0 0; color: var(--muted); font-size: .91rem; }
+    .switchboard {
+      position: relative;
+      padding: 28px 24px 24px;
+      border: 2px solid var(--rule);
+      background: var(--cream);
+      box-shadow: 12px 12px 0 var(--yellow);
+      transform: rotate(1deg);
+    }
+    .switchboard::before {
+      content: "SLACK ROUTE CARD";
+      display: block;
+      margin-bottom: 22px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--rule);
+      color: var(--muted);
+      font: 800 .7rem var(--mono);
+      letter-spacing: .12em;
+    }
+    .route { display: grid; grid-template-columns: 68px 1fr; gap: 15px; padding: 17px 0; border-bottom: 1px dashed var(--soft-rule); }
+    .route:last-child { border-bottom: 0; }
+    .route .year { color: var(--muted); font: 800 .72rem var(--mono); }
+    .route b { display: block; font-size: 1rem; }
+    .route p { margin: 4px 0 0; color: var(--muted); font-size: .85rem; line-height: 1.5; }
+    .route.new b { color: var(--green); }
+    .route.old b { color: var(--old); text-decoration: line-through; text-decoration-color: var(--red); }
+    .route.keep b { color: var(--blue); }
+    .stamp-retire {
+      position: absolute;
+      right: 14px;
+      top: 80px;
+      padding: 4px 8px;
+      border: 2px solid var(--red);
+      color: var(--red);
+      font: 900 .68rem var(--mono);
+      letter-spacing: .08em;
+      transform: rotate(-7deg);
+    }
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      background: rgba(242,234,220,.96);
+      backdrop-filter: blur(8px);
+    }
+    nav .wrap { display: flex; gap: 3px; overflow-x: auto; padding: 9px 0; scrollbar-width: thin; }
+    nav a { flex: 0 0 auto; padding: 7px 10px; color: var(--ink); text-decoration: none; font: 700 .72rem var(--mono); }
+    nav a:hover { color: #fff; background: var(--red); }
+    main { padding-bottom: 48px; }
+    .section {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: clamp(32px, 5vw, 66px);
+      padding: 82px 0;
+      border-bottom: 2px solid var(--rule);
+    }
+    .section-no { color: var(--red); font: 900 .72rem var(--mono); letter-spacing: .12em; }
+    h2 { margin-top: 9px; font-size: clamp(1.75rem, 3.6vw, 3.2rem); line-height: 1.03; letter-spacing: -.03em; }
+    .lead { max-width: 840px; margin: 0 0 27px; font-size: 1.08rem; }
+    .proof { color: var(--red); font: 800 .75em var(--mono); white-space: nowrap; }
+    .terms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+    .term { min-height: 145px; padding: 20px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: rgba(255,250,240,.42); }
+    .term b { display: block; color: var(--blue); font: 800 .79rem var(--mono); }
+    .term p { margin: 8px 0 0; color: var(--muted); font-size: .91rem; }
+    .timeline { position: relative; display: grid; gap: 0; }
+    .moment { display: grid; grid-template-columns: 55px 140px 1fr; gap: 18px; padding: 20px 0; border-top: 1px solid var(--soft-rule); }
+    .moment:first-child { border-top-color: var(--rule); }
+    .moment .n { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--red); font: 800 .74rem var(--mono); }
+    .moment .actor { padding-top: 5px; color: var(--blue); font: 800 .76rem var(--mono); }
+    .moment p { margin: 0; }
+    .matrix-wrap { overflow-x: auto; border: 1px solid var(--rule); }
+    table { width: 100%; min-width: 760px; border-collapse: collapse; background: rgba(255,250,240,.43); font-size: .9rem; }
+    th, td { padding: 15px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--soft-rule); border-right: 1px solid var(--soft-rule); }
+    th:last-child, td:last-child { border-right: 0; }
+    tr:last-child td { border-bottom: 0; }
+    th { color: #fff; background: var(--rule); font: 800 .76rem var(--mono); letter-spacing: .04em; }
+    th.old-col { background: var(--old); }
+    th.new-col { background: var(--green); }
+    td:first-child { width: 18%; color: var(--red); font-weight: 800; }
+    .lane-board { display: grid; gap: 20px; }
+    .lane { display: grid; grid-template-columns: 128px repeat(5, minmax(95px, 1fr)); border: 1px solid var(--rule); background: var(--cream); }
+    .lane-title { padding: 18px 14px; color: #fff; background: var(--old); font: 800 .77rem/1.45 var(--mono); }
+    .lane.new .lane-title { background: var(--green); }
+    .stop { position: relative; min-height: 136px; padding: 18px 13px; border-left: 1px dashed var(--soft-rule); }
+    .stop::before { content: ""; display: block; width: 13px; height: 13px; margin-bottom: 12px; border: 3px solid var(--yellow); border-radius: 50%; background: var(--cream); }
+    .stop b { font-size: .87rem; }
+    .stop p { margin: 6px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+    .callout { margin-top: 18px; padding: 18px 20px; border-left: 6px solid var(--yellow); background: rgba(255,250,240,.72); }
+    .callout.red { border-left-color: var(--red); }
+    .callout.green { border-left-color: var(--green); }
+    .callout p { margin: 0; }
+    .gates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .gate { padding: 20px; border: 1px solid var(--rule); background: rgba(255,250,240,.44); }
+    .gate b { color: var(--red); font: 800 .78rem var(--mono); }
+    .gate p { margin: 8px 0 0; color: var(--muted); }
+    .gate.pass b { color: var(--green); }
+    .legend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 26px 0; }
+    .legend div { min-height: 108px; padding: 16px; border-top: 5px solid var(--red); background: var(--cream); }
+    .legend div:nth-child(2) { border-color: var(--blue); }
+    .legend div:nth-child(3) { border-color: var(--yellow); }
+    .legend div:nth-child(4) { border-color: var(--green); }
+    .legend b { display: block; font: 900 1.25rem var(--mono); }
+    .legend span { color: var(--muted); font-size: .82rem; }
+    .version-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .version { padding: 20px; border: 1px solid var(--rule); }
+    .version time { color: var(--red); font: 800 .74rem var(--mono); }
+    .version h3 { margin-top: 8px; font-size: 1.12rem; }
+    .version p { margin: 8px 0 0; color: var(--muted); font-size: .88rem; }
+    details { border-top: 1px solid var(--rule); }
+    details:last-child { border-bottom: 1px solid var(--rule); }
+    summary { cursor: pointer; padding: 16px 4px; font-weight: 800; }
+    details p { max-width: 790px; margin: 0; padding: 0 4px 18px; color: var(--muted); }
+    .sources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--rule); }
+    .source { padding: 19px 20px 19px 0; border-bottom: 1px solid var(--rule); }
+    .source:nth-child(odd) { padding-right: 28px; }
+    .source:nth-child(even) { padding-left: 28px; border-left: 1px solid var(--rule); }
+    .source .mark { color: var(--red); font: 900 .72rem var(--mono); }
+    .source a { display: inline-block; margin-top: 5px; font-weight: 800; }
+    .source p { margin: 6px 0 0; color: var(--muted); font-size: .86rem; }
+    footer { display: flex; justify-content: space-between; gap: 24px; padding: 28px 0 52px; color: var(--muted); font: .72rem var(--mono); }
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; min-height: 0; }
+      .switchboard { max-width: 650px; transform: none; }
+      .section { grid-template-columns: 1fr; gap: 28px; padding: 64px 0; }
+      .section-head { display: grid; grid-template-columns: 110px 1fr; align-items: end; gap: 14px; }
+      h2 { margin-top: 0; }
+      .lane { grid-template-columns: 112px repeat(5, minmax(110px, 1fr)); min-width: 760px; }
+      .lane-board { overflow-x: auto; }
+    }
+    @media (max-width: 650px) {
+      .wrap { width: min(100% - 24px, 1200px); }
+      .topline { grid-template-columns: 1fr; gap: 10px; }
+      .hero { padding: 52px 0 62px; gap: 44px; }
+      h1 { font-size: clamp(3rem, 16vw, 4.65rem); }
+      .switchboard { padding: 23px 18px; box-shadow: 7px 7px 0 var(--yellow); }
+      .route { grid-template-columns: 55px 1fr; }
+      .section-head { display: block; }
+      h2 { margin-top: 8px; }
+      .terms, .gates, .legend, .version-grid, .sources { grid-template-columns: 1fr; }
+      .moment { grid-template-columns: 42px 1fr; gap: 10px; }
+      .moment .actor, .moment p { grid-column: 2; }
+      .source, .source:nth-child(odd), .source:nth-child(even) { padding: 18px 0; border-left: 0; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Slack 与 Claude Tag 的委派和退役矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-slack-claude-tag/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-UI-CHAT-DELEGATION · Slack 与 Claude Tag 的委派和退役矩阵">
+  <meta property="og:description" content="Claude Code X-Ray：Slack 与 Claude Tag 的委派和退役矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-slack-claude-tag/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-UI-CHAT-DELEGATION · Slack 与 Claude Tag 的委派和退役矩阵">
+  <meta name="twitter:description" content="Claude Code X-Ray：Slack 与 Claude Tag 的委派和退役矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-UI-CHAT-DELEGATION</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="wrap">
+    <div class="topline">
+      <div class="mast">
+        <span class="tag">COMP-UI-CHAT-DELEGATION</span>
+        <span class="tag state">documented</span>
+        <span class="tag">Claude Code 2.1.247</span>
+      </div>
+      <a href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero wrap" data-xray-section="answer" id="answer">
+      <div>
+        <div class="issue">伴页 · SLACK DELEGATION MATRIX</div>
+        <h1>同一个 <em>@Claude</em>，背后换了账户</h1>
+        <p class="dek">旧 Claude Code in Slack 把编码任务交给提问者自己的网页会话。Claude Tag 在 Team、Enterprise 频道里改用组织共享身份和频道访问，结果仍回到原线程。Pro、Max 继续走旧路径。</p>
+        <p class="hero-note">Team、Enterprise 的 Legacy 路径正在退役。Slack app 和 handle 会留下，个人仓库授权不会迁过去。官方契约已讲清，登录态云端路径没有实测，本页保持 documented。 <span class="proof">[O]</span></p>
+      </div>
+      <aside class="switchboard" aria-label="Slack 路径切换摘要">
+        <span class="stamp-retire">LEGACY RETIRING</span>
+        <div class="route old"><div class="year">OLD</div><div><b>个人身份</b><p>个人仓库，个人限额，每次请求新建网页会话</p></div></div>
+        <div class="route new"><div class="year">NEW</div><div><b>组织身份</b><p>频道授权，线程会话，临时 sandbox</p></div></div>
+        <div class="route keep"><div class="year">KEEP</div><div><b>同一条 Slack 线程</b><p>提问、进度、结果与后续约束仍在这里交接</p></div></div>
+      </aside>
+    </section>
+
+    <nav aria-label="本页目录"><div class="wrap">
+      <a href="#terms">名词</a><a href="#sequence">时序</a><a href="#flow">矩阵</a><a href="#limits">门与停止</a><a href="#experiment">证据</a><a href="#implementation">版本</a><a href="#unknowns">未知</a><a href="#sources">来源</a>
+    </div></nav>
+
+    <div class="wrap">
+      <section class="section" data-xray-section="terms" id="terms">
+        <div class="section-head"><div class="section-no">01 / TERMS</div><h2>先认清三条路</h2></div>
+        <div>
+          <p class="lead">Slack 里都可能出现 <code>@Claude</code>，运行位置和身份却不同。把名字分清，后面的权限与停止条件才不会串线。 <span class="proof">[O]</span></p>
+          <div class="terms">
+            <article class="term"><b>旧 Claude Code in Slack</b><p>个人连接 Slack 与 claude.ai。编码请求进入 Claude Code on the web，使用提问者已连接的 GitHub 仓库与个人计划限额。</p></article>
+            <article class="term"><b>Claude Tag</b><p>Team、Enterprise 的共享频道代理。Owner 给它独立身份、仓库和连接，频道里的人共用同一组访问。</p></article>
+            <article class="term"><b>Legacy 与 New</b><p>同一个 Slack app 的两种版本。Enterprise 可以按 scope 选择 Legacy、New、Off 或 Inherit，迁移期间可并存。</p></article>
+            <article class="term"><b>Channels</b><p>把外部事件推入正在运行的本地 CLI 会话。它的 capability、通知信封与回复工具留给 UI-08。</p></article>
+          </div>
+          <div class="callout"><p><a href="../20260827-ui-08-channels-runtime-injection/explainer.html">回到 UI-08 查看 Channels 的运行中注入协议</a>。本页只负责 Slack 委派与退役矩阵。</p></div>
+        </div>
+      </section>
+
+      <section class="section" data-xray-section="sequence" id="sequence">
+        <div class="section-head"><div class="section-no">02 / SEQUENCE</div><h2>一条频道消息怎样变成工作</h2></div>
+        <div>
+          <p class="lead">两条路都从 Slack 消息出发，也都回到那条线程。中间的账号、仓库和会话归属已经换了。 <span class="proof">[O]</span></p>
+          <div class="timeline">
+            <div class="moment"><div class="n">1</div><div class="actor">频道成员</div><p>在 Claude 已加入的频道或线程里写下任务。旧路径可以在 Code + Chat 中判断编码意图，也可以用 Code only 全部送去代码会话。Claude Tag 的频道任务由任何获准成员发起。</p></div>
+            <div class="moment"><div class="n">2</div><div class="actor">Slack app</div><p>旧路径收集线程或近期频道上下文，再决定走普通聊天还是 Claude Code on the web。Claude Tag 把首条消息交给频道会话，并在该消息下建立线程工作会话。</p></div>
+            <div class="moment"><div class="n">3</div><div class="actor">身份与仓库</div><p>旧路径从提问者个人已连接仓库中自动判断，选错后可 Change Repo。Claude Tag 先建空 sandbox，首条消息点名频道已获授权的仓库后才克隆。</p></div>
+            <div class="moment"><div class="n">4</div><div class="actor">云端执行</div><p>旧路径新建 claude.ai/code 会话。Claude Tag 在每条线程自己的 sandbox 里运行同一套网页端引擎，仓库内的 CLAUDE.md、hooks 和 skills 在克隆后加载。</p></div>
+            <div class="moment"><div class="n">5</div><div class="actor">原线程</div><p>旧路径发状态、完成摘要与 View Session、Create PR 等按钮。Claude Tag 用可原地更新的 checklist 报进度，再把回复、文件或 draft PR 放回线程。</p></div>
+            <div class="moment"><div class="n">6</div><div class="actor">继续或收住</div><p>Claude Tag 允许频道里的其他人直接在线程回复并接着引导。任务安静一段时间后 sandbox 释放；下次回复会重建 sandbox，线程会话继续。</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" data-xray-section="flow" id="flow">
+        <div class="section-head"><div class="section-no">03 / MATRIX</div><h2>七个问题放在一张表里</h2></div>
+        <div>
+          <p class="lead">这张矩阵只写公开承诺。Claude 怎样给旧路径的仓库候选打分，官方没有公开。 <span class="proof">[O + I]</span></p>
+          <div class="matrix-wrap">
+            <table>
+              <thead><tr><th>比较项</th><th class="old-col">旧 Claude Code in Slack</th><th class="new-col">Claude Tag 的频道工作</th></tr></thead>
+              <tbody>
+                <tr><td>消息进入</td><td>公开或私有频道里的 mention。DM 不接这条代码委派。</td><td>频道、线程都可发起，mention 保证被接收。DM 另走个人账号。</td></tr>
+                <tr><td>执行身份</td><td>提问者连接的个人 claude.ai 账号。</td><td>Owner 配置的组织共享 agent identity 与服务账号。</td></tr>
+                <tr><td>仓库选择</td><td>按上下文从个人已连接 GitHub 仓库自动选；可 Change Repo。</td><td>首条消息点名频道已授权仓库，空 sandbox 随后克隆。</td></tr>
+                <tr><td>任务创建</td><td>每个编码请求新建 Claude Code 网页会话。</td><td>每条线程绑定一个持久会话，执行环境按工作周期临时建立。</td></tr>
+                <tr><td>回复路由</td><td>进度与摘要回原 Slack 线程，完整 transcript 留在网页会话。</td><td>checklist、结果、文件与 PR 链接回原线程，线程内回复继续会话。</td></tr>
+                <tr><td>费用与计划</td><td>Pro、Max 继续可用；旧 Team、Enterprise 过渡 scope 受各自安排。会话扣个人计划。</td><td>只在 Team、Enterprise 第一方服务提供。频道工作扣组织用量，DM 扣个人账号。</td></tr>
+                <tr><td>退役位置</td><td>Team、Enterprise 的 Legacy scope 到 cutover 后停止回复。Pro、Max 保留。</td><td>New 承接 Team、Enterprise。Slack app 与 handle 原地保留。</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="lane-board" style="margin-top:24px" aria-label="两条委派数据流">
+            <div class="lane">
+              <div class="lane-title">个人路径<br>Legacy</div>
+              <div class="stop"><b>mention</b><p>线程或频道消息</p></div>
+              <div class="stop"><b>个人账号</b><p>Slack 与 claude.ai 绑定</p></div>
+              <div class="stop"><b>自动选仓</b><p>个人已授权集合</p></div>
+              <div class="stop"><b>网页会话</b><p>每次编码请求新建</p></div>
+              <div class="stop"><b>线程回帖</b><p>进度、摘要、按钮</p></div>
+            </div>
+            <div class="lane new">
+              <div class="lane-title">组织路径<br>New</div>
+              <div class="stop"><b>mention</b><p>频道成员交任务</p></div>
+              <div class="stop"><b>共享身份</b><p>Owner 配置访问</p></div>
+              <div class="stop"><b>点名仓库</b><p>频道已授权集合</p></div>
+              <div class="stop"><b>线程 sandbox</b><p>空闲释放，回复重建</p></div>
+              <div class="stop"><b>线程结果</b><p>全频道可看可续接</p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" data-xray-section="limits" id="limits">
+        <div class="section-head"><div class="section-no">04 / GATES</div><h2>哪里会停，谁能放行</h2></div>
+        <div>
+          <p class="lead">安装 app 只是第一关。身份、频道、仓库、环境和花费都可能让任务停住。 <span class="proof">[O]</span></p>
+          <div class="gates">
+            <article class="gate pass"><b>旧路径可通过</b><p>个人账号有 Claude Code on the web，至少连接一个 GitHub 仓库，Claude app 已加入目标频道。</p></article>
+            <article class="gate"><b>旧路径停止</b><p>没有网页端 cloud environment 时，代码会话不会启动；没有 web access 时只得到普通聊天回复。</p></article>
+            <article class="gate pass"><b>Claude Tag 可通过</b><p>Owner 完成 workspace 配对，给 scope 选 New，授予组织共享 environment、频道访问和仓库。</p></article>
+            <article class="gate"><b>仓库门</b><p>新会话开场没有仓库。仓库没被授予该频道，点名也无法克隆；改完授权要开新线程。</p></article>
+            <article class="gate"><b>环境门</b><p>Claude Tag 频道若指向个人 cloud environment，会话立即失败，重试无效。Owner 要换成组织共享环境。</p></article>
+            <article class="gate"><b>花费门</b><p>组织或频道上限不足时，Claude Tag 拒绝新工作，并说明是限额还是余额阻止，不会悄悄中途截断。</p></article>
+            <article class="gate"><b>退役门</b><p>Legacy scope 到账号团队给出的 cutover 日期后停止回复，直到把该 scope 改为 New。</p></article>
+            <article class="gate"><b>线程停止</b><p>Claude Tag 首条消息在还没有回复时被删，会话关闭。空闲只释放 sandbox，线程与会话仍可在后续回复时续接。</p></article>
+          </div>
+          <div class="callout red"><p>迁移不会搬运个人连接。New 起初没有外部访问，Owner 需要重新连接 GitHub 和其他工具。代码由 Claude GitHub App 署名，旧路径的 PR 若仍挂在提问者名下，说明该 scope 还在 Legacy。 <span class="proof">[O]</span></p></div>
+        </div>
+      </section>
+
+      <section class="section" data-xray-section="experiment" id="experiment">
+        <div class="section-head"><div class="section-no">05 / EVIDENCE</div><h2>本页有 O，R 缺席</h2></div>
+        <div>
+          <p class="lead">本轮完整核对官方 Slack、Claude Tag、迁移和平台资料。没有登录 Slack 或 Anthropic 组织，没有发消息、创建云任务或消耗用量。 <span class="proof">[O]</span></p>
+          <div class="legend" aria-label="证据图例">
+            <div><b>O</b><span>Anthropic 官方契约，本页主要依据</span></div>
+            <div><b>L</b><span>本机静态或帮助证据，本轮未取得功能证据</span></div>
+            <div><b>R</b><span>真实安全实验，本页缺失</span></div>
+            <div><b>I</b><span>研究者推断，只标边界</span></div>
+          </div>
+          <div class="callout green"><p><b>本机观察</b> 当前 shell 调用 <code>claude --version</code> 返回 command not found，预期安装目录又被环境拒绝读取。固定的 2.1.247 与二进制哈希来自研究基线，不能充当本轮 L。页面因此保持 documented。</p></div>
+          <div class="callout"><p><b>为何没有 R</b> 真实运行需要登录、安装或连接 app、发 Slack 消息并建立收费云端工作。任务边界禁止这些动作。可恢复的匿名化步骤已写进 evidence.md。</p></div>
+        </div>
+      </section>
+
+      <section class="section" data-xray-section="implementation" id="implementation">
+        <div class="section-head"><div class="section-no">06 / VERSION</div><h2>退役是一段过渡</h2></div>
+        <div>
+          <p class="lead">迁移指南把 Team、Enterprise 的旧路径列入 Legacy 过渡，同时给 Enterprise 留下按 scope 切换的空间。具体 cutover 日期由账号团队告知。 <span class="proof">[O]</span></p>
+          <div class="version-grid">
+            <article class="version"><time>NEW</time><h3>产品切向 Claude Tag</h3><p>Team、Enterprise 的新方向采用组织共享身份，旧路径按迁移设置继续过渡。</p></article>
+            <article class="version"><time>2026-08-27</time><h3>本页固定基线</h3><p>Claude Code 2.1.247，官方索引 202 个入口。本轮不拿 8 月 30 日索引替换基线哈希。</p></article>
+            <article class="version"><time>CUTOVER</time><h3>Legacy 进入停服</h3><p>Enterprise 迁移期可以让 New 与 Legacy 分 scope 共存。到指定日期后，Legacy scope 才停止回复。</p></article>
+          </div>
+          <div class="callout"><p><b>Team 的差别</b> Team 使用一个 Enable Claude Tag 开关。官方迁移页说明开关只在没有 scope 仍路由到旧 app 时出现；旧连接不会自动变成新访问包。</p></div>
+          <div class="callout green"><p><b>视觉与实现取舍</b> 本页用一张路由卡、一张差异矩阵和两条并排行程呈现同一组事实。单文件 HTML 无外部字体、脚本、图片、追踪或 iframe，窄屏表格可横向查看。</p></div>
+        </div>
+      </section>
+
+      <section class="section" data-xray-section="unknowns" id="unknowns">
+        <div class="section-head"><div class="section-no">07 / UNKNOWNS</div><h2>还不能写死的地方</h2></div>
+        <div>
+          <p class="lead">这些缺口会改变真实可用性，官方没有给统一答案，本轮也没有登录态实验。</p>
+          <details open><summary>这个 workspace 哪天停止 Legacy</summary><p>官方只给迁移机制，具体 cutover 日期要向 Anthropic account team 确认。</p></details>
+          <details><summary>旧路径怎样给仓库候选排序</summary><p>官方保证按对话上下文自动选择并允许用户更改，没有公开评分、阈值和多候选 UI 的触发条件。</p></details>
+          <details><summary>Claude Tag 没听到仓库名时怎样处理编码请求</summary><p>官方 Claude Code 用户指南只保证首条消息点名已授权仓库后才克隆。追问、解释或其他选择行为没有统一承诺。</p></details>
+          <details><summary>当前 scope 与花费还剩多少</summary><p>这取决于组织设置、频道上限和余额。没有管理员访问就不能从公开文档得出。</p></details>
+          <details><summary>本机 2.1.247 暴露了什么相关入口</summary><p>本轮 shell 找不到 claude，安装目录也无法读取。Slack 与 Claude Tag 主要运行在 Anthropic cloud，本页不借固定版本号补本机实现结论。</p></details>
+        </div>
+      </section>
+
+      <section class="section" data-xray-section="sources" id="sources">
+        <div class="section-head"><div class="section-no">08 / SOURCES</div><h2>一手来源与复现入口</h2></div>
+        <div>
+          <p class="lead">研究日期为 2026-08-30，产品基线固定为 2026-08-27。来源都直达 Anthropic 官方页面。</p>
+          <div class="sources">
+            <div class="source"><div class="mark">O-1</div><a href="https://code.claude.com/docs/en/slack">旧 Claude Code in Slack 的个人身份、选仓与线程回复</a><p>证明旧路径、Pro 与 Max 保留、Team 与 Enterprise 退役方向。</p></div>
+            <div class="source"><div class="mark">O-2</div><a href="https://code.claude.com/docs/en/claude-tag">Claude Code 文档里的 Claude Tag 产品边界</a><p>证明共享身份、计划范围及与旧 Slack 路径的区别。</p></div>
+            <div class="source"><div class="mark">O-3</div><a href="https://claude.com/docs/claude-tag/concepts/how-it-works">Claude Tag 线程会话和 sandbox 生命周期</a><p>证明消息进入、线程续接、进度与结果怎样回帖。</p></div>
+            <div class="source"><div class="mark">O-4</div><a href="https://claude.com/docs/claude-tag/concepts/for-claude-code-users">Claude Tag 的仓库克隆与 Claude Code 配置加载</a><p>证明空 sandbox、点名仓库和频道权限的先后关系。</p></div>
+            <div class="source"><div class="mark">O-5</div><a href="https://claude.com/docs/claude-tag/admins/migrate-from-earlier">Legacy 到 New 的官方迁移与停服条件</a><p>证明 app 与 handle 保留、连接不迁移、分 scope 切换和 cutover。</p></div>
+            <div class="source"><div class="mark">O-6</div><a href="https://claude.com/docs/claude-tag/overview">Claude Tag 的计划、访问与组织计费</a><p>证明 Owner 设置、频道共享访问、DM 例外和花费上限。</p></div>
+            <div class="source"><div class="mark">O-7</div><a href="https://code.claude.com/docs/en/platforms">平台总览里的 Slack、Channels 运行位置</a><p>证明 Slack 在 Anthropic cloud，Channels 在本机 CLI。</p></div>
+          </div>
+          <details style="margin-top:24px"><summary>安全复现摘要</summary><p>在获批的隔离测试频道和无敏感仓库里，分别记录 Legacy 或 Pro、Max 个人路径与 New 组织路径。只发只读任务，不开 PR，不写远端。核对任务归属、选仓、首个确认、进度、回帖和未授权仓库的失败提示。完整步骤见 evidence.md。</p></details>
+          <div class="callout"><p><a href="../20260827-ui-08-channels-runtime-injection/explainer.html">查看 UI-08 Channels 主页面</a>　<a href="../index.html">返回总索引</a></p></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="wrap">
+    <span>COMP-UI-CHAT-DELEGATION · documented · Claude Code 2.1.247</span>
+    <span>非计数 companion · 伴页</span>
+  </footer>
+</body>
+</html>

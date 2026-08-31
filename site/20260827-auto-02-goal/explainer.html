@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="AUTO-02">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>AUTO-02 · /goal 的持续目标与续跑</title>
+  <style>
+    :root {
+      --paper: #f1ead8;
+      --paper-deep: #e4d7bc;
+      --ink: #191d1a;
+      --muted: #5e6258;
+      --rule: #2b302a;
+      --red: #b63a29;
+      --olive: #5e6a45;
+      --yellow: #d8b64b;
+      --sky: #b9d1cc;
+      --white: #fffdf6;
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      --sans: "DIN Alternate", "Avenir Next Condensed", "PingFang SC", sans-serif;
+      --mono: "SFMono-Regular", "Menlo", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(25, 29, 26, .045) 1px, transparent 1px) 0 0 / 26px 26px,
+        linear-gradient(rgba(25, 29, 26, .035) 1px, transparent 1px) 0 0 / 26px 26px,
+        var(--paper);
+      font-family: var(--serif);
+      line-height: 1.75;
+    }
+
+    a { color: inherit; text-underline-offset: .2em; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--yellow);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    .skip {
+      position: fixed;
+      z-index: 20;
+      top: .75rem;
+      left: .75rem;
+      padding: .55rem .8rem;
+      background: var(--ink);
+      color: var(--white);
+      transform: translateY(-180%);
+    }
+    .skip:focus { transform: translateY(0); }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 1rem;
+      min-height: 48px;
+      padding: .55rem clamp(1rem, 4vw, 4rem);
+      color: var(--white);
+      background: var(--ink);
+      font-family: var(--sans);
+      font-size: .78rem;
+      letter-spacing: .08em;
+    }
+    .topbar a { color: var(--white); }
+    .status { color: #f5c75e; font-weight: 800; }
+
+    main { overflow: hidden; }
+    section {
+      padding: clamp(3.5rem, 7vw, 7rem) clamp(1rem, 6vw, 6.5rem);
+      border-top: 1px solid rgba(25, 29, 26, .45);
+    }
+    section:first-child { border-top: 0; }
+    .wrap { max-width: 1180px; margin: 0 auto; }
+
+    .kicker, .stamp, .evidence-tag, .section-no, .mini-label {
+      font-family: var(--sans);
+      font-weight: 800;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+    .kicker { font-size: .76rem; color: var(--red); }
+    .section-no { color: var(--muted); font-size: .72rem; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 960px;
+      margin-bottom: 1.4rem;
+      font-family: var(--sans);
+      font-size: clamp(3rem, 8.5vw, 8rem);
+      line-height: .92;
+      letter-spacing: -.055em;
+    }
+    h2 {
+      max-width: 820px;
+      font-family: var(--sans);
+      font-size: clamp(2rem, 4.6vw, 4.6rem);
+      line-height: 1.02;
+      letter-spacing: -.035em;
+    }
+    h3 {
+      font-family: var(--sans);
+      font-size: 1.12rem;
+      line-height: 1.3;
+    }
+    .lede {
+      max-width: 800px;
+      font-size: clamp(1.2rem, 2.2vw, 1.72rem);
+      line-height: 1.58;
+    }
+    .small { color: var(--muted); font-size: .91rem; }
+
+    .hero {
+      min-height: calc(100vh - 48px);
+      display: grid;
+      align-items: center;
+      position: relative;
+      background:
+        linear-gradient(112deg, transparent 0 64%, rgba(198, 67, 46, .12) 64% 77%, transparent 77%),
+        var(--paper);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(230px, .34fr);
+      gap: clamp(2rem, 6vw, 7rem);
+      align-items: end;
+    }
+    .answer-line {
+      max-width: 920px;
+      padding-left: 1.2rem;
+      border-left: 7px solid var(--red);
+      font-size: clamp(1.22rem, 2.3vw, 1.78rem);
+      line-height: 1.55;
+    }
+    .answer-line strong { font-family: var(--sans); }
+    .hero-note {
+      border: 2px solid var(--rule);
+      background: var(--yellow);
+      box-shadow: 12px 12px 0 var(--ink);
+      transform: rotate(1.4deg);
+    }
+    .hero-note .note-head {
+      padding: .6rem .85rem;
+      border-bottom: 2px solid var(--rule);
+      font-family: var(--sans);
+      font-weight: 800;
+    }
+    .hero-note p { margin: 0; padding: 1rem; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      margin-top: 2.2rem;
+    }
+    .legend span, .evidence-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .28rem .55rem;
+      border: 1px solid var(--rule);
+      background: rgba(255, 253, 246, .48);
+      font-family: var(--sans);
+      font-size: .7rem;
+      line-height: 1.2;
+    }
+    .legend b { color: var(--red); }
+
+    .terms { background: var(--sky); }
+    .term-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: 2.5rem;
+      border: 2px solid var(--rule);
+      background: rgba(255, 253, 246, .35);
+    }
+    .term {
+      min-height: 235px;
+      padding: 1.25rem;
+      border-right: 1px solid var(--rule);
+    }
+    .term:last-child { border-right: 0; }
+    .term strong {
+      display: block;
+      margin: 1.7rem 0 .6rem;
+      font-family: var(--sans);
+      font-size: 1.35rem;
+    }
+    .term .n {
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--muted);
+    }
+
+    .sequence { background: var(--ink); color: var(--white); }
+    .sequence .section-no, .sequence .small { color: #bfc5b9; }
+    .sequence h2 { color: #f4d785; }
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0;
+      margin-top: 3rem;
+      counter-reset: step;
+    }
+    .step {
+      position: relative;
+      min-height: 280px;
+      padding: 3.2rem 1.1rem 1rem;
+      border-top: 2px solid #f4d785;
+      border-right: 1px dashed #899083;
+    }
+    .step:last-child { border-right: 0; }
+    .step::before {
+      counter-increment: step;
+      content: counter(step, decimal-leading-zero);
+      position: absolute;
+      top: -1.1rem;
+      left: 1rem;
+      padding: .1rem .45rem;
+      color: var(--ink);
+      background: #f4d785;
+      font: 800 .8rem/1.8 var(--sans);
+    }
+    .step strong {
+      display: block;
+      min-height: 3.1rem;
+      font: 800 1.08rem/1.3 var(--sans);
+    }
+    .step p { color: #d2d5ce; font-size: .91rem; }
+
+    .flow { background: var(--paper-deep); }
+    .machine {
+      display: grid;
+      grid-template-columns: 1fr 80px 1fr 80px 1.1fr;
+      align-items: stretch;
+      gap: 0;
+      margin-top: 2.8rem;
+    }
+    .node {
+      padding: 1.3rem;
+      border: 2px solid var(--rule);
+      background: var(--white);
+      box-shadow: 7px 7px 0 rgba(25, 29, 26, .16);
+    }
+    .node strong { display: block; font: 800 1.25rem/1.3 var(--sans); }
+    .arrow {
+      display: grid;
+      place-items: center;
+      font: 800 1.7rem/1 var(--sans);
+    }
+    .verdicts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .8rem;
+      margin-top: 1.2rem;
+    }
+    .verdict {
+      padding: .85rem;
+      border-top: 5px solid var(--olive);
+      background: rgba(255, 253, 246, .5);
+    }
+    .verdict:nth-child(2) { border-color: var(--red); }
+    .verdict:nth-child(3) { border-color: var(--yellow); }
+    .verdict b { font-family: var(--sans); }
+
+    .limits { background: #d9cbb2; }
+    .limit-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.2rem;
+      margin-top: 2.6rem;
+    }
+    .limit {
+      padding: 1.4rem;
+      border-left: 5px solid var(--red);
+      background: rgba(255, 253, 246, .56);
+    }
+    .limit strong { font-family: var(--sans); font-size: 1.1rem; }
+    .access-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      margin-top: 1.2rem;
+      border: 1px solid var(--rule);
+      background: var(--rule);
+    }
+    .access-card {
+      padding: 1.15rem;
+      background: var(--white);
+    }
+    .access-card strong {
+      display: block;
+      margin-bottom: .45rem;
+      font-family: var(--sans);
+      font-size: 1.08rem;
+    }
+
+    .experiment { background: var(--white); }
+    .lab {
+      display: grid;
+      grid-template-columns: .82fr 1.18fr;
+      gap: clamp(1.5rem, 5vw, 5rem);
+      margin-top: 2rem;
+      align-items: start;
+    }
+    .stamp {
+      display: inline-block;
+      padding: .75rem 1rem;
+      border: 4px double var(--red);
+      color: var(--red);
+      transform: rotate(-2deg);
+      font-size: 1.25rem;
+    }
+    .lab-list { border-top: 2px solid var(--rule); }
+    .lab-row {
+      display: grid;
+      grid-template-columns: 7rem 1fr;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--rule);
+    }
+    .lab-row b { font-family: var(--sans); }
+
+    .implementation { background: #d9dfcf; }
+    .ledger {
+      margin-top: 2.5rem;
+      border: 2px solid var(--rule);
+      background: rgba(255, 253, 246, .55);
+    }
+    .ledger-row {
+      display: grid;
+      grid-template-columns: 12rem 1fr 5rem;
+      border-bottom: 1px solid var(--rule);
+    }
+    .ledger-row:last-child { border-bottom: 0; }
+    .ledger-row > * { padding: .85rem 1rem; }
+    .ledger-row > * + * { border-left: 1px solid var(--rule); }
+    .ledger-row b { font-family: var(--sans); }
+    .ledger-row .evidence-tag { justify-self: start; align-self: center; }
+    .version-note {
+      margin-top: 1.5rem;
+      padding: 1rem 1.2rem;
+      border: 1px dashed var(--rule);
+      color: var(--muted);
+    }
+
+    .unknowns { background: var(--ink); color: var(--white); }
+    .unknowns h2 { color: #e9bcae; }
+    .unknown-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      margin-top: 2.2rem;
+      background: #6f756a;
+      border: 1px solid #6f756a;
+    }
+    .unknown {
+      min-height: 190px;
+      padding: 1.25rem;
+      background: var(--ink);
+    }
+    .unknown b { display: block; color: #f1d685; font-family: var(--sans); }
+
+    .sources { background: var(--paper); }
+    .source-list { margin: 2rem 0 0; padding: 0; list-style: none; }
+    .source-list li {
+      display: grid;
+      grid-template-columns: 3rem 1fr;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-top: 1px solid var(--rule);
+    }
+    .source-list .n { font: 800 .85rem/1.8 var(--mono); color: var(--red); }
+    .source-list a { font-family: var(--sans); font-weight: 800; }
+    details {
+      margin-top: 2rem;
+      padding: 1rem 1.15rem;
+      border: 1px solid var(--rule);
+      background: rgba(255, 253, 246, .42);
+    }
+    summary { cursor: pointer; font-family: var(--sans); font-weight: 800; }
+    footer {
+      padding: 2rem clamp(1rem, 6vw, 6.5rem);
+      color: var(--white);
+      background: var(--red);
+      font-family: var(--sans);
+    }
+    footer .wrap { display: flex; justify-content: space-between; gap: 1rem; }
+    footer a { color: var(--white); }
+
+    @media (max-width: 900px) {
+      .hero-grid, .lab, .access-grid { grid-template-columns: 1fr; }
+      .hero-note { max-width: 410px; transform: none; }
+      .term-grid { grid-template-columns: repeat(2, 1fr); }
+      .term:nth-child(2) { border-right: 0; }
+      .term:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
+      .timeline { grid-template-columns: repeat(2, 1fr); row-gap: 2.4rem; }
+      .step:nth-child(2n) { border-right: 0; }
+      .machine { grid-template-columns: 1fr; gap: 1rem; }
+      .arrow { transform: rotate(90deg); min-height: 30px; }
+      .ledger-row { grid-template-columns: 9rem 1fr; }
+      .ledger-row .evidence-tag { grid-column: 1 / -1; border-left: 0; border-top: 1px dotted var(--rule); }
+    }
+
+    @media (max-width: 560px) {
+      .topbar { grid-template-columns: 1fr auto; }
+      .topbar .version { grid-column: 1 / -1; }
+      section { padding-block: 3.2rem; }
+      h1 { font-size: clamp(2.8rem, 17vw, 5rem); }
+      .term-grid, .limit-grid, .unknown-list, .verdicts { grid-template-columns: 1fr; }
+      .term { min-height: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
+      .term:last-child { border-bottom: 0; }
+      .timeline { grid-template-columns: 1fr; }
+      .step { min-height: auto; border-right: 0; }
+      .ledger-row { display: block; }
+      .ledger-row > * + * { border-left: 0; border-top: 1px dotted var(--rule); }
+      .lab-row { grid-template-columns: 1fr; gap: .2rem; }
+      footer .wrap { display: block; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：/goal 的持续目标与续跑。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-auto-02-goal/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="AUTO-02 · /goal 的持续目标与续跑">
+  <meta property="og:description" content="Claude Code X-Ray：/goal 的持续目标与续跑。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-auto-02-goal/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="AUTO-02 · /goal 的持续目标与续跑">
+  <meta name="twitter:description" content="Claude Code X-Ray：/goal 的持续目标与续跑。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>AUTO-02</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <a class="skip" href="#main">跳到正文</a>
+  <header class="topbar">
+    <span>AUTO-02 · XRY 29</span>
+    <span class="status">状态 documented</span>
+    <span class="version">Claude Code 2.1.247 · 基线 2026-08-27</span>
+  </header>
+
+  <main id="main">
+    <section class="hero" data-xray-section="answer">
+      <div class="wrap hero-grid">
+        <div>
+          <p class="kicker">持续目标与续跑</p>
+          <h1>/goal 让完成条件留在会话里</h1>
+          <p class="answer-line"><strong>用户显式输入目标以后</strong>，Claude Code 立即开始工作。每个 turn 收尾时，另一个小模型只根据对话里已有的证据评估条件。未满足就续一轮，满足或判为不可完成就清掉 goal。</p>
+          <p class="lede">普通 prompt 没有这层续跑器。官方只公开了显式命令入口，因此本页不会把普通长任务推定成 goal。<span class="evidence-tag">O + I</span></p>
+          <div class="legend" aria-label="证据图例">
+            <span><b>O</b> 官方契约</span>
+            <span><b>L</b> 本机静态或帮助</span>
+            <span><b>R</b> 本轮真实实验</span>
+            <span><b>I</b> 研究者推断</span>
+          </div>
+        </div>
+        <aside class="hero-note" aria-label="本页状态说明">
+          <div class="note-head">核验票据 029</div>
+          <p>本轮没有启动会消耗套餐用量或按 token 结算的 Claude 会话，也没有读取私人 transcript。页面有 O 与 L，没有 R，所以状态保持 documented。</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="terms" data-xray-section="terms">
+      <div class="wrap">
+        <p class="section-no">01 · 先认清四样东西</p>
+        <h2>goal 留下条件和裁决记录</h2>
+        <p class="lede">官方只承诺会话级条件、状态统计与 transcript 里的理由。它没有公开一个独立 goal 文件。</p>
+        <p>可观察的保存单位就是原会话。用户可以查看条件与最近一次评估理由，也可以退出后恢复同一会话；页面却不能据此断言磁盘上存在某个固定文件，更不能编造内部字段。已经达成、失败或被清除的记录仍可留在 transcript 里，只有 active condition 会参与下一次续跑。</p>
+        <div class="term-grid">
+          <article class="term"><span class="n">TERM 01</span><strong>条件</strong><p>用户在显式命令后写下的可核终态。上限 4,000 个字符，最好带检查办法。</p></article>
+          <article class="term"><span class="n">TERM 02</span><strong>主 turn</strong><p>主模型会在这一轮读文件、改代码和跑工具。goal 不改变原有的权限规则。</p></article>
+          <article class="term"><span class="n">TERM 03</span><strong>评估器</strong><p>小型快速模型。它看条件和对话，不独立读文件，也不自行执行检查命令。</p></article>
+          <article class="term"><span class="n">TERM 04</span><strong>会话记录</strong><p>最近理由、达成或失败结果会进入 transcript。active condition 会随原会话恢复。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="sequence" data-xray-section="sequence">
+      <div class="wrap">
+        <p class="section-no">02 · 一次动作的时间顺序</p>
+        <h2>一个 turn 结束，下一次判断才开始</h2>
+        <div class="timeline">
+          <article class="step"><strong>用户显式设置</strong><p>条件进入当前会话。若已有 active goal，新条件把它替换。</p><span class="evidence-tag">O</span></article>
+          <article class="step"><strong>立即开一轮</strong><p>条件本身成为指令，无需再发一条普通 prompt。</p><span class="evidence-tag">O</span></article>
+          <article class="step"><strong>主模型工作</strong><p>工具照常受权限控制。Manual mode 仍可能等待批准。</p><span class="evidence-tag">O + L</span></article>
+          <article class="step"><strong>处理后台工作</strong><p>仍有 subagent 或后台 shell 时先跳过评估，结果回来会带起新 turn。</p><span class="evidence-tag">O</span></article>
+          <article class="step"><strong>小模型裁决</strong><p>它读条件和 conversation，给出短理由，不另行调用工具。</p><span class="evidence-tag">O</span></article>
+          <article class="step"><strong>续跑或收束</strong><p>未满足就把理由带入下一轮。满足记 achieved，不可能完成记 failed。</p><span class="evidence-tag">O + L</span></article>
+        </div>
+        <p class="small">运行中输入不带参数的命令，可以看到当前条件、持续时间、已经评估的 turn 数、token 消耗和最近理由。新条件会替换旧条件，clear 及其别名会主动结束 active 状态。替换和清除都由用户走显式命令完成，普通 prompt 仍按普通 turn 处理。</p>
+      </div>
+    </section>
+
+    <section class="flow" data-xray-section="flow">
+      <div class="wrap">
+        <p class="section-no">03 · 数据和状态怎样流</p>
+        <h2>评估器只能看 Claude 已经说出来的证据</h2>
+        <div class="machine" aria-label="goal 数据流">
+          <div class="node"><span class="mini-label">用户</span><strong>写下完成条件</strong><p>普通任务要变成持续目标，必须走公开的显式入口。</p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node"><span class="mini-label">主模型</span><strong>工作并呈现证据</strong><p>测试退出码、构建结果或文件计数需要出现在对话里。</p></div>
+          <div class="arrow" aria-hidden="true">→</div>
+          <div class="node"><span class="mini-label">小模型</span><strong>只读条件和对话</strong><p>它返回裁决与短理由。评估 token 按配置的小模型计费。</p></div>
+        </div>
+        <div class="verdicts" aria-label="评估裁决">
+          <div class="verdict"><b>Not yet met</b><p>goal 保持 active，理由进入下一 turn。</p></div>
+          <div class="verdict"><b>Met</b><p>goal 清除，transcript 记一条 achieved。</p></div>
+          <div class="verdict"><b>Impossible</b><p>goal 清除，transcript 记一条 failed 和理由。</p></div>
+        </div>
+        <p class="version-note">条件写得越能核对，评估器越容易作出稳定判断。测试是否退出成功、目标文件是否存在，或者某个计数是否达到给定值，都应由主模型运行检查并把结果写进对话。评估器不会越过对话去补跑命令。条件只写“把事情做好”时，它得到的证据也会含糊，续跑次数随之更难预料。</p>
+      </div>
+    </section>
+
+    <section class="limits" data-xray-section="limits">
+      <div class="wrap">
+        <p class="section-no">04 · 权限、失败与停止</p>
+        <h2>卡住时先看 goal 是否仍是 active</h2>
+        <p class="lede">官方没有给 goal 定义名为 blocked 的 evaluator verdict。Agent View 的 Needs input 属于相邻机制。</p>
+        <p>本页所说的 complete 对应评估器给出 Met，随后 active goal 被清除，transcript 留下 achieved。blocked 只用于研究任务的交付状态，`/goal` 的产品裁决仍是上述三种。等待用户批准、后台任务未返回或无进展保护触发时，会话可能暂时停住，goal 仍可保持 active。只有 Impossible 才会把这次目标收束成 failed。</p>
+        <div class="limit-grid">
+          <article class="limit"><strong>等待权限</strong><p>Manual mode 会照常询问。会话此时需要用户输入，active goal 没有因此变成 Impossible。</p></article>
+          <article class="limit"><strong>等待后台结果</strong><p>还有后台任务时暂不评估。2.1.247 会做退避 check-in，两次用户消息之间最多三次空闲唤醒。</p></article>
+          <article class="limit"><strong>无进展保护</strong><p>连续几轮没有工具进展时，循环会暂停并交还控制权。goal 仍是 active，下一条用户 prompt 后再继续。</p></article>
+          <article class="limit"><strong>不可恢复错误</strong><p>自管认证失效、余额耗尽、压缩也解不开的上下文溢出或模型不可用会清除 goal，并要求修复后重设。</p></article>
+          <article class="limit"><strong>瞬时错误</strong><p>rate limit 与服务器过载会保留 active goal。宿主管理认证时，认证失败也交给宿主恢复。</p></article>
+          <article class="limit"><strong>用户主动结束</strong><p>clear 及其别名会移除 active goal。开始新对话的清除命令也会移除它。</p></article>
+        </div>
+        <p class="lede" style="margin-top:2.4rem">续跑前还要确认登录方式和费用归属。每个主 turn 都会用模型，收尾的评估器也会消耗小模型 token。<span class="evidence-tag">O</span></p>
+        <div class="access-grid" aria-label="登录与费用边界">
+          <article class="access-card"><strong>先有可用认证</strong><p>Claude Code 支持 Claude Pro、Max、Teams、Enterprise 账户，也支持 Console 和组织配置的云提供商。当前凭据还要能正常发起模型请求。</p></article>
+          <article class="access-card"><strong>订阅与席位额度</strong><p>Pro、Max 的用量包含在订阅内，界面上的会话成本估算不等于实际账单。Teams、Enterprise 从成员的席位额度扣用量。</p></article>
+          <article class="access-card"><strong>按 token 结算</strong><p>Console API 和云提供商按 token 向组织或云账户计费。环境里的 API key 获准后可优先于订阅登录，费用会跟实际采用的认证方式走。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="experiment" data-xray-section="experiment">
+      <div class="wrap">
+        <p class="section-no">05 · 本机观察</p>
+        <div class="lab">
+          <div>
+            <h2>证据停在静态层</h2>
+            <span class="stamp">DOCUMENTED · NO R</span>
+            <p class="small" style="margin-top:1.4rem">真实 goal 会调用模型，还可能连续运行多个 turn。它会按当前认证方式消耗套餐额度或产生按 token 费用，研究约束不允许启动这种会话。</p>
+          </div>
+          <div class="lab-list">
+            <div class="lab-row"><b>版本</b><span>固定安装文件报告 Claude Code 2.1.247。</span></div>
+            <div class="lab-row"><b>摘要</b><span>安装文件 SHA-256 与任务给定基线一致。</span></div>
+            <div class="lab-row"><b>CLI help</b><span>可见 continue、resume、print、stream-json、verbose、Remote Control 与多种权限模式。</span></div>
+            <div class="lab-row"><b>静态短语</b><span>可见 active、achieved、failed、impossible、不可恢复错误、hooks 限制与 check-in 相关标识。</span></div>
+            <div class="lab-row"><b>不能证明</b><span>没有任何一条运行路径在本轮真的给出 evaluator verdict。</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="implementation" data-xray-section="implementation">
+      <div class="wrap">
+        <p class="section-no">06 · 实现与版本边界</p>
+        <h2>状态跟着原会话，turn 边界交给 Stop hook</h2>
+        <div class="ledger" role="table" aria-label="实现账本">
+          <div class="ledger-row" role="row"><b role="cell">创建面</b><span role="cell">会话级内置命令。一个会话只允许一个 active goal。</span><span class="evidence-tag" role="cell">O</span></div>
+          <div class="ledger-row" role="row"><b role="cell">触发面</b><span role="cell">主 turn 正常结束后走 session-scoped prompt Stop hook。用户中断引起的停止不会触发普通 Stop hook。</span><span class="evidence-tag" role="cell">O</span></div>
+          <div class="ledger-row" role="row"><b role="cell">状态面</b><span role="cell">条件、最近理由和结果进入会话 transcript。独立本地文件与字段 schema 未公开。</span><span class="evidence-tag" role="cell">O + I</span></div>
+          <div class="ledger-row" role="row"><b role="cell">恢复面</b><span role="cell">仍 active 的条件随原会话恢复，turn 数、计时与 token 基线从零重新算。</span><span class="evidence-tag" role="cell">O + L</span></div>
+          <div class="ledger-row" role="row"><b role="cell">权限门</b><span role="cell">workspace 必须受信任。disableAllHooks 或 managed 的 allowManagedHooksOnly 会拒绝 goal。</span><span class="evidence-tag" role="cell">O + L</span></div>
+        </div>
+        <p>恢复只接续仍处于 active 的条件。用户可以用 continue、指定会话的 resume 或恢复选择器回到原会话，条件会重新进入评估循环；已评估 turn 数、计时器和 token 基线从零开始。这个重置不会把旧结果改写成新结果，也不能把已经 achieved 或 cleared 的 goal 重新激活。</p>
+        <p class="version-note">版本线索　2.1.139 加入 goal。2.1.234 处理不可恢复错误和后台 check-in。2.1.239 修复 resume picker 恢复并加入退避。2.1.246 把空闲 check-in 限为三次。2.1.247 没有新增 goal changelog 条目。</p>
+      </div>
+    </section>
+
+    <section class="unknowns" data-xray-section="unknowns">
+      <div class="wrap">
+        <p class="section-no">07 · 仍然不知道</p>
+        <h2>公开契约停在会话级，不给本地 schema</h2>
+        <div class="unknown-list">
+          <article class="unknown"><b>本地字段</b><p>active goal 的精确字段名、对象结构与写入原子性没有公开，本轮也没有读取私人 session 文件。</p></article>
+          <article class="unknown"><b>评估请求</b><p>不同提供商上的完整 payload、重试次数、超时阈值和缓存办法仍未知。</p></article>
+          <article class="unknown"><b>Impossible 阈值</b><p>官方说明了裁决含义，没有公开内部 prompt 与置信阈值。</p></article>
+          <article class="unknown"><b>异常退出落盘</b><p>Ctrl+C、进程崩溃和断电各自在何时保存 active goal，官方 resume 契约没有逐项展开。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="sources" data-xray-section="sources">
+      <div class="wrap">
+        <p class="section-no">08 · 一手来源与复现</p>
+        <h2>结论回到 Anthropic 的公开契约</h2>
+        <ul class="source-list">
+          <li><span class="n">01</span><div><a href="https://code.claude.com/docs/en/goal">Goals 主契约</a><p>证明创建、状态、恢复、评估、错误清除和后台等待。</p></div></li>
+          <li><span class="n">02</span><div><a href="https://code.claude.com/docs/en/commands">Commands 参考</a><p>证明显式命令入口、无参数状态查看与清除别名。</p></div></li>
+          <li><span class="n">03</span><div><a href="https://code.claude.com/docs/en/hooks#stop">Hooks 的 Stop 参考</a><p>证明 turn 收尾触发点、session-scoped 包装和 block 反馈。</p></div></li>
+          <li><span class="n">04</span><div><a href="https://code.claude.com/docs/en/settings">Settings 参考</a><p>证明 disableAllHooks 与 managed hook 限制。</p></div></li>
+          <li><span class="n">05</span><div><a href="https://code.claude.com/docs/en/whats-new/2026-w20">Week 20 发布说明</a><p>证明 goal 在 2.1.139 加入及首发支持面。</p></div></li>
+          <li><span class="n">06</span><div><a href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md">Anthropic 官方 changelog</a><p>证明首发、后台等待与恢复选择器的早期版本变化。三次空闲 check-in 上限由 Goals 主契约证明。</p></div></li>
+          <li><span class="n">07</span><div><a href="https://code.claude.com/docs/en/authentication">Authentication 参考</a><p>证明订阅账户、Console 与云提供商的登录方式，以及 API key 的认证优先级。</p></div></li>
+          <li><span class="n">08</span><div><a href="https://code.claude.com/docs/en/costs">Costs 参考</a><p>证明订阅和席位额度的用量归属，以及 Console 与云提供商的按 token 计费边界。</p></div></li>
+        </ul>
+        <details>
+          <summary>怎样做一次获批后的隔离复现</summary>
+          <p>固定 2.1.247，在可信的全新临时仓库里设置一个两轮内可核的小条件。先记录未满足与满足，再测试主动清除和 resume。若要验证后台 check-in，用临时环境变量缩短首个间隔，并给实验加预算上限。完整步骤和不能触碰的私人目录写在 evidence.md。</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>AUTO-02 · documented · Claude Code 2.1.247</span>
+      <a href="../index.html">返回总索引</a>
+    </div>
+  </footer>
+</body>
+</html>

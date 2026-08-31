@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-SAFE-BARE">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>COMP-SAFE-BARE | Bare Mode 的最小加载面与脚本启动边界</title>
+  <style>
+    :root {
+      --ink: #101311;
+      --paper: #f3f0e7;
+      --paper-dark: #ded9cb;
+      --muted: #5d655f;
+      --rule: #a6aa9e;
+      --signal: #b8ff3d;
+      --signal-dark: #395900;
+      --alert: #ff6138;
+      --blue: #97d9ff;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+      --display: "Iowan Old Style", "Songti SC", "STSong", serif;
+      --body: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--ink); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image: linear-gradient(rgba(16,19,17,.05) 1px, transparent 1px);
+      background-size: 100% 28px;
+      font-family: var(--body);
+      line-height: 1.72;
+    }
+    a { color: inherit; text-underline-offset: .23em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--signal-dark); }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--alert); outline-offset: 4px; }
+    code, pre, .mono { font-family: var(--mono); }
+    code { padding: .1em .28em; background: rgba(16,19,17,.09); overflow-wrap: anywhere; }
+    .rail {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      min-height: 52px;
+      padding: .65rem clamp(1rem, 4vw, 4rem);
+      color: var(--paper);
+      background: rgba(16,19,17,.97);
+      border-bottom: 1px solid #3d463f;
+    }
+    .rail strong { color: var(--signal); font: 800 .76rem/1 var(--mono); letter-spacing: .11em; }
+    .rail nav { display: flex; gap: 1.1rem; font-size: .8rem; }
+    .rail a { text-decoration: none; }
+    main { overflow: hidden; }
+    .hero {
+      min-height: calc(100vh - 52px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+      color: var(--paper);
+      background: var(--ink);
+      border-bottom: 12px solid var(--signal);
+    }
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(3.5rem, 8vw, 8rem) clamp(1.2rem, 6vw, 7rem);
+      border-right: 1px solid #465047;
+    }
+    .kicker { margin: 0 0 1.5rem; color: var(--signal); font: 800 .78rem/1.4 var(--mono); letter-spacing: .13em; }
+    h1, h2, h3 { font-family: var(--display); }
+    h1 { max-width: 12ch; margin: 0; font-size: clamp(3.3rem, 7.3vw, 7.8rem); line-height: .94; letter-spacing: -.07em; }
+    .lede { max-width: 45rem; margin: 2rem 0 0; color: #e3e6dc; font-size: clamp(1.08rem, 1.6vw, 1.38rem); }
+    .meta { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 2rem; }
+    .tag { padding: .35rem .62rem; border: 1px solid #6f796f; font: .74rem/1 var(--mono); }
+    .tag.hot { color: var(--signal); border-color: var(--signal); }
+    .manifest { display: flex; flex-direction: column; justify-content: center; padding: clamp(1.2rem, 4vw, 4rem); background: #171c18; }
+    .manifest-head { display: flex; justify-content: space-between; padding-bottom: .8rem; color: #aeb7ae; border-bottom: 2px solid #6f796f; font: 700 .7rem/1 var(--mono); letter-spacing: .12em; }
+    .manifest-row { display: grid; grid-template-columns: 2rem 1fr auto; gap: .8rem; align-items: center; padding: .78rem 0; border-bottom: 1px dotted #566056; }
+    .manifest-row b { color: var(--signal); font: 800 .76rem/1 var(--mono); }
+    .manifest-row span { color: #dfe4dc; }
+    .manifest-row del { color: #879087; text-decoration-color: var(--alert); text-decoration-thickness: 2px; }
+    .manifest-row em { color: var(--blue); font: normal 700 .67rem/1 var(--mono); }
+    .manifest-foot { margin: 1.4rem 0 0; color: #b8c0b7; font-size: .9rem; }
+    .section { width: min(1160px, calc(100% - 2rem)); margin: 0 auto; padding: clamp(4.5rem, 9vw, 8rem) 0; border-bottom: 2px solid var(--ink); }
+    .section-head { display: grid; grid-template-columns: 8rem 1fr; gap: 2rem; margin-bottom: 2.5rem; }
+    .section-no { color: var(--muted); font: 800 .72rem/1.5 var(--mono); letter-spacing: .13em; }
+    h2 { max-width: 18ch; margin: 0; font-size: clamp(2.35rem, 5vw, 5.4rem); line-height: 1.02; letter-spacing: -.055em; }
+    .intro { max-width: 48rem; margin: 1rem 0 0; font-size: 1.06rem; }
+    .grid-2, .grid-3 { display: grid; gap: 1px; padding: 1px; background: var(--ink); }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .cell { min-width: 0; padding: 1.35rem; background: var(--paper); }
+    .cell.dark { color: var(--paper); background: var(--ink); }
+    .cell.signal { background: var(--signal); }
+    .cell h3 { margin: 0 0 .55rem; font-size: 1.28rem; }
+    .cell p { margin: 0; }
+    .mark { display: inline-block; margin-bottom: 1.2rem; color: var(--signal-dark); font: 900 .72rem/1 var(--mono); }
+    .dark .mark { color: var(--signal); }
+    .timeline { position: relative; display: grid; }
+    .timeline::before { content: ""; position: absolute; left: 1.4rem; top: 1rem; bottom: 1rem; width: 2px; background: var(--ink); }
+    .step { position: relative; display: grid; grid-template-columns: 3rem 9rem 1fr; gap: 1rem; padding: .7rem 0 2rem; }
+    .step:last-child { padding-bottom: 0; }
+    .dot { z-index: 1; width: 2.85rem; height: 2.85rem; display: grid; place-items: center; background: var(--signal); border: 2px solid var(--ink); font: 900 .7rem/1 var(--mono); }
+    .time { padding-top: .52rem; color: var(--muted); font: 800 .7rem/1.5 var(--mono); }
+    .step h3 { margin: .15rem 0 .35rem; font-size: 1.35rem; }
+    .step p { max-width: 50rem; margin: 0; }
+    .flow-strip { color: var(--paper); background: var(--ink); border: 1px solid var(--ink); }
+    .flow-row { display: grid; grid-template-columns: 8rem 1fr 1fr; border-bottom: 1px solid #596259; }
+    .flow-row:last-child { border-bottom: 0; }
+    .flow-row > div { padding: 1.1rem; border-right: 1px solid #596259; }
+    .flow-row > div:last-child { border-right: 0; }
+    .flow-name { color: var(--signal); font: 900 .76rem/1.5 var(--mono); }
+    .flow-row small { color: #aeb7ae; font: 700 .68rem/1 var(--mono); }
+    .flow-row p { margin: .4rem 0 0; }
+    .limit-note { margin-top: 1rem; padding: 1.25rem; background: var(--ink); color: var(--paper); border-left: 10px solid var(--alert); }
+    .limit-note p { margin: 0; }
+    pre { margin: 0; padding: 1rem; color: var(--signal); background: var(--ink); overflow-x: auto; font-size: .84rem; line-height: 1.6; }
+    .evidence-legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 1rem; padding: 1px; background: var(--ink); }
+    .evidence-legend div { padding: 1rem; background: var(--paper-dark); }
+    .evidence-legend b { display: block; font: 900 1.05rem/1 var(--mono); }
+    .evidence-legend span { display: block; margin-top: .4rem; font-size: .85rem; }
+    .compare { width: 100%; border-collapse: collapse; background: var(--paper); }
+    .compare th, .compare td { padding: .9rem 1rem; border: 1px solid var(--ink); text-align: left; vertical-align: top; }
+    .compare th { color: var(--paper); background: var(--ink); font: 800 .72rem/1.4 var(--mono); }
+    details { border-top: 1px solid var(--ink); }
+    details:last-child { border-bottom: 1px solid var(--ink); }
+    summary { cursor: pointer; padding: 1rem .2rem; font-family: var(--display); font-weight: 700; }
+    details p { max-width: 52rem; margin: 0 0 1.25rem; }
+    .source { min-height: 11rem; }
+    .source a { font-family: var(--display); font-size: 1.12rem; font-weight: 700; }
+    .source small { display: block; margin-top: .8rem; color: var(--muted); }
+    footer { padding: 2.5rem 1rem 3.5rem; color: #cfd6ce; background: var(--ink); text-align: center; font-size: .85rem; }
+    footer a { color: var(--signal); }
+    @media (max-width: 820px) {
+      .rail nav a:not(:last-child) { display: none; }
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .hero-copy { min-height: 70vh; border-right: 0; border-bottom: 1px solid #465047; }
+      .manifest { min-height: 60vh; }
+      .section-head { grid-template-columns: 1fr; gap: .7rem; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 3rem 1fr; gap: .8rem; }
+      .time, .step > div:last-child { grid-column: 2; }
+      .time { padding-top: 0; }
+      .flow-row { grid-template-columns: 1fr; }
+      .flow-row > div { border-right: 0; border-bottom: 1px solid #596259; }
+      .flow-row > div:last-child { border-bottom: 0; }
+      .compare { display: block; overflow-x: auto; }
+      .evidence-legend { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 430px) {
+      .rail { padding-inline: .8rem; }
+      .hero-copy, .manifest { padding-inline: 1rem; }
+      h1 { font-size: clamp(3.4rem, 17vw, 5rem); }
+      h2 { font-size: 2.35rem; }
+      .section { width: calc(100% - 1.25rem); }
+      .manifest-row { grid-template-columns: 1.7rem 1fr; }
+      .manifest-row em { grid-column: 2; }
+      .evidence-legend { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Bare Mode 的最小加载面与脚本启动边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-bare-mode/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-SAFE-BARE · Bare Mode 的最小加载面与脚本启动边界">
+  <meta property="og:description" content="Claude Code X-Ray：Bare Mode 的最小加载面与脚本启动边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-bare-mode/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-SAFE-BARE · Bare Mode 的最小加载面与脚本启动边界">
+  <meta name="twitter:description" content="Claude Code X-Ray：Bare Mode 的最小加载面与脚本启动边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-SAFE-BARE</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="rail">
+    <strong>CLAUDE CODE XRY / COMP-SAFE-BARE</strong>
+    <nav aria-label="页内导航">
+      <a href="#run">启动顺序</a>
+      <a href="#boundary">三种边界</a>
+      <a href="../index.html">返回总索引</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="kicker">COMP-SAFE-BARE · documented · Claude Code 2.1.247</p>
+        <h1 id="hero-title">把本机习惯留在门外</h1>
+        <p class="lede">脚本加上 <code>--bare -p</code> 后，Claude Code 不再自动找 hooks、LSP、plugins、MCP、Skills、commands、agents、memory 和 CLAUDE.md。它只留下 Bash、读文件、改文件，再接受命令行明示的上下文、模型和权限。直连 Anthropic 时只读 Console API key 或显式 settings 里的 apiKeyHelper，用量记入 Console 账户，不由 Claude 订阅覆盖。</p>
+        <div class="meta" aria-label="页面状态">
+          <span class="tag hot">状态 documented</span>
+          <span class="tag">冻结版本 2.1.247</span>
+          <span class="tag">真实运行证据 R 缺席</span>
+        </div>
+      </div>
+      <aside class="manifest" aria-label="最小加载清单">
+        <div class="manifest-head"><span>STARTUP MANIFEST</span><span>BARE</span></div>
+        <div class="manifest-row"><b>×</b><del>自动扩展发现</del><em>SKIP</em></div>
+        <div class="manifest-row"><b>×</b><del>OAuth 与钥匙串</del><em>SKIP</em></div>
+        <div class="manifest-row"><b>✓</b><span>Bash、读文件、改文件</span><em>KEEP</em></div>
+        <div class="manifest-row"><b>✓</b><span>显式 flags</span><em>LOAD</em></div>
+        <div class="manifest-row"><b>✓</b><span>模型请求与权限判断</span><em>RUN</em></div>
+        <p class="manifest-foot">这是一条脚本启动路径，不承担交互式故障定位。</p>
+      </aside>
+    </section>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head">
+        <span class="section-no">01 / TERMS</span>
+        <div><h2 id="terms-title">先分清自动发现和显式输入</h2><p class="intro">我对照了官方脚本指南、CLI 参考和 2.1.81 发布记录。Bare 删掉的是启动时四处寻找配置与扩展的过程，脚本自己写出的参数仍有入口。</p></div>
+      </div>
+      <div class="grid-3">
+        <article class="cell dark"><span class="mark">AUTO DISCOVERY</span><h3>默认跳过</h3><p>hooks、LSP、skills、commands、agents、plugins、MCP、auto memory 与 CLAUDE.md 不参加自动发现。官方 flag 还会设置 <code>CLAUDE_CODE_SIMPLE</code>。脚本因此少受某台机器已有配置的影响，启动时也少做一轮扩展扫描。</p></article>
+        <article class="cell signal"><span class="mark">EXPLICIT INPUT</span><h3>按参数带回</h3><p>system prompt additions、settings、MCP、agents 与 plugin 都有显式 flag。额外目录中的 skills 是一个窄例外。凡是脚本确实依赖的内容，都应跟着调用参数或受控文件进入，不能再依赖操作者碰巧装过什么。</p></article>
+        <article class="cell"><span class="mark">BASE TOOLSET</span><h3>三类工具</h3><p>默认工具集合只有 Bash、文件读取和文件编辑。<code>--tools</code> 控制内置工具可见性，<code>--allowedTools</code> 只预先批准调用，不会把未列出的工具隐藏。最小工具集合也没有替代文件系统边界。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="run" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head">
+        <span class="section-no">02 / SEQUENCE</span>
+        <div><h2 id="sequence-title">一次 Bare 调用怎样走完</h2><p class="intro">下面只画公开可观察的顺序。内部函数先后没有官方调用图，不能拿推测补齐。</p></div>
+      </div>
+      <div class="timeline">
+        <article class="step"><div class="dot">00</div><div class="time">SHELL</div><div><h3>脚本传入 Bare 与 prompt</h3><p>常见入口是 <code>claude --bare -p "…"</code>。无效参数在运行开始前写到 stderr，进程以非零状态结束。<span class="mono">O</span></p></div></article>
+        <article class="step"><div class="dot">01</div><div class="time">STARTUP</div><div><h3>跳过惯用扩展面</h3><p>进程不自动读取用户与项目的 hooks、skills、plugins、MCP、memory 和 CLAUDE.md，也跳过 LSP 与 plugin sync。<span class="mono">O</span></p></div></article>
+        <article class="step"><div class="dot">02</div><div class="time">FLAGS</div><div><h3>只装入脚本点名的东西</h3><p>模型、system prompt、settings、MCP、agents、plugin 与权限可以通过对应 flag 明示。<code>--add-dir</code> 指向的目录会贡献 skills，不会贡献 commands 和 agents。<span class="mono">O</span></p></div></article>
+        <article class="step"><div class="dot">03</div><div class="time">AUTH</div><div><h3>先过认证门</h3><p>直连 Anthropic API 时，环境中的 API key 或显式 settings 里的 apiKeyHelper 必须提供凭据。OAuth、系统钥匙串和长期 OAuth token 都不会被读取。云提供商凭据走原有路径。<span class="mono">O</span></p></div></article>
+        <article class="step"><div class="dot">04</div><div class="time">AGENT LOOP</div><div><h3>模型在三类工具内工作</h3><p>显式 <code>--model</code> 决定当前会话模型。每次 Bash、读取或编辑调用仍由 permission mode 与 allow、ask、deny 规则判断。ask 属于权限规则层，没有独立的 CLI flag。<span class="mono">O</span></p></div></article>
+        <article class="step"><div class="dot">05</div><div class="time">EXIT</div><div><h3>脚本按退出状态分支</h3><p>成功返回 0，失败返回非零。缺少认证这类运行内失败会作为结果出现在 stdout。<span class="mono">O</span></p></div></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head">
+        <span class="section-no">03 / FLOW</span>
+        <div><h2 id="flow-title">文件流被截断，flag 流继续</h2><p class="intro">同一个功能面会因来源不同得到不同结果。页面把来源写出来，免得把“跳过自动发现”误读成“功能彻底删除”。</p></div>
+      </div>
+      <div class="flow-strip" role="table" aria-label="Bare 输入流">
+        <div class="flow-row" role="row"><div class="flow-name" role="cell">FILESYSTEM</div><div role="cell"><small>自动来源</small><p>惯用 hooks、skills、commands、agents、plugins、MCP、memory 与 CLAUDE.md 被跳过。</p></div><div role="cell"><small>结果</small><p>同一脚本不会因某台机器恰好装了扩展而自动改变。</p></div></div>
+        <div class="flow-row" role="row"><div class="flow-name" role="cell">FLAGS</div><div role="cell"><small>显式来源</small><p>settings、MCP JSON、agents JSON、plugin 路径、system prompt 和模型参数进入本次调用。</p></div><div role="cell"><small>结果</small><p>脚本作者重新承担依赖清单与可复现性。</p></div></div>
+        <div class="flow-row" role="row"><div class="flow-name" role="cell">AUTH</div><div role="cell"><small>直连 Anthropic</small><p>API key 或 apiKeyHelper。</p></div><div role="cell"><small>云提供商</small><p>Bedrock、Google Cloud Agent Platform 与 Foundry 继续读各自凭据。</p></div></div>
+        <div class="flow-row" role="row"><div class="flow-name" role="cell">TOOLS</div><div role="cell"><small>可见性</small><p>Bare 默认只给 Bash、文件读取和文件编辑；CLI 用 <code>--tools</code> 控制内置工具可见性。</p></div><div role="cell"><small>执行门</small><p><code>--allowedTools</code> 只预先批准，<code>--disallowedTools</code> 可移除或阻止；ask 来自权限规则，未决调用交给 permission mode。</p></div></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head">
+        <span class="section-no">04 / LIMITS</span>
+        <div><h2 id="limits-title">三个门会让脚本停下来</h2><p class="intro">Bare 只缩小加载面。认证、权限和进程退出仍各自决定脚本能不能继续。</p></div>
+      </div>
+      <div class="grid-3">
+        <article class="cell"><span class="mark">AUTH GATE</span><h3>凭据与账单分开算</h3><p>只有订阅登录或钥匙串时，Bare 直连 Anthropic API 会缺少可用认证。Console API key 产生的 API 用量记入对应 Console 账户，不包含在 Claude 订阅中。Bedrock、Google Cloud Agent Platform 与 Foundry 沿用各自云账户的凭据和计费边界。</p></article>
+        <article class="cell"><span class="mark">PERMISSION GATE</span><h3>工具没有获准</h3><p><code>--allowedTools</code> 负责预先批准，不能限制工具可见性。deny 先于 ask 和 allow；ask 是 settings 中的规则层，没有对应的独立 CLI flag。未决调用由 permission mode 处理。</p></article>
+        <article class="cell"><span class="mark">PROCESS GATE</span><h3>参数或运行失败</h3><p>参数错误发生在启动前。认证或模型请求失败发生在运行内。脚本最终都应读退出码，不能只看有没有文本输出。标准输出里出现错误说明，也不代表进程成功完成了任务。</p></article>
+      </div>
+      <div class="limit-note"><p>未知边界仍在。官方 Bare 段落没有给 managed settings 的逐字段封闭矩阵，也没有解释显式 plugin 内每类扩展怎样与三工具集合组合。</p></div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head">
+        <span class="section-no">05 / EVIDENCE</span>
+        <div><h2 id="experiment-title">本轮没有冒充真实运行</h2><p class="intro">当前 shell 里找不到 <code>claude</code>，常见安装位置的定点只读检查也没有找到冻结二进制。本轮没有登录，没有模型请求，没有读取私人配置。</p></div>
+      </div>
+      <div class="grid-2">
+        <article class="cell dark"><span class="mark">LOCAL COMMAND</span><h3>command not found</h3><p>这项 L 只能说明当前会话的 PATH 没有可调用入口，不能证明 Bare 的加载行为。</p></article>
+        <article class="cell"><span class="mark">REAL RUN</span><h3>R 缺席</h3><p>直连请求会按 Console API 用量计费，云路径由相应提供商账户计费。任务禁止新开付费 Claude 会话，页面保留 documented。</p></article>
+      </div>
+      <div class="evidence-legend" aria-label="O L R I 证据图例">
+        <div><b>O</b><span>官方契约</span></div>
+        <div><b>L</b><span>本机静态或帮助证据</span></div>
+        <div><b>R</b><span>本轮真实实验，本页缺席</span></div>
+        <div><b>I</b><span>研究者推断</span></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head">
+        <span class="section-no">06 / CONTRACT</span>
+        <div><h2 id="implementation-title">脚本把依赖写在调用点</h2><p class="intro">最小调用只携带 prompt。需要文件读取、固定模型与结构化结果时，把这些选择都明示出来。</p></div>
+      </div>
+      <div class="grid-2">
+        <div><pre><code>claude --bare -p "Summarize README.md" \
+  --model sonnet \
+  --allowedTools "Read" \
+  --output-format json</code></pre></div>
+        <article class="cell"><h3>这段调用能说明什么</h3><p>Bare 负责不自动发现扩展。model 负责当前模型，allowedTools 只预先批准 Read，output-format 负责结果形状。若要限制可见工具，应另用 <code>--tools</code>；文件访问范围和 deny 规则仍由权限边界处理。</p></article>
+      </div>
+      <div class="grid-2" style="margin-top:1px">
+        <article class="cell"><h3>需要 MCP 时</h3><p>用 <code>--mcp-config</code> 明示 JSON。需要排除其他 MCP 来源时，再结合 <code>--strict-mcp-config</code>。不要指望项目的 `.mcp.json` 自动进入 Bare。</p></article>
+        <article class="cell signal"><h3>需要 Skill 时</h3><p><code>--add-dir</code> 指定目录后，Bare 会读该目录的 `.claude/skills/`。同目录的 commands 与 agents 仍跳过。其余组合行为列在未知项。</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="boundary" aria-labelledby="boundary-title">
+      <div class="section-head">
+        <span class="section-no">07 / BOUNDARY</span>
+        <div><h2 id="boundary-title">Bare、Safe、Clean 各有自己的问题</h2><p class="intro">这张表只做入口选择。Safe 与 Clean 的完整恢复链在相邻主页面。</p></div>
+      </div>
+      <table class="compare">
+        <thead><tr><th>入口</th><th>主要角色</th><th>保留面</th><th>停止位置</th></tr></thead>
+        <tbody>
+          <tr><td><code>--bare -p</code></td><td>CI、脚本、SDK 调用</td><td>三类内置工具、显式 flags、受限认证与权限判断</td><td>输出完成、参数失败、认证失败或非零退出</td></tr>
+          <tr><td><code>--safe-mode</code></td><td>交互用户与诊断者</td><td>认证、模型、完整内置工具、正常权限与 managed policy</td><td>故障消失后转入定向检查，仍在则进入 Clean</td></tr>
+          <tr><td>Clean 配置比较</td><td>交互用户与诊断者</td><td>空用户配置、无项目配置，组织外部 policy 仍可能存在</td><td>逐项恢复时第一次复现就停</td></tr>
+        </tbody>
+      </table>
+      <div class="limit-note"><p><a href="../20260827-safe-03-safe-clean-diagnostics/explainer.html">回到 SAFE-03 主页面，查看 Safe Mode、Clean 比较与逐项恢复</a></p></div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head">
+        <span class="section-no">08 / UNKNOWNS</span>
+        <div><h2 id="unknowns-title">还有几块不能写死</h2><p class="intro">这些缺口会改变安全判断或复现结果，所以留在页面上。</p></div>
+      </div>
+      <details open><summary>2.1.247 的内部跳过顺序</summary><p>官方公开了可观察清单，没有发布 LSP、hooks、plugins、MCP 与 skills 的精确调用先后。本轮也没有动态 trace。</p></details>
+      <details><summary>Managed settings 的逐字段行为</summary><p>Safe Mode 明确保留 managed policy。Bare 官方段落没有给同样的封闭矩阵，本页不把两者等同。</p></details>
+      <details><summary>显式 plugin 的组合结果</summary><p>官方允许用 plugin flag 把插件带入本次调用，却没有在 Bare 总览里逐项说明其中 skills、commands、agents、hooks、LSP 与 MCP 怎样组合。</p></details>
+      <details><summary>冻结二进制的真实失败文本</summary><p>本轮没有可调用的 2.1.247 文件，也没有模型请求。认证失败的具体 stdout 文本与 provider 差异仍待隔离实验。</p></details>
+      <details><summary>Skills 例外的引入小版本</summary><p>研究日文档写明 `--add-dir` 目录中的 skills 可以加载，changelog 没给这个例外的单独引入条目。</p></details>
+    </section>
+
+    <section class="section" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head">
+        <span class="section-no">09 / SOURCES</span>
+        <div><h2 id="sources-title">一手来源与复现入口</h2><p class="intro">技术结论只取 Anthropic 官方文档和官方 changelog。逐条身份、实验限制与七步复现见本目录 evidence.md。</p></div>
+      </div>
+      <div class="grid-3">
+        <article class="cell source"><a href="https://code.claude.com/docs/en/headless">官方脚本与 CI 指南</a><p>证明 Bare 的跳过面、认证门、显式回填、退出码和停止行为。</p><small>Anthropic · Programmatic usage</small></article>
+        <article class="cell source"><a href="https://code.claude.com/docs/en/cli-usage">官方 CLI 参考</a><p>证明 Bare、model、settings、tools 与 permission flags。</p><small>Anthropic · CLI reference</small></article>
+        <article class="cell source"><a href="https://code.claude.com/docs/en/authentication">官方认证参考</a><p>证明 credential precedence，以及 Bare 不读取的 OAuth 与 profile 来源。</p><small>Anthropic · Authentication</small></article>
+        <article class="cell source"><a href="https://code.claude.com/docs/en/permissions">官方权限参考</a><p>证明工具可见性、deny、ask、allow 顺序与 permission modes。</p><small>Anthropic · Permissions</small></article>
+        <article class="cell source"><a href="https://code.claude.com/docs/en/debug-your-config">官方配置调试指南</a><p>证明 Safe 与 Clean 的交互诊断边界。</p><small>Anthropic · Debug configuration</small></article>
+        <article class="cell source"><a href="https://code.claude.com/docs/en/changelog#2-1-81">官方 2.1.81 发布记录</a><p>证明 Bare 的引入版本、初始跳过清单和认证限制。</p><small>Anthropic · Changelog</small></article>
+        <article class="cell source"><a href="https://code.claude.com/docs/en/costs">官方用量与费用参考</a><p>证明订阅用量与 Console API 计费分开，云路径由相应提供商账户计量。</p><small>Anthropic · Costs</small></article>
+        <article class="cell source"><a href="https://code.claude.com/docs/en/third-party-integrations">官方企业部署总览</a><p>证明 Console、Bedrock、Google Cloud 与 Foundry 各自使用哪类账户计费。</p><small>Anthropic · Enterprise deployment</small></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>COMP-SAFE-BARE · documented · Claude Code 2.1.247 · <a href="../20260827-safe-03-safe-clean-diagnostics/explainer.html">SAFE-03 主页面</a> · <a href="../index.html">返回总索引</a></footer>
+</body>
+</html>

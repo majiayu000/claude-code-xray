@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CTX-02">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CTX-02｜会话身份怎样延续与分流</title>
+  <style>
+    :root { color-scheme: light; --paper:#f0eadc; --sheet:#fbf7ec; --ink:#1d2927; --muted:#5d6965; --rule:#b8b29f; --teal:#0b6d69; --red:#b83a2c; --red-soft:#f3d7c9; --blue:#355a84; --gold:#9a6718; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin:0; color:var(--ink); background:linear-gradient(90deg,rgba(29,41,39,.035) 1px,transparent 1px) 0 0/26px 26px,linear-gradient(rgba(29,41,39,.025) 1px,transparent 1px) 0 0/26px 26px,var(--paper); font:17px/1.72 "LXGW WenKai","Kaiti SC","STKaiti",Georgia,serif; }
+    a { color:#174f77; text-underline-offset:4px; text-decoration-thickness:1px; }
+    a:hover { color:var(--red); }
+    a:focus-visible, summary:focus-visible { outline:3px solid #d99b2b; outline-offset:4px; }
+    code { padding:.08em .35em; border:1px solid #d2c8b2; border-radius:3px; background:#eee6d4; font:.86em/1.4 "SFMono-Regular",Consolas,monospace; overflow-wrap:anywhere; }
+    main { width:min(1160px,calc(100% - 40px)); margin:0 auto; padding:28px 0 86px; }
+    h1,h2,h3,p { margin-top:0; }
+    h1,h2 { font-family:"Songti SC","STSong","Iowan Old Style",Georgia,serif; }
+    h1 { max-width:14em; margin-bottom:20px; font-size:clamp(2.55rem,7vw,5.7rem); line-height:.98; letter-spacing:-.055em; }
+    h2 { margin-bottom:14px; font-size:clamp(1.65rem,3.6vw,2.7rem); line-height:1.14; letter-spacing:-.03em; }
+    h3 { margin-bottom:8px; font-size:1.08rem; line-height:1.35; }
+    p { max-width:48em; margin-bottom:14px; }
+    ul,ol { padding-left:1.25em; }
+    li+li { margin-top:8px; }
+    .masthead { display:flex; justify-content:space-between; gap:18px; padding-bottom:18px; border-bottom:2px solid var(--ink); font-size:.86rem; }
+    .masthead strong { letter-spacing:.12em; }
+    .status { color:var(--teal); font-weight:800; }
+    .hero { position:relative; min-height:640px; padding:62px 0 42px; }
+    .hero::before { content:"SESSION LEDGER"; position:absolute; top:52px; right:-10px; color:rgba(29,41,39,.055); font:900 clamp(3rem,9vw,8rem)/.9 "SFMono-Regular",monospace; letter-spacing:-.08em; writing-mode:vertical-rl; pointer-events:none; }
+    .kicker { margin-bottom:18px; color:var(--red); font:800 .79rem/1.4 "SFMono-Regular",monospace; letter-spacing:.14em; text-transform:uppercase; }
+    .lede { max-width:37em; color:#35443f; font-size:clamp(1.08rem,2vw,1.35rem); }
+    .answer-strip { display:grid; grid-template-columns:8.4rem 1fr; gap:20px; max-width:900px; margin-top:34px; padding:24px 26px; border:2px solid var(--ink); background:var(--sheet); box-shadow:10px 10px 0 var(--teal); }
+    .answer-strip b { color:var(--red); font:800 .78rem/1.4 "SFMono-Regular",monospace; letter-spacing:.1em; }
+    .answer-strip p { margin:0; font-size:1.08rem; }
+    .legend { display:flex; flex-wrap:wrap; gap:9px 18px; margin-top:25px; color:var(--muted); font-size:.86rem; }
+    .legend span { white-space:nowrap; }
+    .mark { display:inline-grid; width:1.65rem; height:1.65rem; place-items:center; margin-right:5px; border-radius:50%; color:white; background:var(--teal); font:800 .72rem/1 "SFMono-Regular",monospace; }
+    .mark.l { background:var(--blue); } .mark.r { background:#777; } .mark.i { background:var(--gold); }
+    .section { margin-top:76px; scroll-margin-top:18px; }
+    .section-head { display:grid; grid-template-columns:8.4rem 1fr; gap:20px; padding-top:18px; border-top:2px solid var(--ink); }
+    .folio { color:var(--red); font:800 .76rem/1.45 "SFMono-Regular",monospace; letter-spacing:.11em; }
+    .section-head p { color:var(--muted); }
+    .terms { display:grid; grid-template-columns:repeat(4,1fr); margin-top:26px; border:1px solid var(--rule); background:var(--sheet); }
+    .term { min-height:210px; padding:22px; border-right:1px solid var(--rule); }
+    .term:last-child { border-right:0; }
+    .term .glyph { display:block; margin-bottom:22px; color:var(--teal); font:800 1.8rem/1 "SFMono-Regular",monospace; }
+    .term p { margin:0; color:var(--muted); font-size:.94rem; }
+    .timeline { position:relative; margin:34px 0 0 8.4rem; padding-left:46px; border-left:3px solid var(--ink); }
+    .event { position:relative; display:grid; grid-template-columns:9rem 1fr; gap:22px; padding:0 0 36px; }
+    .event:last-child { padding-bottom:0; }
+    .event::before { content:""; position:absolute; left:-55px; top:3px; width:15px; height:15px; border:3px solid var(--sheet); border-radius:50%; background:var(--red); box-shadow:0 0 0 2px var(--ink); }
+    .event time { color:var(--teal); font:800 .8rem/1.5 "SFMono-Regular",monospace; }
+    .event p { margin:0; }
+    .event small { display:block; margin-top:7px; color:var(--muted); }
+    .switchboard { margin-top:26px; padding:28px; border:2px solid var(--ink); background:#203b37; color:#f7f1e3; box-shadow:12px 12px 0 var(--red-soft); }
+    .trunk { display:grid; grid-template-columns:10rem 1fr; gap:22px; align-items:center; padding-bottom:22px; border-bottom:1px solid rgba(255,255,255,.3); }
+    .sid { color:#f5b05e; font:800 .82rem/1.5 "SFMono-Regular",monospace; }
+    .routes { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin-top:1px; background:rgba(255,255,255,.25); }
+    .route { min-height:226px; padding:24px; background:#203b37; }
+    .route strong { display:block; margin-bottom:10px; color:#fff1d3; font-size:1.08rem; }
+    .route p { margin:0; color:#d8e2dc; font-size:.93rem; }
+    .route .result { display:inline-block; margin-top:18px; padding:5px 8px; border:1px solid #82bdb2; color:#bce1d7; font:800 .74rem/1.35 "SFMono-Regular",monospace; }
+    .flow-table { width:100%; margin-top:26px; border-collapse:collapse; background:var(--sheet); }
+    .flow-table th,.flow-table td { padding:15px 14px; border-bottom:1px solid var(--rule); text-align:left; vertical-align:top; }
+    .flow-table th { color:var(--muted); font:800 .76rem/1.4 "SFMono-Regular",monospace; letter-spacing:.07em; }
+    .flow-table tr:last-child td { border-bottom:2px solid var(--ink); }
+    .yes { color:var(--teal); font-weight:800; } .no { color:var(--red); font-weight:800; }
+    .notice-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:25px; }
+    .notice { padding:22px; border:1px solid var(--rule); background:var(--sheet); }
+    .notice.warn { border-top:6px solid var(--red); } .notice.boundary { border-top:6px solid var(--teal); }
+    .notice p,.notice ul { margin-bottom:0; color:#45534f; }
+    .lab { display:grid; grid-template-columns:.8fr 1.2fr; gap:26px; margin-top:24px; padding:26px; border:1px dashed var(--ink); background:rgba(251,247,236,.66); }
+    .lab-stamp { display:grid; min-height:180px; place-items:center; border:3px double var(--red); color:var(--red); text-align:center; transform:rotate(-2deg); font:900 1.05rem/1.55 "SFMono-Regular",monospace; letter-spacing:.08em; }
+    .lab ul { margin:0; }
+    details { margin-top:14px; border:1px solid var(--rule); background:var(--sheet); }
+    summary { cursor:pointer; padding:17px 20px; font-weight:800; }
+    details>div { padding:0 20px 18px; color:#41504c; }
+    .unknown-list { counter-reset:unknown; display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:24px; padding:0; list-style:none; }
+    .unknown-list li { position:relative; min-height:150px; margin:0; padding:20px 20px 20px 64px; border:1px solid var(--rule); background:var(--sheet); }
+    .unknown-list li::before { counter-increment:unknown; content:"?" counter(unknown); position:absolute; left:18px; top:20px; color:var(--red); font:900 1rem/1.4 "SFMono-Regular",monospace; }
+    .sources { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:24px; }
+    .source { display:block; min-height:120px; padding:20px; border:1px solid var(--rule); background:var(--sheet); text-decoration:none; }
+    .source strong { display:block; margin-bottom:7px; color:var(--ink); }
+    .source span { color:var(--muted); }
+    .footer { display:flex; justify-content:space-between; gap:18px; margin-top:62px; padding-top:20px; border-top:2px solid var(--ink); color:var(--muted); font-size:.86rem; }
+    @media (max-width:820px) { .terms{grid-template-columns:1fr 1fr}.term:nth-child(2){border-right:0}.term:nth-child(-n+2){border-bottom:1px solid var(--rule)}.routes{grid-template-columns:1fr}.route{min-height:0;border-bottom:1px solid rgba(255,255,255,.25)}.notice-grid,.lab,.unknown-list,.sources{grid-template-columns:1fr}.event{grid-template-columns:1fr;gap:5px} }
+    @media (max-width:560px) { body{font-size:16px}main{width:min(100% - 24px,1160px);padding-top:16px}.masthead,.footer{display:block}.masthead>*+*,.footer>*+*{margin-top:7px}.hero{min-height:0;padding-top:46px}.hero::before{display:none}.answer-strip,.section-head{grid-template-columns:1fr;gap:9px}.answer-strip{padding:20px;box-shadow:6px 6px 0 var(--teal)}.terms{grid-template-columns:1fr}.term{min-height:0;border-right:0;border-bottom:1px solid var(--rule)}.term:last-child{border-bottom:0}.timeline{margin-left:0;padding-left:30px}.event::before{left:-39px}.switchboard{padding:20px;box-shadow:6px 6px 0 var(--red-soft)}.trunk{grid-template-columns:1fr;gap:7px}.flow-table{display:block;overflow-x:auto;white-space:normal}.lab{padding:18px}.section{margin-top:58px} }
+    @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto} }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：会话身份、恢复、分叉与导出。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-223501-claude-code-sessions-checkpointing/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CTX-02 · 会话身份、恢复、分叉与导出">
+  <meta property="og:description" content="Claude Code X-Ray：会话身份、恢复、分叉与导出。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-223501-claude-code-sessions-checkpointing/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CTX-02 · 会话身份、恢复、分叉与导出">
+  <meta name="twitter:description" content="Claude Code X-Ray：会话身份、恢复、分叉与导出。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CTX-02</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+<main>
+  <header class="masthead">
+    <strong>CLAUDE CODE XRY · CTX-02</strong>
+    <span>状态 <span class="status">documented</span>　Claude Code <code>2.1.247</code></span>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <section class="hero" data-xray-section="answer">
+    <p class="kicker">会话身份、恢复、分叉与导出</p>
+    <h1>一段对话，可以续写，也可以分流</h1>
+    <p class="lede">我把官方会话页、命令参考和本机 2.1.247 帮助对了一遍。Claude Code 先保存一条带身份的对话记录。你回来时可以继续写这条记录，也可以复制到一个新身份再走另一条路。</p>
+    <div class="answer-strip"><b>一分钟答案</b><p>恢复会沿用旧会话身份。会话分支复制历史并切到新身份。<code>/fork</code> 带 prompt 才会让后台副本立即工作，不带 prompt 就等待输入，关闭 Agent View 时还会走旧式 subagent。导出只留下可读文本副本。磁盘里的代码仍按当前状态工作，文件回退交给 checkpoint。</p></div>
+    <div class="legend" aria-label="证据图例"><span><i class="mark">O</i>官方契约</span><span><i class="mark l">L</i>本机静态证据</span><span><i class="mark r">R</i>真实运行　本轮没有</span><span><i class="mark i">I</i>研究者推断</span></div>
+  </section>
+
+  <section class="section" data-xray-section="terms">
+    <div class="section-head"><span class="folio">01 / TERMS</span><div><h2>先认清四张纸</h2><p>命令很像，改动的对象并不一样。这里的 branch 指会话分支，不等于 Git branch。</p></div></div>
+    <div class="terms">
+      <article class="term"><span class="glyph">↺</span><h3>恢复</h3><p>找回一条旧对话，继续使用它的 session identity。官方只恢复列明的状态。</p></article>
+      <article class="term"><span class="glyph">⑂</span><h3>会话 branch</h3><p>复制当前历史，生成新 identity，当前进程随后写入新副本。</p></article>
+      <article class="term"><span class="glyph">⑂⋯</span><h3>会话 fork</h3><p>复制当前历史到后台会话。带 prompt 时副本立即工作，不带时等待输入。原会话留在眼前。</p></article>
+      <article class="term"><span class="glyph">□</span><h3>导出</h3><p>把当前对话渲染为纯文本，写入文件或剪贴板。identity 不随之改变。</p></article>
+    </div>
+  </section>
+
+  <section class="section" data-xray-section="sequence">
+    <div class="section-head"><span class="folio">02 / SEQUENCE</span><div><h2>一次恢复怎样发生</h2><p>这一段只写官方可见顺序。没有 R 的地方不补内部戏码。</p></div></div>
+    <div class="timeline">
+      <article class="event"><time>01　用户选记录</time><div><h3>从目录、名称、ID 或 PR 关联开始</h3><p><code>--continue</code> 取当前目录最近的合格交互会话。<code>--resume</code> 可打开选择器，也可接名称或 ID。<code>--from-pr</code> 先按 PR 过滤。</p><small>O + L　官方 sessions 与本机 help</small></div></article>
+      <article class="event"><time>02　定位 transcript</time><div><h3>先查近处，再查本机其他项目</h3><p>按 ID 查找时，2.1.247 先看当前项目和 worktree，再找其他项目里的唯一匹配。重复复制出的同 ID 不会被随便挑一个。</p><small>O　跨项目查找从 2.1.223 起可用</small></div></article>
+      <article class="event"><time>03　恢复列明状态</time><div><h3>对话回来，运行条件重新核对</h3><p>完整历史和工具结果会恢复。模型、agent、权限模式、goal 与 scheduled task 各有例外。部分启动 flag 需要重传。</p><small>O　plan 与 bypassPermissions 不会自动恢复</small></div></article>
+      <article class="event"><time>04　长会话选择</time><div><h3>Pro 或 Max 可能先出现 summary 对话框</h3><p>会话闲置约一小时以上且超过 100,000 tokens 时，恢复后会在第一条新消息前让用户选择 summary 或完整历史。无论选哪项，下一次请求都要先处理一次完整历史。summary 还会发起一次摘要请求，换来以后每次请求携带更少内容。</p><small>O　此选择只向 Pro 与 Max 提供</small></div></article>
+      <article class="event"><time>05　继续写入</time><div><h3>同一身份收到后续消息</h3><p>恢复路径继续使用旧 session identity。两个终端同时恢复同一身份，消息会交错进入同一 transcript。</p><small>O　官方明确给出并发风险</small></div></article>
+      <article class="event"><time>06　退出或再分流</time><div><h3>记录持续保存，下一次还能选择</h3><p>用户可以退出后再恢复，也可以在此时 branch、fork 或 export。每个动作留下的东西不同。</p><small>O　session 在工作时持续保存</small></div></article>
+    </div>
+  </section>
+
+  <section class="section" data-xray-section="flow">
+    <div class="section-head"><span class="folio">03 / FLOW</span><div><h2>同一段历史的三条去路</h2><p>图中的新旧身份来自官方契约。文件系统状态没有被画成随对话复制。</p></div></div>
+    <div class="switchboard">
+      <div class="trunk"><span class="sid">原 session identity</span><p>一份已经保存的 conversation history，默认落在项目对应的本地 JSONL transcript 中。</p></div>
+      <div class="routes">
+        <article class="route"><strong>恢复继续</strong><p>选择原记录，加载可恢复状态，后续消息继续归到原 identity。</p><span class="result">SAME ID</span></article>
+        <article class="route"><strong>branch 或 fork-session</strong><p>复制截至当前的历史，创建新 identity。<code>/branch</code> 会切过去，CLI 新进程需要重新批准会话授权。</p><span class="result">NEW ID · SWITCH</span></article>
+        <article class="route"><strong>fork 到后台</strong><p>新后台会话拿到历史副本，当前 identity 留在眼前。带 prompt 时副本立即工作，不带时等第一条输入。关闭 Agent View 时会改走旧式 subagent。</p><span class="result">NEW ID · CONDITIONAL</span></article>
+      </div>
+    </div>
+    <table class="flow-table">
+      <thead><tr><th>动作</th><th>对话历史</th><th>session identity</th><th>当前工作区</th><th>原记录</th></tr></thead>
+      <tbody>
+        <tr><td><code>resume</code></td><td>加载</td><td class="yes">沿用</td><td>按恢复时的磁盘现状</td><td>继续写</td></tr>
+        <tr><td><code>/branch</code></td><td>复制至分叉点</td><td class="yes">新建</td><td>不随 transcript 复制</td><td>保留</td></tr>
+        <tr><td><code>/fork</code></td><td>复制到后台</td><td class="yes">新建</td><td>后台隔离另有规则</td><td>继续写</td></tr>
+        <tr><td><code>/export</code></td><td>渲染成纯文本</td><td class="no">不改</td><td>只在指定处写导出文件</td><td>不改</td></tr>
+      </tbody>
+    </table>
+    <div class="notice-grid">
+      <article class="notice boundary"><h3>身份延续不等于进程快照</h3><p>恢复会把对话历史和工具结果带回来，随后沿用原 session identity。新进程仍会重新读取标准 settings。模型、agent、权限模式和启动参数依照各自规则处理，有些状态会回退，有些 flag 需要再次传入。</p></article>
+      <article class="notice warn"><h3>导出文件也不是可恢复会话</h3><p>导出得到的是供人阅读的纯文本。Claude Code 后续恢复时查找本地 transcript，导出的文本没有获得新的 session identity，也不会接替原记录继续写。指定文件名会写出文件，不指定时才进入复制或保存菜单。</p></article>
+    </div>
+  </section>
+
+  <section class="section" data-xray-section="limits">
+    <div class="section-head"><span class="folio">04 / LIMITS</span><div><h2>恢复会停在哪些地方</h2><p>session 能找回来，不保证当时的每项运行条件还在。</p></div></div>
+    <div class="notice-grid">
+      <article class="notice warn"><h3>会直接失败或降级的情况</h3><ul><li>ID 没有匹配记录时，CLI 报找不到 conversation。</li><li>另一个项目存在重复 ID 时，跨项目定位不会任意选一个。</li><li>原 agent 定义找不到时，会提示后改用默认工具和 system prompt。</li><li>选择器载入失败时，启动入口退出；会话内入口保留当前对话。</li></ul></article>
+      <article class="notice boundary"><h3>恢复时重新过的门</h3><ul><li><code>plan</code> 与 <code>bypassPermissions</code> 不会自动恢复。</li><li>CLI 新进程里的 branch 不继承 “Allow for this session” 授权。</li><li>MCP、plugin、额外目录和部分 settings flag 需要重传。</li><li>标准 settings 文件会在进程启动时重新读取。</li></ul></article>
+    </div>
+    <details><summary>同一 session 开在两个终端会怎样</summary><div>官方说明两边消息会交错写入同一 transcript。要保留两条可分辨的路线，应先 branch 或使用 fork-session 生成新 identity。</div></details>
+    <details><summary>checkpoint 放在哪里理解</summary><div>checkpoint 会随会话保存，恢复后仍可调用 rewind。它追踪哪些文件、怎样撤回代码、哪些工具改动漏掉，都属于 CTX-08。这里不另画一套回退状态机。</div></details>
+    <div class="notice-grid">
+      <article class="notice boundary"><h3>继续对话需要可用账户</h3><p>Claude Code 要求账户或受支持的云服务凭据。个人可用 Claude.ai 账户，团队还可用 Team、Enterprise、Console、Bedrock、Vertex AI 或 Foundry。恢复先定位本地记录，发送后续消息仍按当前登录方式和用量限制运行。</p></article>
+      <article class="notice warn"><h3>长会话的 summary 有套餐和 token 代价</h3><p>Pro 与 Max 才会看到恢复 summary 的选择，而且只在会话闲置约一小时以上、历史超过 100,000 tokens 时出现。下一次请求无论怎样选都要处理一次完整历史。保留全文会让后续每次请求的用量随历史大小增长，summary 会多做一次摘要请求，随后每次携带的内容较少，也可能漏掉原历史中的细节。Pro 与 Max 的用量含在订阅额度内，Console API 用户按 token 计费，云服务按各自账单处理。</p></article>
+    </div>
+  </section>
+
+  <section class="section" data-xray-section="experiment">
+    <div class="section-head"><span class="folio">05 / LAB</span><div><h2>本轮停在静态核对</h2><p>读取帮助不会启动对话。resume、branch、fork 和 export 会接触真实会话或产生新记录，本轮没有运行。</p></div></div>
+    <div class="lab">
+      <div class="lab-stamp">DOCUMENTED<br>O + L<br>NO R</div>
+      <div><h3>实际做过</h3><ul><li><code>claude --version</code> 返回 2.1.247。</li><li><code>claude --help</code> 显示本页涉及的 CLI flags。</li><li>安装入口和二进制 SHA-256 与固定基线一致。</li></ul><h3>实际没做</h3><p>没有启动 Claude，也没有打开 session picker。私人 transcript 完全未读，导出文件也没有写。故而不能把官方流程写成本机已跑通。</p></div>
+    </div>
+  </section>
+
+  <section class="section" data-xray-section="implementation">
+    <div class="section-head"><span class="folio">06 / DISK</span><div><h2>磁盘上留下什么</h2><p>这里采用官方公开路径和格式边界，没有进入本机的会话目录。</p></div></div>
+    <div class="notice-grid">
+      <article class="notice boundary"><h3>默认 transcript</h3><p><code>~/.claude/projects/&lt;project&gt;/&lt;session-id&gt;.jsonl</code></p><p>每行是消息、工具使用或元数据对象。格式属于内部实现，升级后可能变化。脚本应优先用官方导出或结构化接口。</p></article>
+      <article class="notice warn"><h3>持久化开关</h3><p>非交互 <code>-p</code> 可用 <code>--no-session-persistence</code> 关闭该次落盘。官方另提供环境变量关闭所有模式的 transcript 写入。关闭后，该记录无法恢复。</p></article>
+    </div>
+    <p>项目目录参与会话筛选，也参与 transcript 的默认归档。按 ID 恢复时，程序先查当前项目和它的 worktree。跨项目搜索只接受唯一匹配，这条限制用来避免同一记录的复制件把目标弄混。两个终端若主动打开同一个身份，官方没有替它们分流，消息仍会交错写入同一份记录。</p>
+    <details open><summary>2.1.247 需要记住的版本差异</summary><div>2.1.223 才加入按 ID 的唯一跨项目查找。2.1.212 起，Agent View 开启时的 <code>/fork</code> 生成独立后台会话，旧的 forked-subagent 入口移到 <code>/subtask</code>。后台副本收到 worktree 隔离指令的说明要求 2.1.221 或更高版本。</div></details>
+  </section>
+
+  <section class="section" data-xray-section="unknowns">
+    <div class="section-head"><span class="folio">07 / OPEN</span><div><h2>还没有跑过的四件事</h2><p>这些空白会改变实现层判断，留在页面上比猜测可靠。</p></div></div>
+    <ol class="unknown-list">
+      <li>真实 resume 后，2.1.247 怎样逐行追加内部 JSONL。本页只知道官方不保证 schema 稳定。</li>
+      <li>branch、fork-session 与 fork 在本机创建新 identity 的确切落盘时点。</li>
+      <li>export 怎样排版附件、超长工具输出和不可直接展示的内容。</li>
+      <li>关闭 Agent View 时，fork 回退到旧式 subagent 行为的本机提示与停止条件。</li>
+    </ol>
+  </section>
+
+  <section class="section" data-xray-section="sources">
+    <div class="section-head"><span class="folio">08 / SOURCES</span><div><h2>一手来源与复现入口</h2><p>事实表与完整命令摘要见同目录 evidence.md。下面都直达 Anthropic 官方资料。</p></div></div>
+    <div class="sources">
+      <a class="source" href="https://code.claude.com/docs/en/sessions"><strong>Manage sessions</strong><span>证明 resume、branch、export、选择器、恢复状态和 transcript 存储。</span></a>
+      <a class="source" href="https://code.claude.com/docs/en/cli-reference"><strong>CLI reference</strong><span>证明 continue、resume 与 fork-session 的命令行入口。</span></a>
+      <a class="source" href="https://code.claude.com/docs/en/commands"><strong>Commands</strong><span>证明 branch、fork、subtask 与 export 在 2.1.247 附近的语义。</span></a>
+      <a class="source" href="https://code.claude.com/docs/en/checkpointing"><strong>Checkpointing</strong><span>证明 checkpoint 随会话保存，并划清本页与 rewind 的边界。</span></a>
+      <a class="source" href="https://code.claude.com/docs/en/changelog"><strong>Claude Code changelog</strong><span>证明 2.1.247 和相关版本差异。</span></a>
+      <a class="source" href="https://code.claude.com/docs/en/authentication"><strong>Authentication</strong><span>证明 Claude Code 的账户要求和受支持的登录方式。</span></a>
+      <a class="source" href="https://code.claude.com/docs/en/costs"><strong>Manage costs effectively</strong><span>证明订阅用量、API token 计费和长上下文成本边界。</span></a>
+    </div>
+  </section>
+
+  <footer class="footer"><span>CTX-02 · 状态 documented · 证据 O + L · R 缺失</span><a href="../index.html">返回总索引</a></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>页面未找到 · Claude Code X-Ray</title>
+<meta name="description" content="Claude Code X-Ray 的研究方法、验收标准、证据等级与公开边界。">
+<meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<link rel="canonical" href="http://127.0.0.1:5580/404.html"><link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+:root{--ink:#13282d;--paper:#f3f0e6;--panel:#fbf9f1;--line:#aeb8b2;--orange:#d64e2b;--green:#177357;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:linear-gradient(rgba(19,40,45,.045) 1px,transparent 1px),var(--paper);background-size:100% 28px;font:17px/1.75 "Avenir Next","PingFang SC",sans-serif}
+nav{position:sticky;top:0;z-index:2;padding:.8rem max(1rem,calc((100vw - 900px)/2));background:#13282d;color:#f3f0e6}nav a{color:#8bd9bc}main{max-width:900px;margin:auto;padding:clamp(2rem,6vw,5rem) 1.2rem}h1{font:800 clamp(2.7rem,8vw,6rem)/.95 Georgia,"Songti SC",serif;letter-spacing:-.04em;margin:.2em 0}h2{margin-top:3rem;border-top:2px solid var(--ink);padding-top:1rem}.lede{font-size:1.25rem;max-width:46rem}.criteria{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}.card,table{background:var(--panel);border:1px solid var(--line)}.card{padding:1.2rem}table{width:100%;border-collapse:collapse}th,td{padding:.8rem;text-align:left;border-bottom:1px solid var(--line)}code{font-family:var(--mono);color:var(--orange)}.callout{border-left:5px solid var(--orange);padding:1rem 1.2rem;background:#fff8e8}@media(max-width:680px){.criteria{grid-template-columns:1fr}table{display:block;overflow:auto}}
+</style></head><body><nav><a href="index.html">← 返回 Claude Code X-Ray 总索引</a></nav><main>
+<p><code>METHOD / BASELINE 2.1.247</code></p><h1>这条路径没有页面。<br>回到机制总索引。</h1>
+<p class="lede">用户在 Claude Code 里做出一个动作以后，屏幕背后发生了什么？每一页从这个问题出发，先讲角色、动作和结果，再进入状态、权限、文件、进程、网络和版本差异。</p>
+<h2>一页怎样算完成</h2><div class="criteria">
+<div class="card"><b>一分钟能复述</b><p>第一屏只回答一个问题，不要求读者先懂源码。</p></div>
+<div class="card"><b>因果链闭合</b><p>从用户动作走到工具、状态、失败位置与停止条件。</p></div>
+<div class="card"><b>证据有身份</b><p>官方契约、本机观察、真实运行和研究推断不会混写。</p></div>
+<div class="card"><b>边界可找到</b><p>权限、费用、平台、版本和未验证部分必须明确。</p></div>
+</div>
+<h2>证据等级</h2><table><thead><tr><th>标记</th><th>身份</th><th>能证明什么</th></tr></thead><tbody>
+<tr><td><code>O</code></td><td>Anthropic 官方文档、帮助或仓库</td><td>公开承诺与接口</td></tr>
+<tr><td><code>L</code></td><td>固定版本的本机程序与定向观察</td><td>该版本实际携带什么</td></tr>
+<tr><td><code>R</code></td><td>隔离环境里的真实操作与前后状态</td><td>某条运行路径确实发生过</td></tr>
+<tr><td><code>I</code></td><td>研究者连接相邻证据后的解释</td><td>合理推断，但仍保留不确定性</td></tr>
+</tbody></table>
+<h2>公开边界</h2><div class="callout">公开站只带经过账本验收的解释页面。运行事件、认证文件、数据库、缓存、截图、原始会话和生成器状态均留在私有研究环境。页面冻结在标注版本，不能替代最新官方文档。</div>
+<h2>阅读顺序</h2><ol><li>最短答案</li><li>必要名词</li><li>角色与时序</li><li>状态或数据怎样流动</li><li>权限、失败与停止</li><li>实验和版本边界</li><li>未知项与一手来源</li></ol>
+</main></body></html>

@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="UI-08">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>UI-08 Channels 的运行中消息注入与回复路由</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f4f0e6;
+      --muted: #a8b0b1;
+      --dim: #768084;
+      --paper: #0d1213;
+      --panel: #141b1c;
+      --panel-2: #192224;
+      --line: #334043;
+      --cyan: #75e6d3;
+      --amber: #ffbf69;
+      --red: #ff7b72;
+      --green: #a6e3a1;
+      --display: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      --body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--paper); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(117,230,211,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(117,230,211,.025) 1px, transparent 1px),
+        radial-gradient(circle at 78% 4%, rgba(255,191,105,.10), transparent 29rem),
+        var(--paper);
+      background-size: 28px 28px, 28px 28px, auto, auto;
+      font-family: var(--body);
+      line-height: 1.72;
+    }
+    a { color: var(--cyan); text-underline-offset: .25em; }
+    a:hover { color: #b0fff1; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      font-family: var(--mono);
+      font-size: .88em;
+      color: #d9fff8;
+      background: #0b1011;
+      border: 1px solid #2d393b;
+      padding: .08em .35em;
+      border-radius: 3px;
+      overflow-wrap: anywhere;
+    }
+    .shell { width: min(1180px, calc(100% - 36px)); margin: 0 auto; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .stamp { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 3px 9px;
+      border: 1px solid var(--line);
+      background: rgba(13,18,19,.82);
+    }
+    .pill.live { color: var(--amber); border-color: #80633e; }
+    .hero {
+      min-height: min(790px, calc(100vh - 65px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(350px, .9fr);
+      gap: clamp(36px, 7vw, 92px);
+      align-items: center;
+      padding: 72px 0 82px;
+    }
+    .eyebrow { color: var(--amber); font: 700 .78rem/1.4 var(--mono); letter-spacing: .12em; }
+    h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; }
+    h1 { max-width: 760px; font-size: clamp(2.8rem, 7.5vw, 6.9rem); line-height: .96; letter-spacing: -.055em; }
+    h1 span { display: block; color: var(--cyan); }
+    .answer { max-width: 680px; margin: 30px 0 0; font-size: clamp(1.12rem, 1.8vw, 1.42rem); line-height: 1.65; color: #e8ebe6; }
+    .hero-note { margin-top: 22px; color: var(--muted); font-size: .94rem; }
+    .relay {
+      position: relative;
+      padding: 26px;
+      border: 1px solid #415052;
+      background: linear-gradient(145deg, rgba(25,34,36,.96), rgba(13,18,19,.96));
+      box-shadow: 18px 18px 0 rgba(0,0,0,.22);
+    }
+    .relay::before {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(117,230,211,.09);
+      pointer-events: none;
+    }
+    .relay-head { display: flex; justify-content: space-between; gap: 16px; font: .73rem var(--mono); color: var(--dim); }
+    .relay-line { position: relative; display: grid; grid-template-columns: 30px 1fr; gap: 14px; padding: 22px 0; border-bottom: 1px solid #2e3a3c; }
+    .relay-line:last-child { border-bottom: 0; padding-bottom: 4px; }
+    .node {
+      width: 28px; height: 28px; display: grid; place-items: center;
+      border: 1px solid var(--cyan); color: var(--cyan); border-radius: 50%;
+      font: 700 .72rem var(--mono);
+    }
+    .relay-line h3 { font: 700 .9rem/1.3 var(--mono); letter-spacing: .04em; }
+    .relay-line p { margin: 6px 0 0; color: var(--muted); font-size: .86rem; line-height: 1.55; }
+    nav.contents {
+      position: sticky; top: 0; z-index: 5;
+      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+      background: rgba(13,18,19,.94); backdrop-filter: blur(12px);
+    }
+    nav.contents .shell { display: flex; gap: 4px; overflow-x: auto; padding: 10px 0; scrollbar-width: thin; }
+    nav.contents a { flex: 0 0 auto; color: var(--muted); text-decoration: none; padding: 7px 10px; font: .75rem var(--mono); border: 1px solid transparent; }
+    nav.contents a:hover { color: var(--ink); border-color: var(--line); }
+    main { padding-bottom: 72px; }
+    .section {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: 42px;
+      padding: 84px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .section-kicker { color: var(--amber); font: 700 .72rem var(--mono); letter-spacing: .12em; }
+    .section h2 { font-size: clamp(1.65rem, 3.1vw, 2.7rem); line-height: 1.15; margin-top: 10px; }
+    .section-lead { margin: 0 0 28px; max-width: 780px; font-size: 1.08rem; color: #d7ddda; }
+    .terms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+    .term { padding: 22px; min-height: 150px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(20,27,28,.72); }
+    .term b { display: block; margin-bottom: 8px; color: var(--cyan); font: 700 .84rem var(--mono); }
+    .term p { margin: 0; color: var(--muted); font-size: .93rem; }
+    .sequence { counter-reset: step; }
+    .step { counter-increment: step; display: grid; grid-template-columns: 58px 150px minmax(0, 1fr); gap: 18px; padding: 22px 0; border-top: 1px solid var(--line); align-items: start; }
+    .step::before { content: "0" counter(step); color: var(--amber); font: 700 1.4rem var(--mono); }
+    .step .who { color: var(--cyan); font: 700 .78rem var(--mono); letter-spacing: .04em; padding-top: 4px; }
+    .step p { margin: 0; color: #d3d9d6; }
+    .flow-board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; align-items: stretch; }
+    .flow-box { position: relative; min-height: 150px; padding: 18px 15px; border: 1px solid #3b494b; background: var(--panel); }
+    .flow-box:not(:last-child)::after { content: "›"; position: absolute; right: -10px; top: 52px; z-index: 2; color: var(--amber); font: 2rem var(--mono); }
+    .flow-box b { color: var(--cyan); font: .78rem var(--mono); }
+    .flow-box p { margin: 12px 0 0; color: var(--muted); font-size: .86rem; line-height: 1.5; }
+    .branch { margin-top: 14px; padding: 18px; border-left: 3px solid var(--amber); background: rgba(255,191,105,.06); color: #e9dfcf; }
+    .gate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .gate { padding: 22px; border: 1px solid var(--line); background: var(--panel); }
+    .gate strong { color: var(--amber); font: 700 .82rem var(--mono); }
+    .gate p { margin: 10px 0 0; color: var(--muted); }
+    .gate.stop { border-left: 4px solid var(--red); }
+    .gate.pass { border-left: 4px solid var(--green); }
+    .legend { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 24px 0; }
+    .legend div { padding: 15px; border: 1px solid var(--line); background: #101617; }
+    .legend b { display: block; color: var(--amber); font: 700 1rem var(--mono); }
+    .legend span { color: var(--muted); font-size: .82rem; }
+    .evidence-strip { padding: 18px 20px; border: 1px dashed #617073; background: rgba(13,18,19,.65); color: #d8dedb; }
+    .evidence-strip b { color: var(--cyan); font-family: var(--mono); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 650px; font-size: .9rem; }
+    th, td { text-align: left; vertical-align: top; padding: 14px 15px; border-bottom: 1px solid var(--line); }
+    th { color: var(--amber); font: 700 .75rem var(--mono); letter-spacing: .04em; }
+    td { color: #d3dad7; }
+    td:first-child { color: var(--cyan); font-family: var(--mono); }
+    .unknown-list { display: grid; gap: 12px; }
+    details { border: 1px solid var(--line); background: var(--panel); }
+    summary { cursor: pointer; padding: 17px 20px; color: #e6ebe8; font-weight: 700; }
+    details p { margin: 0; padding: 0 20px 20px; color: var(--muted); }
+    .sources { display: grid; gap: 10px; }
+    .source { display: grid; grid-template-columns: 46px 1fr; gap: 16px; padding: 18px 0; border-top: 1px solid var(--line); }
+    .source .mark { color: var(--amber); font: 700 .83rem var(--mono); }
+    .source p { margin: 5px 0 0; color: var(--muted); font-size: .9rem; }
+    .boundary { margin-top: 28px; color: var(--muted); }
+    footer { padding: 28px 0 54px; display: flex; justify-content: space-between; gap: 20px; color: var(--dim); font: .76rem var(--mono); }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; min-height: 0; }
+      .relay { max-width: 630px; }
+      .section { grid-template-columns: 1fr; gap: 28px; padding: 62px 0; }
+      .section-title { display: grid; grid-template-columns: 80px 1fr; align-items: end; gap: 12px; }
+      .section h2 { margin-top: 0; }
+      .flow-board { grid-template-columns: 1fr; }
+      .flow-box { min-height: 0; }
+      .flow-box:not(:last-child)::after { content: "↓"; right: 18px; top: auto; bottom: -24px; }
+    }
+    @media (max-width: 600px) {
+      .shell { width: min(100% - 24px, 1180px); }
+      .topbar { align-items: flex-start; }
+      .topbar > a { white-space: nowrap; }
+      .hero { padding: 54px 0 64px; gap: 42px; }
+      h1 { font-size: clamp(2.55rem, 14vw, 4.2rem); }
+      .relay { padding: 19px; box-shadow: 8px 8px 0 rgba(0,0,0,.22); }
+      .terms, .gate-grid, .legend { grid-template-columns: 1fr; }
+      .step { grid-template-columns: 42px 1fr; gap: 12px; }
+      .step .who { grid-column: 2; }
+      .step p { grid-column: 2; }
+      .section-title { display: block; }
+      .section h2 { margin-top: 8px; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Channels 的运行中消息注入与回复路由。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ui-08-channels-runtime-injection/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="UI-08 · Channels 的运行中消息注入与回复路由">
+  <meta property="og:description" content="Claude Code X-Ray：Channels 的运行中消息注入与回复路由。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ui-08-channels-runtime-injection/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="UI-08 · Channels 的运行中消息注入与回复路由">
+  <meta name="twitter:description" content="Claude Code X-Ray：Channels 的运行中消息注入与回复路由。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>UI-08</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="shell">
+    <div class="topbar">
+      <div class="stamp">
+        <span class="pill">UI-08</span>
+        <span class="pill live">documented</span>
+        <span class="pill">Claude Code 2.1.247</span>
+      </div>
+      <a href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero shell" data-xray-section="answer" id="answer">
+      <div>
+        <div class="eyebrow">RUNNING SESSION INGRESS</div>
+        <h1>外部消息<span>插进正在跑的会话</span></h1>
+        <p class="answer">获准的 Channel 服务器把外部事件排进已经打开的 Claude Code 会话。入口连着聊天平台或公开端点时，服务器应先核发送者。Claude 处理后，按事件带来的路由字段调用普通 MCP 回复工具；工具若卡在批准框，受信通道还可以带着一次性请求号把允许或拒绝送回来。</p>
+        <p class="hero-note">它依赖一条仍在运行的本地会话。会话关掉，入口也随之消失。 <b>[O]</b></p>
+      </div>
+      <div class="relay" aria-label="Channel 消息中继示意">
+        <div class="relay-head"><span>RELAY PATH</span><span>SESSION OPEN</span></div>
+        <div class="relay-line">
+          <div class="node">1</div>
+          <div><h3>认人</h3><p>公开入口应先用 sender ID 查 allowlist，未通过就停在会话之外。</p></div>
+        </div>
+        <div class="relay-line">
+          <div class="node">2</div>
+          <div><h3>入队</h3><p>notification 携带 content 和 meta，经 stdio 进入当前会话。</p></div>
+        </div>
+        <div class="relay-line">
+          <div class="node">3</div>
+          <div><h3>原路回去</h3><p>Claude 从 meta 取路由值，显式调用 reply tool。</p></div>
+        </div>
+      </div>
+    </section>
+  <nav class="contents" aria-label="本页目录">
+    <div class="shell">
+      <a href="#terms">名词</a><a href="#sequence">时序</a><a href="#flow">数据流</a><a href="#limits">权限门</a><a href="#experiment">证据</a><a href="#implementation">实现</a><a href="#unknowns">未知</a><a href="#sources">来源</a>
+    </div>
+  </nav>
+
+  <div class="shell">
+    <section class="section" data-xray-section="terms" id="terms">
+      <div class="section-title"><div class="section-kicker">01 / TERMS</div><h2>只需要四个名词</h2></div>
+      <div>
+        <p class="section-lead">普通 MCP 让 Claude 主动找工具。Channel 在这层协议上加了一个外部事件入口，消息可以在用户没有敲下一次回车时进入已经打开的会话。 <b>[O]</b></p>
+        <div class="terms">
+          <article class="term"><b>channel capability</b><p>服务器声明 <code>claude/channel</code>，Claude Code 才注册通知监听器。声明本身还不够，用户仍要逐会话启用。</p></article>
+          <article class="term"><b>notification</b><p><code>content</code> 是事件正文。可选 <code>meta</code> 保存 chat ID 或 severity 等路由信息；键名不合规则会静默丢弃。</p></article>
+          <article class="term"><b>reply tool</b><p>双向桥公开的普通 MCP 工具。Claude 主动调用它，服务器再把文字送回外部平台。</p></article>
+          <article class="term"><b>permission relay</b><p>额外 capability。它只转发当前工具批准，并用短请求号把一次 allow 或 deny 对回等待项。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sequence" id="sequence">
+      <div class="section-title"><div class="section-kicker">02 / SEQUENCE</div><h2>一条消息走过的时间顺序</h2></div>
+      <div>
+        <p class="section-lead">这条链从用户启动会话开始。外部发送者、Channel server、Claude Code 和 Claude 各做一段，任何一段都不能代替另一段。 <b>[O]</b></p>
+        <div class="sequence">
+          <div class="step"><div class="who">本地用户</div><p>先用 claude.ai 账号或 Anthropic Console API key 认证，再在新会话中选入一个获准 Channel。个人 Pro、Max 可以逐会话选入；Team、Enterprise 还要由组织管理员开启。</p></div>
+          <div class="step"><div class="who">Claude Code</div><p>启动同机 MCP 子进程，通过 stdio 完成连接。服务器的 capability 让客户端注册 Channel listener。2.1.247 若实际选到 v2 runtime，并在自动协商中连上不承载 Channel 消息的新协议 revision，注册会停在这里。</p></div>
+          <div class="step"><div class="who">外部发送者</div><p>向聊天机器人或 webhook 发事件。对外入口应先核 sender ID，未获准的消息静默丢弃。</p></div>
+          <div class="step"><div class="who">Channel server</div><p>发送 Channel notification。事件带正文与字符串 meta，服务器名会成为 source。</p></div>
+          <div class="step"><div class="who">当前会话</div><p>事件按序排队。Claude 正忙时，多条通知留到下一 turn 一起交付。</p></div>
+          <div class="step"><div class="who">Claude</div><p>读取 channel 事件并继续工作。需要回应时，从 meta 取路由值，再调用服务器公开的 reply tool。</p></div>
+        </div>
+        <div class="branch"><b>三次放行，各管一关</b> capability 让客户端认出这类服务器；逐会话选择决定这一次是否接入；sender gate 决定某个外部身份能否投递。前两道门由 Claude Code 与组织策略把守，最后一道门必须在 Channel server 发通知之前完成。少掉任何一道，消息都不该进入当前会话。 <b>[O]</b></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" id="flow">
+      <div class="section-title"><div class="section-kicker">03 / FLOW</div><h2>数据停在哪里</h2></div>
+      <div>
+        <p class="section-lead">统一契约定义了 transport 与字段，没有规定所有插件共用一份状态文件。allowlist 和平台凭据属于各 Channel server，排队与开放的批准请求属于运行中的 Claude Code 会话。 <b>[O + I]</b></p>
+        <div class="flow-board" aria-label="消息数据流">
+          <div class="flow-box"><b>外部系统</b><p>消息、告警或 webhook 事件</p></div>
+          <div class="flow-box"><b>sender gate</b><p>服务器自己的 allowlist 或等价状态</p></div>
+          <div class="flow-box"><b>MCP stdio</b><p>content 与 meta notification</p></div>
+          <div class="flow-box"><b>当前会话</b><p>按序队列与 channel 标签上下文</p></div>
+          <div class="flow-box"><b>reply tool</b><p>chat ID 与回复文字回到外部系统</p></div>
+        </div>
+        <div class="evidence-strip" style="margin-top:14px"><b>通知信封</b> 正文放在必填的 content，chat ID、severity 一类辅助值放在可选的 meta。meta 只接受字符串字典，键名只能使用字母、数字和下划线；服务器名则由客户端补成 source。meta 只把路由上下文交给 Claude 读取；自动回复仍要显式调用工具。 <b>[O]</b></div>
+        <div class="evidence-strip" style="margin-top:14px"><b>排队语义</b> 写入 stdio 成功，只能说明 notification 进入 transport，不能证明 Claude 已经看到或处理。客户端按到达顺序排队；Claude 忙碌时，等待中的多条事件到下一 turn 才一起交付。若业务需要彼此独立的并发处理，就要使用不同会话，不能把同一队列误当成多条并行执行线。 <b>[O]</b></div>
+        <div class="branch"><b>批准支路</b> Claude Code 把 tool name、说明、输入预览和短 request ID 发给同一受信服务器。远端 verdict 带原 ID 返回，先到的本地或远端答案结束这次等待。 <b>[O]</b></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="limits" id="limits">
+      <div class="section-title"><div class="section-kicker">04 / GATES</div><h2>入口与停止条件</h2></div>
+      <div>
+        <p class="section-lead">认证方式先决定功能是否可用，随后还要经过注册、逐会话选择、组织策略与 sender 身份检查。服务器写入 transport 也没有送达回执。 <b>[O]</b></p>
+        <div class="gate-grid">
+          <article class="gate pass"><strong>账号与套餐</strong><p>只支持 claude.ai 认证或 Anthropic Console API key。没有加入组织的 Pro、Max 用户不经过组织开关；claude.ai Team、Enterprise 必须由管理员启用。</p></article>
+          <article class="gate stop"><strong>平台止步</strong><p>Amazon Bedrock、Google Cloud Agent Platform 与 Microsoft Foundry 均不支持 Channels。</p></article>
+          <article class="gate pass"><strong>注册门</strong><p>声明 Channel capability，并由用户在这次启动中选入。普通 MCP 配置无法单独打开注入。</p></article>
+          <article class="gate pass"><strong>组织策略</strong><p>Team、Enterprise 默认阻止。Console API key 认证默认允许；组织一旦部署 managed settings，就要把 <code>channelsEnabled</code> 设为 <code>true</code>。有效插件允许列表仍决定谁能注册。</p></article>
+          <article class="gate stop"><strong>协议协商</strong><p>2.1.247 落在 2.1.232 及以上的 runtime 规则内，但本轮没有实测它这次选了哪一个 runtime。实际使用 v2、设置 <code>MCP_PROTOCOL_NEGOTIATION=auto</code>，且服务器协商到 revision 2026-07-28 时，Claude Code 不会把它注册为 Channel。</p></article>
+          <article class="gate stop"><strong>发送者门</strong><p>服务器核对 sender ID。只看 room ID 会让获准群里的其他人也能注入消息。</p></article>
+          <article class="gate stop"><strong>权限门</strong><p>relay 只处理 tool-use approval。project trust 与 MCP server consent 留在本地终端。</p></article>
+          <article class="gate stop"><strong>静默丢弃</strong><p>会话没加载服务器或策略阻止时，通知可能没有错误地消失。transport resolve 不能当处理成功。</p></article>
+          <article class="gate stop"><strong>停止条件</strong><p>会话关闭、sender 未获准、注册失败或当前工具被 deny，都会让这条路径停住。</p></article>
+        </div>
+        <div class="branch"><b>回复另走普通 MCP 工具</b> 入站事件到达后，Claude 仍要选择并调用服务器公开的 tool。工具 schema 规定回复正文和路由参数，服务器的 instructions 提醒 Claude 从哪一个 meta 字段取值。若路由值缺失、工具没有公开或调用未获准，入站消息已经成立，外部回复却仍会停住。 <b>[O + I]</b></div>
+        <div class="branch"><b>裁决只认当前等待项</b> permission relay 另有 capability。Claude Code 发出带短 request ID 的批准请求，服务器把远端 allow 或 deny 连同原 ID 送回；本地答案与远端答案谁先到，谁结束等待。它没有把 project trust、MCP server consent 或未来工具调用一起授权，也不应被理解成持久权限规则。 <b>[O]</b></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" id="experiment">
+      <div class="section-title"><div class="section-kicker">05 / EVIDENCE</div><h2>本页有 O 与 L，没有 R</h2></div>
+      <div>
+        <p class="section-lead">本轮只读固定的 2.1.247 安装文件与公开帮助，没有启动 Claude 对话，没有安装 Channel，也没有碰私人会话内容。页面因此保持 documented。 </p>
+        <div class="legend" aria-label="证据图例">
+          <div><b>O</b><span>Anthropic 官方契约</span></div>
+          <div><b>L</b><span>本机静态或帮助证据</span></div>
+          <div><b>R</b><span>真实安全实验，本页缺失</span></div>
+          <div><b>I</b><span>研究者推断</span></div>
+        </div>
+        <div class="evidence-strip"><b>L</b> 固定二进制返回 2.1.247，SHA-256 与基线一致。普通帮助没有 preview 参数；定向静态扫描能找到两个 capability、三种 Channel notification 和两个隐藏启动参数。字符串存在只能证明本机程序包含这些协议词，不能证明端到端路径跑通。</div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" id="implementation">
+      <div class="section-title"><div class="section-kicker">06 / BUILD</div><h2>实现与版本边界</h2></div>
+      <div>
+        <p class="section-lead">2.1.247 已越过 relay 修订点，也落在 2.1.232 及以上的 runtime 规则内。runtime 会在每次启动时重新选择，本轮没有运行握手实验；Channels 仍是 research preview，启动语法和协议还可能变化。 <b>[O + L]</b></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>边界</th><th>公开行为</th><th>2.1.247 的位置</th></tr></thead>
+            <tbody>
+              <tr><td>2.1.211</td><td>permission description 与 input preview 会清理方向覆盖字符、折叠空白，并按字段保留首尾后限长。</td><td>已包含</td></tr>
+              <tr><td>2.1.234</td><td>可识别格式的凭据会遮蔽，不可安全序列化的值用占位，permission capability 的 false 才真正表示未声明。遮蔽有识别边界，不能当作完整的 secret filter。</td><td>已包含</td></tr>
+              <tr><td>2.1.234</td><td>权限请求只发给本会话已经注册的 Channel，仍需逐会话 opt in 与组织策略通过。</td><td>已包含</td></tr>
+              <tr><td>2.1.232+</td><td>这些版本进入 v2 MCP runtime 规则，但认证平台、apps gateway、feature flag 或显式设置仍可能让启动选择 v1。实际使用 v2 时，stdio server 若在 <code>MCP_PROTOCOL_NEGOTIATION=auto</code> 下协商 revision 2026-07-28，该 revision 不能承载 Channel 消息，服务器不会注册为 Channel。变量不设置或设为 <code>legacy</code> 时，stdio 保持较早握手。</td><td>2.1.247 在版本范围内；本轮未运行协商实验</td></tr>
+              <tr><td>preview</td><td>两个 Channel 启动参数不出现在普通帮助中，官方提醒参数与协议会继续变化。</td><td>本机帮助吻合</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="boundary">边界提醒。EXT-04 讲 MCP 连接和工具发现，SAFE-01 讲通用权限规则，UI-01 讲终端输入调度，UI-07 讲跨设备接管。本页不展开 Slack 或 Claude Tag。</p>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" id="unknowns">
+      <div class="section-title"><div class="section-kicker">07 / UNKNOWNS</div><h2>还缺一次真正跑通</h2></div>
+      <div>
+        <p class="section-lead">官方契约足以画出路径，本机只读证据还不能回答当前账号、组织和终端上的真实呈现。</p>
+        <div class="unknown-list">
+          <details open><summary>这台机器能否注册一个 Channel</summary><p>需要支持的认证方式、套餐或组织策略、有效插件，以及 MCP 握手一起验证。本轮没有启动可能付费的 Claude 会话，也没有运行协议协商实验。</p></details>
+          <details><summary>忙碌时多条事件怎样出现在终端</summary><p>官方保证下一 turn 成组处理，2.1.247 的具体行样式与交互没有 R。</p></details>
+          <details><summary>晚到或重复 verdict 显示什么</summary><p>公开契约只保证匹配开放 request ID 的裁决才应用，具体错误文字和超时长度未知。</p></details>
+          <details><summary>本地先批准后服务器怎样收尾</summary><p>官方说明待处理远端请求会被丢弃，没有定义一条显式关闭回执。本页不补推测。</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sources" id="sources">
+      <div class="section-title"><div class="section-kicker">08 / SOURCES</div><h2>一手来源与复现</h2></div>
+      <div>
+        <p class="section-lead">研究日期为 2026-08-30，产品基线固定为 2026-08-27。当天在线索引哈希已经变化，本页没有用新哈希替换项目基线。</p>
+        <div class="sources">
+          <div class="source"><div class="mark">O-1</div><div><a href="https://code.claude.com/docs/en/channels-reference">官方 Channels reference 证明 wire contract</a><p>覆盖 capability、notification、reply tool、sender gate 与 permission relay。</p></div></div>
+          <div class="source"><div class="mark">O-2</div><div><a href="https://code.claude.com/docs/en/channels">官方 Channels 指南证明启用与停止边界</a><p>覆盖认证方式、不可用平台、套餐、组织控制、会话打开条件和 research preview。</p></div></div>
+          <div class="source"><div class="mark">O-3</div><div><a href="https://code.claude.com/docs/en/mcp#push-messages-with-channels">官方 MCP 文档证明 Channel 的承载层</a><p>说明普通 MCP 与主动 push 的区别，并记录 v2 runtime 的协议协商失败面。</p></div></div>
+          <div class="source"><div class="mark">O-4</div><div><a href="https://github.com/anthropics/claude-plugins-official/tree/main/external_plugins/telegram">官方 Telegram 插件证明 reply 路由与 sender allowlist</a><p>公开实现列出 chat ID、reply tool 与 pairing access 流程。</p></div></div>
+        </div>
+        <details style="margin-top:24px"><summary>安全复现摘要</summary><p>在隔离目录固定 2.1.247，创建最小 stdio Channel server。只记录允许与拒绝 sender 的送达差异、忙碌 turn 的次序，以及本地和远端 verdict 谁先结束等待。关闭会话后再发匿名事件，确认 transport write 不能充当处理回执。完整步骤见 evidence.md。</p></details>
+      </div>
+    </section>
+  </div>
+  </main>
+
+  <footer class="shell">
+    <span>UI-08 · documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

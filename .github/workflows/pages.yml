@@ -1,0 +1,62 @@
+name: Deploy GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "LICENSE"
+      - ".github/workflows/pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce publication gate
+        shell: python
+        run: |
+          import ipaddress
+          import json
+          from pathlib import Path
+          from urllib.parse import urlparse
+
+          root = Path.cwd()
+          manifest = json.loads((root / "site" / "site-manifest.json").read_text(encoding="utf-8"))
+          parsed = urlparse(str(manifest.get("base_url", "")))
+          host = parsed.hostname or ""
+          try:
+              loopback = ipaddress.ip_address(host).is_loopback
+          except ValueError:
+              numeric_ipv4_alias = bool(host) and all(char.isdigit() or char == "." for char in host)
+              loopback = host.lower() == "localhost" or numeric_ipv4_alias
+
+          failures = []
+          if manifest.get("publish_ready") is not True:
+              failures.append("site manifest is not marked publish_ready")
+          if parsed.scheme != "https" or not host or loopback:
+              failures.append("base_url must be a non-loopback HTTPS URL")
+          license_path = root / "LICENSE"
+          if not license_path.is_file() or license_path.is_symlink():
+              failures.append("a regular LICENSE file is required")
+          if failures:
+              raise SystemExit("Publication blocked: " + "; ".join(failures))
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

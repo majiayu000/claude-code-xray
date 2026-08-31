@@ -1,0 +1,618 @@
+{
+  "schema": 1,
+  "version": "2.1.247",
+  "base_url": "http://127.0.0.1:5580/",
+  "publish_ready": false,
+  "core_count": 50,
+  "companion_count": 26,
+  "files": [
+    {
+      "id": "CORE-01",
+      "title": "核心 Agent 循环",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-223500-claude-code-agent-loop/explainer.html",
+      "sha256": "e3e2c97def3b1d65a81b6e3cefdd290c6cab596a6c9e7a91a8072cc27eb850af"
+    },
+    {
+      "id": "CORE-02",
+      "title": "工具执行层、结果整形与失败分类",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-core-02-built-in-tools/explainer.html",
+      "sha256": "7c35cf8f6407dbd57d348844fa1d1c83768a9a416b44544f1a54abbd721804f7"
+    },
+    {
+      "id": "PLAN-01",
+      "title": "Plan Mode 的调研、提问、批准与执行边界",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-plan-01-plan-mode/explainer.html",
+      "sha256": "ced795494be00d3f6310a765e2c0df516b60ee57c55968a191e9c828815a267c"
+    },
+    {
+      "id": "CTX-01",
+      "title": "上下文窗口、自动压缩与提示缓存",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ctx-01-context-compaction-cache/explainer.html",
+      "sha256": "947fd4993e74a60309d93b97df4003d0f4a3e09f9c2310183b3a8ff005c2e902"
+    },
+    {
+      "id": "CTX-02",
+      "title": "会话身份、恢复、分叉与导出",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-223501-claude-code-sessions-checkpointing/explainer.html",
+      "sha256": "1cb1dc67723ea57ac6c86f91a5e2e8947962ef3a240a1e00371fc84290a80ca2"
+    },
+    {
+      "id": "CTX-03",
+      "title": "CLAUDE.md、Rules 与指令加载顺序",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ctx-03-instruction-loading/explainer.html",
+      "sha256": "1545f1841caa8ffc632fceae0f5f0e07c98d2677b897c24e97a98940cf3c9011"
+    },
+    {
+      "id": "CTX-04",
+      "title": "自动记忆的写入、加载与失效",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ctx-04-auto-memory/explainer.html",
+      "sha256": "362a0735b31de42352e38340a567d59f049b56434488264fb324d3b85d404b94"
+    },
+    {
+      "id": "CTX-05",
+      "title": "模型选择、Effort 与会话中切换",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ctx-05-model-effort/explainer.html",
+      "sha256": "587e3658aa05be2a5f4c0861b9014c14426fab4f3f4fc2ac0c55f1a15198b190"
+    },
+    {
+      "id": "CTX-06",
+      "title": "Fast Mode 的路由、计费与回退",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ctx-06-fast-mode/explainer.html",
+      "sha256": "50a49c74282c94ac192136f0fae2dc93bfe6fe9a450bae3e8241bdcb602da1fe"
+    },
+    {
+      "id": "CTX-07",
+      "title": "Output Styles 与回复呈现",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ctx-07-output-styles/explainer.html",
+      "sha256": "ad99df90fffed60690b2c17d8a134f9ee1d0c8ae01b18e7ac983fd267b2c5912"
+    },
+    {
+      "id": "CTX-08",
+      "title": "文件检查点、rewind 与回退边界",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ctx-08-checkpoints-rewind/explainer.html",
+      "sha256": "1f022ecfe7537cba0af2d8edf71c123ca2797cebe51ffbd3268285c250d3e420"
+    },
+    {
+      "id": "SAFE-01",
+      "title": "权限规则、权限模式与审批",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-safe-01-permissions-approval/explainer.html",
+      "sha256": "bb3f63d4ab074d389be16bcbe54321f0b22637cc65896fd54bdbb10c02340f12"
+    },
+    {
+      "id": "SAFE-02",
+      "title": "Bash 沙箱、网络隔离与文件系统边界",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-safe-02-sandbox-network-filesystem/explainer.html",
+      "sha256": "fed191e87067a74dc693176f21624fcd3c56faffa4ac4c3ff8986af41fc772c5"
+    },
+    {
+      "id": "SAFE-03",
+      "title": "Safe Mode、Clean 诊断与错误恢复",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-safe-03-safe-clean-diagnostics/explainer.html",
+      "sha256": "6012d19ea69f6e357492fb67d430d8f4e5edbbb4ae1723230362f28224f920ce"
+    },
+    {
+      "id": "PAR-02",
+      "title": "Agent View 与后台会话生命周期",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-par-02-agent-view-background-sessions/explainer.html",
+      "sha256": "4cf62593cf1e4406950feafc1bf1b7dc57327fa721bb9ed9b91f254d01424d14"
+    },
+    {
+      "id": "PAR-03",
+      "title": "Worktree 隔离与并行会话",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-par-03-worktree-isolation/explainer.html",
+      "sha256": "c3efe6b27cc9c08cf66176ae5016211206bc57785a1f2da4dd37252540378daa"
+    },
+    {
+      "id": "PAR-04",
+      "title": "Git 操作、提交、分支与 Pull Request",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-par-04-git-pr/explainer.html",
+      "sha256": "f379f72c56bfab2002240911da5b5e621afe5a8ea20bb7832d326b6cc58c0910"
+    },
+    {
+      "id": "PAR-05",
+      "title": "本地 Code Review 的差异读取与发现输出",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-par-05-local-code-review/explainer.html",
+      "sha256": "8b7883155af79179e3926b881862d2c6e554a7613bcdd25bd5a0e8efff969e2c"
+    },
+    {
+      "id": "PAR-06",
+      "title": "/batch 大规模迁移编排",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-par-06-batch-current/explainer.html",
+      "sha256": "bcded86774202fef0a904e6ad04146b492d6787b103e75f37c8883c54e114641"
+    },
+    {
+      "id": "PAR-07",
+      "title": "子 Agent 的前后台生命周期与停止",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-par-07-subagent-core-lifecycle/explainer.html",
+      "sha256": "710fae2de46d6dd723cc9daa9f0d49784f0c486e205ad3fd1c242e8764b1b539"
+    },
+    {
+      "id": "PAR-08",
+      "title": "Agent Teams 的共享任务、消息与结束",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-par-08-agent-teams/explainer.html",
+      "sha256": "5b42cd656f715fedf9d2ad65db3377960dc30495cdc3f2a23886481aceb81bb3"
+    },
+    {
+      "id": "EXT-01",
+      "title": "Skills 的发现、加载与执行",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ext-01-skills/explainer.html",
+      "sha256": "cc60ed4790a8046f86679d64a6b3365f4d6072f4a5d6fd77e815123ecb161a70"
+    },
+    {
+      "id": "EXT-02",
+      "title": "自定义斜杠命令与内置 Commands",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ext-02-commands/explainer.html",
+      "sha256": "d426ca5985481cc50cc24e50b0fa524565b3cce53948ad33903a1e83531a371a"
+    },
+    {
+      "id": "EXT-03",
+      "title": "Hooks 事件、决策与生命周期",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ext-03-hooks/explainer.html",
+      "sha256": "315c795b3ea4eaf80d727a6100aac03baebdd27c375348ffa04a190335d06c0e"
+    },
+    {
+      "id": "EXT-04",
+      "title": "MCP 连接、工具发现与 Tool Search",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ext-04-mcp-tool-search/explainer.html",
+      "sha256": "9fa5682e21375abb0e8982a46816a44d877302254ed4856228649049adfcb455"
+    },
+    {
+      "id": "EXT-05",
+      "title": "Plugin 包的发现、依赖解析、启用与卸载",
+      "kind": "core",
+      "evidence_status": "verified",
+      "path": "20260827-ext-05-plugin-lifecycle/explainer.html",
+      "sha256": "9e6b110b8fa33753c7621c393cfe12c9db93fedc5028f6f2b01d80928b5772cc"
+    },
+    {
+      "id": "EXT-06",
+      "title": "LSP 与代码智能",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ext-06-lsp-code-intelligence/explainer.html",
+      "sha256": "52cf776836f7c5b4041b1fbd3d8c0b4720be0616ce8238d6b1f306516605dcfa"
+    },
+    {
+      "id": "AUTO-01",
+      "title": "/loop 会话内定时器",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-auto-01-loop/explainer.html",
+      "sha256": "1ce2c6a43cb70ed884ffb08f92c2bd24d22195ce470be411e14b1cca3a1368f7"
+    },
+    {
+      "id": "AUTO-02",
+      "title": "/goal 的持续目标与续跑",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-auto-02-goal/explainer.html",
+      "sha256": "d1d9eb17194ad892293374ad373315d64b3a13cee5a0c69b516811b5127cf148"
+    },
+    {
+      "id": "AUTO-03",
+      "title": "Desktop Scheduled Tasks 的持久调度",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-auto-03-desktop-scheduled-tasks/explainer.html",
+      "sha256": "077a463cd4c7670f5e986763ba1af1aa35f98ccb62366cd0673e16ef2cc0b421"
+    },
+    {
+      "id": "AUTO-04",
+      "title": "Headless 模式、流式输入输出与结构化结果",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-auto-04-headless-structured-io/explainer.html",
+      "sha256": "d961f9e2345f5f9b519d237142d3dd5d9620ed83573965e898ec13dfa76993d2"
+    },
+    {
+      "id": "CLOUD-01",
+      "title": "Web/Cloud 与 Teleport 的会话接力",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-cloud-01-session-handoff-teleport/explainer.html",
+      "sha256": "2b58b4e3719672a34cdf47257f6a259853244608c1d4b72c9ccbea7b15dfc467"
+    },
+    {
+      "id": "CLOUD-02",
+      "title": "Routines 与云端事件触发",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-cloud-02-routines-events/explainer.html",
+      "sha256": "56923e5c3840e19d42c494a0a939925de012289608cceb7a631f49a6d27c1b88"
+    },
+    {
+      "id": "CLOUD-03",
+      "title": "CI 事件触发 Claude Code 与变更回写",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-cloud-03-ci-event-execution/explainer.html",
+      "sha256": "021113ed19cb7733e7e27d7b300394b47c4eeecc08aeecde80dc567db3ac36a5"
+    },
+    {
+      "id": "UI-01",
+      "title": "CLI 输入调度、Queued Prompt、立即命令、/btw、中断与语音输入",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ui-01-cli-input-scheduling/explainer.html",
+      "sha256": "4490038662cbaed6ada864d27a6f67085054c53785f9364cca4cc1374d7f2cb0"
+    },
+    {
+      "id": "UI-02",
+      "title": "Fullscreen 渲染与无障碍呈现",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ui-02-terminal-rendering-accessibility/explainer.html",
+      "sha256": "28724ae8a6558702c30cf815ebacae869c32de0ef2f0ca33bcf97c9bb4fa7733"
+    },
+    {
+      "id": "UI-04",
+      "title": "IDE 扩展的上下文、会话与 Diff 桥接",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ui-04-ide-session-bridge/explainer.html",
+      "sha256": "5d5f93a22073a8bdaf8b40be3aae380ef0c6be391f90a0ec55a475369f6cc7bd"
+    },
+    {
+      "id": "UI-05",
+      "title": "Desktop 项目会话与隔离工作区",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ui-05-desktop-workspace/explainer.html",
+      "sha256": "19d85e22d68b2f0f00b1551cd13746e341899af49ccdcad7939f378e3a987143"
+    },
+    {
+      "id": "UI-06",
+      "title": "Claude in Chrome 的连接与页面动作",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ui-06-claude-in-chrome/explainer.html",
+      "sha256": "65245217ed10c1a3355e3c1db073e5b4a1a6d40a3de81d5b50a94e56836ad701"
+    },
+    {
+      "id": "UI-07",
+      "title": "Remote Control、Mobile 与跨设备接管",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ui-07-remote-control-mobile/explainer.html",
+      "sha256": "d9da73f7cc432a5c977a60ec378b6ae72b92bd33dd6fd6451fb52dde73af0ae7"
+    },
+    {
+      "id": "UI-08",
+      "title": "Channels 的运行中消息注入与回复路由",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-ui-08-channels-runtime-injection/explainer.html",
+      "sha256": "e69f6484d303da389f93c3bd8750170b2e340e9d359d55c93781b884c454f29f"
+    },
+    {
+      "id": "ADM-01",
+      "title": "配置作用域、优先级、Managed Settings 与功能可用性",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-adm-01-settings-scopes/explainer.html",
+      "sha256": "833aceb3b9e4aadfec5ab18bea6d30fd4f9ae6092af06bca007e2df49c58861d"
+    },
+    {
+      "id": "ADM-02",
+      "title": "认证来源选择与凭据生效",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-adm-02-auth-source-selection/explainer.html",
+      "sha256": "2046404dc67fe0b91aa5321f02d8dcfcfacd62cf24a9033531ed5f21d9054f86"
+    },
+    {
+      "id": "ADM-03",
+      "title": "企业代理、证书与网络请求链",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-adm-03-enterprise-network/explainer.html",
+      "sha256": "7d3ffb9bad64090752610ce6b7230d274e33b38ac2c41243a1bce31fd4cf6d5b"
+    },
+    {
+      "id": "ADM-04",
+      "title": "云会话的环境选择、Runner 执行与回收",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-adm-04-cloud-session-runner/explainer.html",
+      "sha256": "2c57be9f1f580807327afa06f62c762761880ebaed35fecf31a2b2d517940b6d"
+    },
+    {
+      "id": "ADM-05",
+      "title": "Gateway、认证转发、模型路由与限额",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-adm-05-gateway-routing/explainer.html",
+      "sha256": "803659aafe44c17e78f3f767033f29247fa17d405ecc202755373a760635e15b"
+    },
+    {
+      "id": "ADM-06",
+      "title": "使用事件、OpenTelemetry 与隐私边界",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-adm-06-otel-usage-events/explainer.html",
+      "sha256": "83b085fd3e55302997e450e4c396b2d89b91d37ec61f95133a94f9df5e66796d"
+    },
+    {
+      "id": "ADM-08",
+      "title": "Doctor 检查与本机故障诊断",
+      "kind": "core",
+      "evidence_status": "verified",
+      "path": "20260827-adm-08-doctor-diagnostics/explainer.html",
+      "sha256": "7c0fe1944c84561a37071e6298e2cae72c96d4aaa3aa2cc34890a1e9ecf22ba4"
+    },
+    {
+      "id": "SDK-01",
+      "title": "Agent SDK 的运行时消息循环与会话续接",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-sdk-01-runtime-session-loop/explainer.html",
+      "sha256": "3e8f0c5ba1b8a3a917b58a40c277aa46b97d733a886144631d35d50f3dfeb6e7"
+    },
+    {
+      "id": "SDK-02",
+      "title": "Agent SDK 的工具调用、MCP 与审批拦截",
+      "kind": "core",
+      "evidence_status": "documented",
+      "path": "20260827-sdk-02-tool-governance/explainer.html",
+      "sha256": "53fc8c0d914a0f5359f6580b56003644be2b1abd0358e96a98296a264376f617"
+    },
+    {
+      "id": "COMP-CTX-ADVISOR",
+      "title": "Advisor Tool 的升级咨询、返回与失败边界",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-advisor-tool/explainer.html",
+      "sha256": "d192c75094495743383c9e229ed212c08d274c0efaeb4d4ef33bf85dea80fec4"
+    },
+    {
+      "id": "COMP-SAFE-BARE",
+      "title": "Bare Mode 的最小加载面与脚本启动边界",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-bare-mode/explainer.html",
+      "sha256": "a2ae0b0e788fa6d07e74f1e57bfe5082df424b90bf25b571bc4ca85a381ff924"
+    },
+    {
+      "id": "COMP-PAR-RECAP",
+      "title": "后台会话回归时的 Session Recap",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-session-recap/explainer.html",
+      "sha256": "302516dfe058e762f1ae5c7bceefb5a19a95863cf2859e360f39104a5f1522dd"
+    },
+    {
+      "id": "COMP-PAR-WORKFLOW",
+      "title": "Dynamic Workflows 的脚本生成、阶段调度与重跑",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-dynamic-workflows/explainer.html",
+      "sha256": "4dccb30e51a6003dd9efb6dabd58891c45c20c5c7317729d5bf1064d209ead80"
+    },
+    {
+      "id": "COMP-EXT-PLUGIN-RUNTIME",
+      "title": "Plugin Executables 与 Monitors 的运行时装配",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-plugin-runtime/explainer.html",
+      "sha256": "663754e1d6bc8161828cd27db47ca2fd26bae7a3db30e493b7d7459496a7b2a2"
+    },
+    {
+      "id": "COMP-EXT-MARKETPLACE-PUBLISH",
+      "title": "Marketplace 发布、推荐与依赖政策矩阵",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-plugin-distribution/explainer.html",
+      "sha256": "6e0223b7518f617fd34e401821547a7c651ac434bb7e4e0a1bdea2e95c470034"
+    },
+    {
+      "id": "AUTO-05",
+      "title": "Deep Links 与从链接启动会话",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260827-auto-05-deep-links/explainer.html",
+      "sha256": "46fafeed03cbd6d9716efdaa6097891badfd620ac885a4c0eb849641cee98f14"
+    },
+    {
+      "id": "EXT-07",
+      "title": "Artifacts 的生成、持久化与分享权限",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260827-ext-07-artifacts/explainer.html",
+      "sha256": "e18395f18a3594f6eb4f8f1dfa623f3c916fbd37d8a5a5b74dcc09833726d4cf"
+    },
+    {
+      "id": "COMP-CLOUD-CI-PROVIDERS",
+      "title": "CI 与云 Provider 配置差异矩阵",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-ci-provider-matrix/explainer.html",
+      "sha256": "00599964bf541babaedfba7defefb9f830ad2c73277f5d44ac4cbd3b7ac51cb8"
+    },
+    {
+      "id": "COMP-UI-KEYMAP",
+      "title": "终端键位、Vim 与输入模式",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-terminal-keymap-vim/explainer.html",
+      "sha256": "3149d6112cc8be3452d6ad6bbea9473a3fa87df4118d860ee16ab9ee60cc9b3b"
+    },
+    {
+      "id": "COMP-UI-STATUSLINE",
+      "title": "Custom Status Line 的子进程协议",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-custom-statusline/explainer.html",
+      "sha256": "1857c118488d8255b6f90a72524328c6d6a4a994be0b2036137724802b710994"
+    },
+    {
+      "id": "COMP-UI-IDE-MATRIX",
+      "title": "VS Code 与 JetBrains 能力差异矩阵",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-ide-platform-matrix/explainer.html",
+      "sha256": "0248b538fcf95bb6a6fd04b8cfaaa50b47d978e6066713dfd256169cf66cb30c"
+    },
+    {
+      "id": "COMP-UI-DESKTOP-PREVIEW",
+      "title": "Desktop App Preview 的启动与反馈回路",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-desktop-app-preview/explainer.html",
+      "sha256": "57f6237f453af594da6dc0bdd501c3b388b7971d3e617de7e3fcdcc80d317d77"
+    },
+    {
+      "id": "COMP-UI-DESKTOP-PRMON",
+      "title": "Desktop PR Monitor 的远端状态跟踪",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-desktop-pr-monitor/explainer.html",
+      "sha256": "cce923dde49e89c67ba289ad5cba91ad9cf6acf0194ac8b6222ee4abc4f3236c"
+    },
+    {
+      "id": "COMP-UI-COMPUTER-USE",
+      "title": "CLI Computer Use 的屏幕、动作与系统权限",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-cli-computer-use/explainer.html",
+      "sha256": "12f469b89509cc5c7c44c16f667a6b30fb63187140dedc4cafbe3f91f66d1fc7"
+    },
+    {
+      "id": "COMP-UI-CHAT-DELEGATION",
+      "title": "Slack 与 Claude Tag 的委派和退役矩阵",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-slack-claude-tag/explainer.html",
+      "sha256": "09d0f0908f29be667d9b244a287e58f2599eda77d1f98045668b1157a62a8f8b"
+    },
+    {
+      "id": "COMP-ADM-AUTH-MATRIX",
+      "title": "订阅、Console 与第三方 Provider 可用性矩阵",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-auth-provider-matrix/explainer.html",
+      "sha256": "9d447cbf8d83844831232f8a588e41a79db0b8af41b2b0e40646b3e986cfbda8"
+    },
+    {
+      "id": "COMP-ADM-DEVCONTAINER",
+      "title": "Dev Container 的环境构建与隔离生命周期",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-devcontainer/explainer.html",
+      "sha256": "a7f57269d6ed9f19651274ab78054080d4cf246933d234b6b01d37e9ce9657ed"
+    },
+    {
+      "id": "COMP-ADM-PROCESS-WRAPPER",
+      "title": "Corporate Launcher 与 Process Wrapper",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-process-wrapper/explainer.html",
+      "sha256": "efef57de5331485d952680fedba0a02f3e361f5e633eb7c44fcdb27aaf8b0256"
+    },
+    {
+      "id": "COMP-ADM-CLOUD-ENV-AUTHOR",
+      "title": "Cloud Environment 的定义、缓存与版本化",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-cloud-environment-authoring/explainer.html",
+      "sha256": "b91aa7c09084da6270537f5a5197783870fa8cf5494481655bead7c68d188c2d"
+    },
+    {
+      "id": "COMP-ADM-RUNNER-OPS",
+      "title": "Self-hosted Runner 的部署、身份与运维",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-self-hosted-runner-ops/explainer.html",
+      "sha256": "f4e7f1d5c947d83668090ae89ae0e0a9414eef6fb4010ce10c9c339ae38afee3"
+    },
+    {
+      "id": "COMP-ADM-USAGE-CONSUMERS",
+      "title": "成本、团队分析与数据政策矩阵",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-usage-consumers-data-policy/explainer.html",
+      "sha256": "082a498c37efe28f218b0872959c52cef69e797a9a2f34e65cf67d286abee26d"
+    },
+    {
+      "id": "COMP-SDK-STRUCTURED-OUTPUT",
+      "title": "Agent SDK Structured Output 的验证与失败",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-sdk-structured-output/explainer.html",
+      "sha256": "19f38b202cafb8b017769c5aa3bb4eecc84894bdacf1929eea4e6fa6a967b625"
+    },
+    {
+      "id": "COMP-SDK-SESSION-STORAGE",
+      "title": "Agent SDK External Session Storage",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-sdk-session-storage/explainer.html",
+      "sha256": "7e0ff3d32f84fdee742a558ec59927bd122acb1d3cb8d29872d60c3bbe7a078c"
+    },
+    {
+      "id": "COMP-SDK-OBSERVABILITY",
+      "title": "Agent SDK 成本、Tracing 与 OpenTelemetry",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-sdk-observability/explainer.html",
+      "sha256": "913719e53a0fd151787d3dbc3995eca657e06d7eb09e5998a9bdebd7ac002332"
+    },
+    {
+      "id": "COMP-SDK-HOSTING",
+      "title": "Agent SDK Hosting 与安全部署矩阵",
+      "kind": "companion",
+      "evidence_status": "documented",
+      "path": "20260829-companion-sdk-hosting-security/explainer.html",
+      "sha256": "248ebfdc57fbb961a6ec2609f7bd59ca3024806a59f3df369754f8ba65c45026"
+    }
+  ]
+}

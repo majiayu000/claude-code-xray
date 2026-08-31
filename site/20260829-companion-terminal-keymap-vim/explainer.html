@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-UI-KEYMAP">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>伴页 · 终端键位、Vim 与输入模式</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #e9e4d8;
+      --paper-deep: #d8d0bf;
+      --ink: #191a17;
+      --muted: #5c5d55;
+      --line: #8b887d;
+      --panel: #f4f0e6;
+      --orange: #e84b20;
+      --orange-dark: #9f2b0c;
+      --blue: #005e70;
+      --lime: #b9d34d;
+      --black: #11130f;
+      --display: "Iowan Old Style", "Songti SC", "STSong", serif;
+      --body: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --mono: Menlo, Monaco, "Cascadia Mono", "Noto Sans Mono CJK SC", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--paper); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(25, 26, 23, .045) 1px, transparent 1px),
+        linear-gradient(rgba(25, 26, 23, .035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 32px 32px;
+      font-family: var(--body);
+      line-height: 1.72;
+      text-rendering: optimizeLegibility;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: radial-gradient(circle at 84% 8%, rgba(232, 75, 32, .12), transparent 26rem);
+    }
+    a { color: var(--blue); text-underline-offset: .22em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--orange-dark); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--orange);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    code, .mono { font-family: var(--mono); font-size: .92em; }
+
+    .masthead {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      min-height: 58px;
+      padding: .7rem clamp(1rem, 4vw, 4.5rem);
+      border-bottom: 2px solid var(--ink);
+      color: #f6f1e7;
+      background: rgba(17, 19, 15, .97);
+    }
+    .brand {
+      display: flex;
+      gap: .75rem;
+      align-items: center;
+      font: 800 .78rem/1.3 var(--mono);
+      letter-spacing: .08em;
+    }
+    .brand-key {
+      display: inline-grid;
+      place-items: center;
+      width: 2rem;
+      height: 1.75rem;
+      border: 1px solid #f6f1e7;
+      border-bottom-width: 4px;
+      color: var(--lime);
+    }
+    .mast-links { display: flex; gap: 1rem; align-items: center; font-size: .84rem; }
+    .mast-links a { color: #f6f1e7; }
+    .status {
+      padding: .28rem .62rem;
+      color: var(--black);
+      background: var(--lime);
+      font: 800 .74rem/1.2 var(--mono);
+    }
+
+    main { overflow: clip; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(310px, .92fr);
+      gap: clamp(2.5rem, 7vw, 8rem);
+      align-items: center;
+      min-height: calc(100svh - 58px);
+      padding: clamp(4rem, 9vw, 9rem) clamp(1rem, 7vw, 7rem);
+      border-bottom: 2px solid var(--ink);
+    }
+    .kicker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem 1rem;
+      margin-bottom: 1.2rem;
+      color: var(--orange-dark);
+      font: 800 .78rem/1.5 var(--mono);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    h1 {
+      max-width: 11ch;
+      margin-bottom: 1.5rem;
+      font-family: var(--display);
+      font-size: clamp(3.2rem, 8vw, 8.6rem);
+      font-weight: 800;
+      line-height: .92;
+      letter-spacing: -.065em;
+    }
+    .lede {
+      max-width: 48rem;
+      margin-bottom: 1.4rem;
+      font-size: clamp(1.05rem, 1.6vw, 1.38rem);
+      line-height: 1.72;
+    }
+    .lede strong { color: var(--orange-dark); }
+    .proof-line { color: var(--muted); font: 700 .82rem/1.5 var(--mono); }
+    .mark {
+      display: inline-grid;
+      place-items: center;
+      min-width: 1.75rem;
+      height: 1.75rem;
+      margin-right: .3rem;
+      padding: 0 .35rem;
+      border: 1px solid currentColor;
+      color: var(--orange-dark);
+      font: 800 .75rem/1 var(--mono);
+      vertical-align: middle;
+    }
+
+    .signal-console {
+      position: relative;
+      padding: 1rem;
+      border: 2px solid var(--ink);
+      color: #f3efe4;
+      background: var(--black);
+      box-shadow: 14px 14px 0 var(--orange);
+      font-family: var(--mono);
+    }
+    .signal-console::before {
+      content: "INPUT SIGNAL ROUTE";
+      position: absolute;
+      top: -1.05rem;
+      left: 1rem;
+      padding: .18rem .6rem;
+      color: var(--black);
+      background: var(--lime);
+      font-size: .68rem;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+    .signal-row {
+      display: grid;
+      grid-template-columns: 3.2rem minmax(0, 1fr) auto;
+      gap: .8rem;
+      align-items: center;
+      padding: 1rem .75rem;
+      border-bottom: 1px dashed #676b61;
+    }
+    .signal-row:last-child { border-bottom: 0; }
+    .keycap {
+      display: grid;
+      place-items: center;
+      height: 2.6rem;
+      border: 1px solid #f3efe4;
+      border-bottom: 5px solid #777a70;
+      color: var(--lime);
+      font-weight: 900;
+    }
+    .signal-row b { display: block; font-size: .88rem; }
+    .signal-row small { color: #b7b9b1; }
+    .signal-state { color: var(--lime); font-size: .72rem; font-weight: 900; }
+    .signal-row.lost .signal-state { color: #ff8c6d; }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 2px solid var(--ink);
+      background: var(--panel);
+    }
+    .legend > div {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: .75rem;
+      align-items: center;
+      padding: 1rem clamp(1rem, 3vw, 2.4rem);
+      border-right: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .84rem;
+    }
+    .legend > div:last-child { border-right: 0; }
+    .legend b { color: var(--ink); }
+    .legend .r .mark { color: var(--muted); }
+    .legend .i .mark { color: var(--blue); }
+
+    .section {
+      display: grid;
+      grid-template-columns: minmax(190px, .32fr) minmax(0, 1fr);
+      gap: clamp(2.5rem, 7vw, 8rem);
+      padding: clamp(4.8rem, 9vw, 9rem) clamp(1rem, 7vw, 7rem);
+      border-bottom: 2px solid var(--ink);
+    }
+    .section-head { position: sticky; top: 92px; align-self: start; }
+    .section-no {
+      display: block;
+      margin-bottom: .8rem;
+      color: var(--orange-dark);
+      font: 900 .74rem/1 var(--mono);
+      letter-spacing: .12em;
+    }
+    h2 {
+      margin-bottom: 1rem;
+      font-family: var(--display);
+      font-size: clamp(2.2rem, 4.6vw, 4.8rem);
+      line-height: 1.02;
+      letter-spacing: -.045em;
+    }
+    .section-head p { max-width: 24rem; color: var(--muted); font-size: .94rem; }
+    .content { min-width: 0; }
+
+    .term-grid, .limit-grid, .unknown-grid, .source-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      position: relative;
+      min-width: 0;
+      padding: 1.3rem 1.35rem 1.45rem;
+      border: 1px solid var(--ink);
+      background: rgba(244, 240, 230, .88);
+    }
+    .card::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 1.2rem;
+      height: 1.2rem;
+      background: linear-gradient(135deg, transparent 50%, var(--orange) 51%);
+    }
+    .card .mark { float: right; margin-left: .7rem; }
+    .card h3 { margin-bottom: .55rem; font: 900 1rem/1.35 var(--mono); color: var(--blue); }
+    .card p { margin-bottom: 0; color: #40413b; }
+
+    .timeline { counter-reset: stage; }
+    .stage {
+      counter-increment: stage;
+      display: grid;
+      grid-template-columns: 4rem minmax(0, 1fr);
+      gap: 1.2rem;
+      position: relative;
+      padding-bottom: 2rem;
+    }
+    .stage::before {
+      content: counter(stage, decimal-leading-zero);
+      display: grid;
+      place-items: center;
+      width: 4rem;
+      height: 3.2rem;
+      border: 2px solid var(--ink);
+      border-bottom-width: 7px;
+      color: var(--orange-dark);
+      background: var(--panel);
+      font: 900 1rem/1 var(--mono);
+    }
+    .stage::after {
+      content: "";
+      position: absolute;
+      top: 3.2rem;
+      bottom: 0;
+      left: 1.96rem;
+      border-left: 2px dotted var(--line);
+    }
+    .stage:last-child { padding-bottom: 0; }
+    .stage:last-child::after { display: none; }
+    .stage h3 { margin: .05rem 0 .35rem; font-size: 1.08rem; }
+    .stage p { margin-bottom: 0; color: var(--muted); }
+
+    .flow-board {
+      padding: clamp(1rem, 3vw, 2rem);
+      border: 2px solid var(--ink);
+      color: #f5f0e5;
+      background: var(--black);
+      box-shadow: inset 0 0 0 6px #292c25;
+    }
+    .flow-node {
+      padding: .95rem;
+      border: 1px solid #8c9085;
+      background: #20231d;
+      text-align: center;
+    }
+    .flow-node b { display: block; color: var(--lime); font: 900 .9rem/1.35 var(--mono); }
+    .flow-node small { color: #bfc1b9; }
+    .flow-inputs, .flow-outputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; }
+    .wire { width: 2px; height: 2rem; margin: 0 auto; background: var(--orange); }
+    .router {
+      width: min(100%, 39rem);
+      margin: 0 auto;
+      padding: 1rem;
+      border: 2px solid var(--lime);
+      color: var(--lime);
+      background: #12150f;
+      text-align: center;
+      font: 900 .88rem/1.5 var(--mono);
+    }
+    .flow-outputs { position: relative; padding-top: 2rem; }
+    .flow-outputs::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 16.66%;
+      right: 16.66%;
+      height: 2px;
+      background: var(--orange);
+    }
+    .flow-note {
+      margin-top: 1rem;
+      padding: .9rem 1rem;
+      border-left: 5px solid var(--orange);
+      color: #d7d9d0;
+      background: #272a24;
+      font-size: .88rem;
+    }
+
+    .limit-card { min-height: 14rem; }
+    .limit-card h3 { color: var(--orange-dark); }
+    .fallback {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: auto 1fr auto 1fr auto 1fr;
+      gap: .6rem;
+      align-items: center;
+      padding: 1.2rem;
+      border: 2px solid var(--ink);
+      background: var(--lime);
+      font-family: var(--mono);
+    }
+    .fallback b { color: var(--orange-dark); }
+
+    .fact-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-bottom: 1rem;
+      border: 2px solid var(--ink);
+      background: var(--panel);
+    }
+    .fact { padding: 1.1rem; border-right: 1px solid var(--line); }
+    .fact:last-child { border-right: 0; }
+    .fact b { display: block; color: var(--orange-dark); font: 900 1rem/1.4 var(--mono); }
+    .fact span { color: var(--muted); font-size: .86rem; }
+    details { border: 1px solid var(--ink); background: var(--panel); }
+    summary { cursor: pointer; padding: 1rem 1.2rem; color: var(--blue); font: 900 .92rem/1.4 var(--mono); }
+    .details-body { padding: 0 1.2rem 1.2rem; color: var(--muted); }
+    .details-body p:last-child { margin-bottom: 0; }
+    .note { margin-top: 1rem; padding: 1rem; border: 1px dashed var(--ink); color: var(--muted); }
+
+    .version-list { border-top: 2px solid var(--ink); }
+    .version-row {
+      display: grid;
+      grid-template-columns: 8rem minmax(0, 1fr);
+      gap: 1.2rem;
+      padding: 1.1rem .4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .version-row b { color: var(--orange-dark); font: 900 .9rem/1.5 var(--mono); }
+    .version-row p { margin: 0; color: var(--muted); }
+    .version-row.current { background: rgba(185, 211, 77, .22); }
+
+    .unknown-grid { counter-reset: unknown; }
+    .unknown-card { counter-increment: unknown; min-height: 12rem; }
+    .unknown-card::before {
+      content: "?" counter(unknown);
+      position: absolute;
+      right: .7rem;
+      bottom: .25rem;
+      color: rgba(232, 75, 32, .13);
+      font: 900 3.2rem/1 var(--mono);
+    }
+
+    .source-card {
+      display: block;
+      min-height: 10rem;
+      color: inherit;
+      text-decoration: none;
+    }
+    .source-card:hover { color: inherit; border-color: var(--orange); background: #fffaf0; }
+    .source-card span { display: block; margin-bottom: .55rem; color: var(--orange-dark); font: 900 .7rem/1 var(--mono); letter-spacing: .09em; }
+    .source-card strong { color: var(--blue); }
+    .source-card p { margin-top: .55rem; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2rem clamp(1rem, 7vw, 7rem);
+      color: #d8d8d0;
+      background: var(--black);
+      font-size: .84rem;
+    }
+
+    @media (max-width: 920px) {
+      .hero, .section { grid-template-columns: 1fr; }
+      .hero { min-height: auto; }
+      .section-head { position: static; }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+      .legend > div:nth-child(2) { border-right: 0; }
+      .legend > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .flow-inputs, .flow-outputs { grid-template-columns: 1fr; }
+      .flow-outputs::before { left: 50%; right: auto; bottom: 0; width: 2px; height: auto; }
+      .fallback { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .masthead { align-items: flex-start; }
+      .mast-links { flex-direction: column; align-items: flex-end; gap: .35rem; }
+      .hero, .section { padding-inline: 1rem; }
+      h1 { max-width: 10ch; font-size: clamp(3rem, 16vw, 5rem); }
+      .term-grid, .limit-grid, .unknown-grid, .source-grid { grid-template-columns: 1fr; }
+      .legend { grid-template-columns: 1fr; }
+      .legend > div, .legend > div:nth-child(2) { border-right: 0; border-bottom: 1px solid var(--line); }
+      .legend > div:last-child { border-bottom: 0; }
+      .stage { grid-template-columns: 3rem minmax(0, 1fr); gap: .85rem; }
+      .stage::before { width: 3rem; height: 2.8rem; }
+      .stage::after { top: 2.8rem; left: 1.46rem; }
+      .fact-strip { grid-template-columns: 1fr; }
+      .fact { border-right: 0; border-bottom: 1px solid var(--line); }
+      .fact:last-child { border-bottom: 0; }
+      .version-row { grid-template-columns: 1fr; gap: .2rem; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print {
+      .masthead { position: static; }
+      body { background: #fff; }
+      .section, .hero, .legend { break-inside: avoid; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：终端键位、Vim 与输入模式。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-terminal-keymap-vim/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-UI-KEYMAP · 终端键位、Vim 与输入模式">
+  <meta property="og:description" content="Claude Code X-Ray：终端键位、Vim 与输入模式。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-terminal-keymap-vim/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-UI-KEYMAP · 终端键位、Vim 与输入模式">
+  <meta name="twitter:description" content="Claude Code X-Ray：终端键位、Vim 与输入模式。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-UI-KEYMAP</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="masthead">
+    <div class="brand"><span class="brand-key" aria-hidden="true">⌘</span><span>伴页 · COMP-UI-KEYMAP</span></div>
+    <div class="mast-links">
+      <span class="status">当前状态 documented</span>
+      <a href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <p class="kicker"><span>Claude Code 2.1.247</span><span>基线 2026-08-27</span></p>
+        <h1 id="answer-title">一个按键要过两道门</h1>
+        <p class="lede">终端先把按键组合编码成 Claude Code 能收到的信号。Claude Code 再按当前组件与输入模式解释它。<strong>终端没有区分开的组合键，后面的 keybindings 无法补回。</strong> INSERT 时字符写进输入框。NORMAL 改变光标位置，VISUAL 会选中文字。</p>
+        <p class="proof-line"><span class="mark">O</span><span class="mark">I</span>官方契约支持各段行为，两道门的先后顺序由本页归纳</p>
+      </div>
+      <aside class="signal-console" aria-label="同一个按键经过终端与 Claude Code 的结果示意">
+        <div class="signal-row">
+          <span class="keycap">J</span>
+          <span><b>INSERT</b><small>写入字母 j</small></span>
+          <span class="signal-state">TEXT</span>
+        </div>
+        <div class="signal-row">
+          <span class="keycap">J</span>
+          <span><b>NORMAL</b><small>光标下移或查历史</small></span>
+          <span class="signal-state">MOTION</span>
+        </div>
+        <div class="signal-row lost">
+          <span class="keycap">⇧↵</span>
+          <span><b>终端未区分</b><small>退回 Ctrl+J</small></span>
+          <span class="signal-state">FALLBACK</span>
+        </div>
+      </aside>
+    </section>
+
+    <div class="legend" aria-label="证据图例">
+      <div><span class="mark">O</span><span><b>官方契约</b><br>公开文档与官方仓库</span></div>
+      <div><span class="mark">L</span><span><b>本机静态</b><br>帮助、文件与版本快照</span></div>
+      <div class="r"><span class="mark">R</span><span><b>真实实验</b><br>本页没有这一层</span></div>
+      <div class="i"><span class="mark">I</span><span><b>研究推断</b><br>串起官方分段契约</span></div>
+    </div>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head">
+        <span class="section-no">01 / TERMS</span>
+        <h2 id="terms-title">四个角色各管一段</h2>
+        <p>把终端、组件动作与 Vim 混成一层，许多键位冲突就会解释错。</p>
+      </div>
+      <div class="content term-grid">
+        <article class="card"><span class="mark">O</span><h3>终端模拟器</h3><p>它把物理按键变成字符或控制字节。支持扩展协议时，终端还能报告修饰键。Option、Shift、Command 能否被区分，先由这一层决定。</p></article>
+        <article class="card"><span class="mark">O</span><h3>keybindings</h3><p>它在 Global、Chat、Transcript 等组件上下文里，把收到的键或 chord 匹配为动作。一个按键也可以显式解绑。</p></article>
+        <article class="card"><span class="mark">O</span><h3>Vim 输入状态</h3><p>它在输入框这一层处理模式与光标，也解释 motion、operator 和选择。多数 Ctrl 组合继续交给组件级 keybindings。</p></article>
+        <article class="card"><span class="mark">O</span><h3>持久化文件</h3><p>个人 keybindings 单独保存在用户配置目录。Editor mode 与 INSERT 双键退出映射属于 settings，作用域规则不同。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head">
+        <span class="section-no">02 / SEQUENCE</span>
+        <h2 id="sequence-title">一次按键怎样落地</h2>
+        <p>这条顺序在提交前结束。消息何时进入队列或发给模型，属于 UI-01。</p>
+      </div>
+      <div class="content timeline">
+        <article class="stage"><div><h3>用户按下一个键或组合键</h3><p>终端先接到物理输入。macOS 的 Option 通常要配置为 Meta，Command 则依赖 Kitty keyboard protocol 或 modifyOtherKeys 一类扩展报告。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>终端发送它能表达的信号</h3><p>有些组合在这一层已经合并。Ctrl+M 与 Enter 到 Claude Code 时相同，Ctrl+I 与 Tab 相同，Caps Lock 根本不会交给终端应用。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>信号进入本地解释阶段</h3><p>官方把 Vim 文字层与组件级 keybindings 写成两套独立机制，没有公开它们的内部先后。本页从这里分成两条用户可见路径。<span class="mark">I</span></p></div></article>
+        <article class="stage"><div><h3>输入框路径看 Vim 状态</h3><p>INSERT 接收文字。Esc 进入 NORMAL，v 或 V 进入 VISUAL；NORMAL 中的 h、j、k、l 负责移动。Esc 在这里不会触发 chat cancel。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>组件路径看活动 context</h3><p>Chat、Autocomplete、Confirmation、Transcript 等 context 把信号匹配为组件动作。仍有 chord 前缀时，Claude Code 会继续等待下一键。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>动作改文字、光标或组件状态</h3><p>结果可以是插入换行、提交、移动、打开面板或退出。Enter 在 Vim INSERT 中仍会提交；要换行可用 Ctrl+J，NORMAL 中也可用 o 或 O。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>未匹配、被截获或保留键让线路停止</h3><p>tmux 可能先拿走 Ctrl+B，shell 会用 Ctrl+Z 挂起进程。Ctrl+C 与 Ctrl+D 属于硬编码中断和退出，配置文件不能改绑。<span class="mark">O</span></p></div></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head">
+        <span class="section-no">03 / FLOW</span>
+        <h2 id="flow-title">信号与文件各走一条线</h2>
+        <p>按键流是瞬时状态。两个配置文件给这条流加上可持续的规则。</p>
+      </div>
+      <div class="content">
+        <div class="flow-board" role="img" aria-label="物理按键经过终端报告与 Claude Code 上下文后分到组件动作、Vim 编辑或退化路径">
+          <div class="flow-inputs">
+            <div class="flow-node"><b>物理输入</b><small>键与修饰键</small></div>
+            <div class="flow-node"><b>终端能力</b><small>协议与多路复用器</small></div>
+            <div class="flow-node"><b>本地规则</b><small>keybindings 与 settings</small></div>
+          </div>
+          <div class="wire" aria-hidden="true"></div>
+          <div class="router">RECEIVED KEY → ACTIVE CONTEXT → INPUT MODE <span class="mark">I</span></div>
+          <div class="wire" aria-hidden="true"></div>
+          <div class="flow-outputs">
+            <div class="flow-node"><b>组件动作</b><small>提交、面板、滚动</small></div>
+            <div class="flow-node"><b>Vim 编辑</b><small>字符、motion、选择</small></div>
+            <div class="flow-node"><b>停止或退化</b><small>保留、冲突、未送达</small></div>
+          </div>
+          <div class="flow-note">这张图把官方文档中的终端信号、组件上下文和 Vim 文字层接在一起。官方没有公开 2.1.247 内部事件对象或实际函数调用链，router 因而标为 I。</div>
+        </div>
+        <p class="note"><strong>文件流</strong>　<code>keybindings.json</code> 改动会被自动检测并在当前会话应用。<code>settings.json</code> 保存个人 editor mode。<code>vimInsertModeRemaps</code> 还可来自一次性 settings 参数或 managed settings，项目文件中的同名项会被忽略。<span class="mark">O</span></p>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head">
+        <span class="section-no">04 / LIMITS</span>
+        <h2 id="limits-title">门、失败与退路</h2>
+        <p>这条机制主要停在本地输入与配置。登录和费用取决于用户能否进入所用界面，以及按键有没有提交消息。</p>
+      </div>
+      <div class="content limit-grid">
+        <article class="card limit-card"><span class="mark">O</span><h3>终端能力门</h3><p>多数终端不报告 Super 或 Command。非拉丁布局若没有位置报告，只能按终端实际送来的字符匹配。想跨终端使用，官方建议优先选 Ctrl 或 Meta。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>多路复用冲突</h3><p>tmux 默认占用 Ctrl+B，GNU screen 默认占用 Ctrl+A，Unix 用 Ctrl+Z 发送 SIGTSTP。事件在 Claude Code 之前被拿走，keybindings 就看不到。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>配置校验门</h3><p>JSON、context、action、保留键和重复绑定都会校验。2.1.247 遇到未知 action 会跳过该项并保留默认绑定，2.1.246 以前会把这个键静默禁用。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>Vim 边界</h3><p>Vim motion 不能在 keybindings 文件中改绑。INSERT 双键映射只能接收恰好两个可打印字符，目标只能是 Esc，第二键须在一秒内到达。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>写文件门</h3><p><code>/terminal-setup</code> 可能直接改宿主配置，官方展示的是完成后的结果消息，没有承诺写入前再询问。VS Code、Cursor 与 Devin Desktop 路径还会关闭 GPU acceleration，并调整终端鼠标滚动灵敏度。运行前应自行核对目标文件并备份。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>保留与备份边界</h3><p>已有 Shift+Enter 绑定会留在原处。Zed 在合并新绑定前只对文档列明的路径创建同目录备份；读取、解析、备份或校验失败时不改文件，改由用户手工添加。该保证不能外推到所有终端。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>停止条件</h3><p>配置匹配到动作后，这次键位解释完成。保留键走硬编码行为，未送达的键没有后续动作，未完成的 chord 前缀则继续等下一键。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>登录与可用范围</h3><p>官方总览只承诺多数 Claude Code 界面需要 Claude 订阅或 Anthropic Console 账户，并说明终端 CLI 还支持第三方提供商。它没有为 keybindings 与 Vim 单列套餐或后端矩阵。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><span class="mark">I</span><h3>模型请求与费用</h3><p>官方把插入换行和提交消息列成不同动作，也说明用量按订阅额度或 API token 计算。本页据此把未提交的输入、移动和本地配置编辑视为不产生模型 token 的路径。提交以后进入模型用量，计费口径随认证来源而变。</p></article>
+        <div class="fallback" aria-label="Shift Enter 的退化顺序"><b>Shift+Enter 不可用</b><span>→</span><b>Ctrl+J</b><span>→</span><b>反斜线后按 Enter</b><span>　两种退路都不需要设置</span></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head">
+        <span class="section-no">05 / EXPERIMENT</span>
+        <h2 id="experiment-title">本轮停在官方契约</h2>
+        <p>没有启动交互式 Claude 会话，也没有读取或改写私人配置。</p>
+      </div>
+      <div class="content">
+        <div class="fact-strip">
+          <div class="fact"><b>2.1.247</b><span>任务固定本机基线</span></div>
+          <div class="fact"><b>command not found</b><span>当前研究 shell 无法调用 claude</span></div>
+          <div class="fact"><b>R = 0</b><span>没有真实按键实验</span></div>
+        </div>
+        <details open>
+          <summary>L 核对停在哪里</summary>
+          <div class="details-body">
+            <p>本轮只读尝试了 <code>command -v claude</code>、<code>claude --version</code> 与 <code>claude --help</code>。当前 shell 返回 command not found。继续核对标准安装位置时，操作系统拒绝访问，因此没有重新取得版本、帮助或文件哈希。</p>
+            <p>页面仍按任务固定的 2.1.247 与 SHA-256 基线写作。这是调度输入，不能冒充本轮 L 复测。</p>
+          </div>
+        </details>
+        <p class="note"><span class="mark">R</span>缺少隔离 TTY、可调用的 2.1.247 二进制与不触碰现有认证和设置的运行面。本轮没有登录、提交消息或取得用量记录，不能用它验证未登录入口与实际账单。本页保持 documented。</p>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head">
+        <span class="section-no">06 / VERSION</span>
+        <h2 id="implementation-title">2.1.247 前后的变化</h2>
+        <p>同一份配置在旧版本上可能有不同的失败后果。</p>
+      </div>
+      <div class="content version-list">
+        <div class="version-row"><b>2.1.18</b><p>官方 changelog 加入可定制 keybindings、上下文绑定与 chord。</p></div>
+        <div class="version-row"><b>2.1.92</b><p><code>/vim</code> 被移除。编辑模式改从 <code>/config</code> 的 Editor mode 切换。</p></div>
+        <div class="version-row"><b>2.1.208</b><p><code>vimInsertModeRemaps</code> 加入，可把两个可打印字符映射为 Esc。</p></div>
+        <div class="version-row"><b>2.1.242</b><p>Kitty keyboard protocol 终端中的 Ctrl+[ 从这一版起可稳定按 Escape 处理。</p></div>
+        <div class="version-row"><b>2.1.246</b><p>未知 action 的失败语义改变。新版本跳过坏绑定并保留默认值，旧版本会静默禁用该键。</p></div>
+        <div class="version-row current"><b>2.1.247</b><p>本页基线。非拉丁布局在 Kitty 协议终端中的 Ctrl 快捷键匹配得到修复，Ctrl+X Enter chord 也从这一版进入默认集合。</p></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head">
+        <span class="section-no">07 / UNKNOWNS</span>
+        <h2 id="unknowns-title">仍然不能写死的地方</h2>
+        <p>官方公开了用户可观察的规则，没有公开完整的本机事件对象与解析调用链。</p>
+      </div>
+      <div class="content unknown-grid">
+        <article class="card unknown-card"><h3>本机终端报告</h3><p>当前终端是否启用 Kitty keyboard protocol、modifyOtherKeys 或 Meta 映射，本轮没有读取终端私人设置，也没有按键实测。</p></article>
+        <article class="card unknown-card"><h3>内部优先级细节</h3><p>同一信号在多个活动 context、Vim 文字层与 chord 等候状态间的完整内部判定顺序，没有公开实现证据。</p></article>
+        <article class="card unknown-card"><h3>热重载原子性</h3><p>官方承诺 keybindings 改动无须重启。保存到一半的文件、编辑器原子替换与连续快速写入怎样合并，没有公开保证。</p></article>
+        <article class="card unknown-card"><h3>IME 组合状态</h3><p>中文输入法候选窗打开时，Esc、Ctrl 组合与 Vim 模式怎样分配给 IME、终端和 Claude Code，需要逐终端真实测试。</p></article>
+        <article class="card unknown-card"><h3>终端安装回滚</h3><p>官方只给出 GPU acceleration 的手动恢复办法与 Zed 的条件式备份，没有承诺其他改动都能一键撤销，也没有跨终端的统一卸载流程。</p></article>
+        <article class="card unknown-card"><h3>本机配置结果</h3><p>个人是否已有 keybindings、editorMode 或冲突警告属于私有配置。本轮依约不读取，因此无法给出当前机器的最终匹配表。</p></article>
+        <article class="card unknown-card"><h3>认证与账单实测</h3><p>未登录能否到达 2.1.247 的交互键位界面，本轮没有测试。keybindings 与 Vim 在各订阅、Console、云端提供商下是否完全同功能，官方也没有单列对照表。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head">
+        <span class="section-no">08 / SOURCES</span>
+        <h2 id="sources-title">一手资料与复现入口</h2>
+        <p>技术结论只用 Anthropic 官方文档与官方仓库。详细事实表和无写入复现步骤见 evidence.md。</p>
+      </div>
+      <div class="content source-grid">
+        <a class="card source-card" href="https://code.claude.com/docs/en/keybindings"><span>OFFICIAL DOC</span><strong>自定义键盘快捷键</strong><p>证明配置文件、上下文、键名语法、保留键、冲突、Vim 分层与校验。</p></a>
+        <a class="card source-card" href="https://code.claude.com/docs/en/interactive-mode"><span>OFFICIAL DOC</span><strong>交互模式参考</strong><p>证明默认快捷键、Vim 状态转换、motion、历史导航与双键退出。</p></a>
+        <a class="card source-card" href="https://code.claude.com/docs/en/terminal-config"><span>OFFICIAL DOC</span><strong>终端配置</strong><p>证明终端信号边界、Shift+Enter 退路、Option as Meta 与 terminal setup 写入。</p></a>
+        <a class="card source-card" href="https://code.claude.com/docs/en/settings"><span>OFFICIAL DOC</span><strong>设置文件与作用域</strong><p>证明 Editor mode 的用户级持久化、配置文件监看与设置来源。</p></a>
+        <a class="card source-card" href="https://code.claude.com/docs/en/commands"><span>OFFICIAL DOC</span><strong>内置命令参考</strong><p>证明 keybindings、terminal setup 入口与 vim 命令的移除边界。</p></a>
+        <a class="card source-card" href="https://code.claude.com/docs/en/overview"><span>OFFICIAL DOC</span><strong>Claude Code 总览</strong><p>证明多数界面的账户要求，以及终端 CLI 可使用第三方提供商。</p></a>
+        <a class="card source-card" href="https://code.claude.com/docs/en/costs"><span>OFFICIAL DOC</span><strong>用量与费用</strong><p>证明订阅、Console 与云端提供商采用不同的用量和计费口径。</p></a>
+        <a class="card source-card" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><span>OFFICIAL REPO</span><strong>Claude Code changelog</strong><p>证明 keybindings 与 INSERT 双键映射加入的版本节点。</p></a>
+        <a class="card source-card" href="../20260827-ui-02-terminal-rendering-accessibility/explainer.html"><span>PARENT XRY</span><strong>回到主页面</strong><p>Fullscreen、主题、屏幕阅读器与渲染失败留在 UI-02 主页面。</p></a>
+        <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>COMP-UI-KEYMAP · 伴页 · 终端键位、Vim 与输入模式</span>
+    <span>documented · Claude Code 2.1.247 · 非计数 companion</span>
+  </footer>
+</body>
+</html>

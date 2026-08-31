@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CORE-02">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <meta name="description" content="Claude Code 内置工具怎样经过输入校验、PreToolUse、权限、执行、结果整形与失败分类。">
+  <title>工具调用怎样过门、执行和返回｜CORE-02</title>
+  <style>
+    :root {
+      --ink: #171714;
+      --paper: #f3efdf;
+      --paper-2: #e7dfc9;
+      --orange: #ed5b2a;
+      --orange-dark: #9b2e10;
+      --blue: #19566e;
+      --green: #2f6950;
+      --red: #a13224;
+      --muted: #676458;
+      --line: #b6ad96;
+      --white: #fffdf5;
+      --shadow: 6px 6px 0 #171714;
+      --radius: 2px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(23,23,20,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23,23,20,.025) 1px, transparent 1px),
+        var(--paper);
+      background-size: 22px 22px;
+      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: inherit; text-underline-offset: .18em; }
+    a:hover { color: var(--orange-dark); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 4px;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .9em;
+      background: rgba(23,23,20,.08);
+      padding: .08em .32em;
+      border-radius: 2px;
+    }
+
+    .topline {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 9px max(18px, calc((100vw - 1180px) / 2));
+      color: var(--paper);
+      background: var(--ink);
+      border-bottom: 5px solid var(--orange);
+      font-family: "SFMono-Regular", Menlo, monospace;
+      font-size: 12px;
+      letter-spacing: .06em;
+    }
+
+    .topline a { color: var(--paper); }
+    .status { color: #ffb08b; font-weight: 800; }
+
+    .page {
+      width: min(1180px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 58px 0 90px;
+    }
+
+    .hero {
+      min-height: 610px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+      gap: clamp(34px, 6vw, 86px);
+      align-items: center;
+      border-bottom: 3px solid var(--ink);
+      padding: 18px 0 66px;
+    }
+
+    .kicker,
+    .section-no,
+    .machine-label,
+    .step-no {
+      font-family: "SFMono-Regular", Menlo, monospace;
+      text-transform: uppercase;
+      letter-spacing: .11em;
+      font-weight: 800;
+    }
+
+    .kicker { color: var(--orange-dark); font-size: 13px; }
+    h1, h2, h3 { margin-top: 0; line-height: 1.13; }
+    h1 {
+      max-width: 820px;
+      margin: 20px 0 22px;
+      font-family: "Iowan Old Style", Baskerville, "Songti SC", serif;
+      font-size: clamp(45px, 7vw, 86px);
+      letter-spacing: -.045em;
+      font-weight: 800;
+    }
+
+    .lede {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(18px, 2.1vw, 25px);
+      line-height: 1.6;
+    }
+
+    .hero-proof {
+      margin-top: 30px;
+      padding-left: 18px;
+      border-left: 5px solid var(--orange);
+      color: var(--muted);
+      max-width: 760px;
+    }
+
+    .machine {
+      position: relative;
+      padding: 24px;
+      border: 3px solid var(--ink);
+      background: var(--paper-2);
+      box-shadow: var(--shadow);
+      transform: rotate(1deg);
+    }
+
+    .machine::before,
+    .machine::after {
+      content: "";
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      border: 3px solid var(--ink);
+      border-radius: 50%;
+      background: var(--orange);
+    }
+    .machine::before { left: 13px; top: 13px; }
+    .machine::after { right: 13px; bottom: 13px; }
+
+    .machine-label { margin: 0 0 19px 28px; font-size: 12px; }
+    .ticket {
+      padding: 17px 18px;
+      background: var(--white);
+      border: 1px solid var(--ink);
+      font-family: "SFMono-Regular", Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.9;
+    }
+    .ticket strong { color: var(--orange-dark); }
+    .stamp {
+      display: inline-block;
+      margin-top: 18px;
+      border: 3px double var(--red);
+      color: var(--red);
+      padding: 5px 11px;
+      font-family: "SFMono-Regular", Menlo, monospace;
+      font-weight: 900;
+      letter-spacing: .1em;
+      transform: rotate(-4deg);
+    }
+
+    .jump {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin: 26px 0 74px;
+    }
+    .jump a {
+      text-decoration: none;
+      border: 1px solid var(--ink);
+      background: rgba(255,253,245,.65);
+      padding: 7px 11px;
+      font-family: "SFMono-Regular", Menlo, monospace;
+      font-size: 12px;
+    }
+    .jump a:hover { background: var(--orange); color: var(--ink); }
+
+    section { scroll-margin-top: 62px; margin-top: 86px; }
+    .section-head {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+      margin-bottom: 28px;
+    }
+    .section-no {
+      display: inline-grid;
+      place-items: center;
+      width: 70px;
+      height: 42px;
+      color: var(--paper);
+      background: var(--ink);
+      font-size: 13px;
+      clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
+    }
+    h2 {
+      margin-bottom: 10px;
+      font-family: "Iowan Old Style", Baskerville, "Songti SC", serif;
+      font-size: clamp(30px, 4vw, 52px);
+      letter-spacing: -.025em;
+    }
+    .section-head p { margin: 0; max-width: 760px; color: var(--muted); }
+
+    .badge {
+      display: inline-grid;
+      place-items: center;
+      width: 1.65em;
+      height: 1.65em;
+      margin-right: .35em;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      font-family: "SFMono-Regular", Menlo, monospace;
+      font-size: .78em;
+      font-weight: 900;
+      vertical-align: .08em;
+    }
+    .o { color: var(--blue); }
+    .l { color: var(--green); }
+    .r { color: var(--red); }
+    .i { color: #75501d; }
+
+    .terms-grid,
+    .legend-grid,
+    .unknown-grid,
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .card {
+      padding: 23px;
+      border: 1px solid var(--ink);
+      background: rgba(255,253,245,.72);
+    }
+    .card h3 { margin-bottom: 9px; font-size: 18px; }
+    .card p { margin: 0; color: #454339; }
+    .card .big {
+      display: block;
+      color: var(--orange-dark);
+      font-family: "Iowan Old Style", Baskerville, serif;
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .legend-grid { margin-top: 16px; grid-template-columns: repeat(4, 1fr); }
+    .legend-grid .card { min-height: 142px; }
+
+    .sequence-track {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-top: 4px solid var(--ink);
+      border-left: 1px solid var(--ink);
+    }
+    .step {
+      position: relative;
+      min-height: 205px;
+      padding: 25px 20px 22px;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      background: rgba(255,253,245,.66);
+    }
+    .step:nth-child(3), .step:nth-child(4) { background: #f1c7a7; }
+    .step:nth-child(5) { background: #d8e2dc; }
+    .step:nth-child(6) { background: #d5d0be; }
+    .step:nth-child(7), .step:nth-child(8) { background: #e7dfc9; }
+    .step-no { color: var(--orange-dark); font-size: 12px; }
+    .step h3 { margin: 14px 0 10px; font-size: 21px; }
+    .step p { margin: 0; font-size: 14px; line-height: 1.62; }
+    .step::after {
+      content: "→";
+      position: absolute;
+      right: -13px;
+      top: 18px;
+      z-index: 2;
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      color: var(--paper);
+      background: var(--ink);
+      border-radius: 50%;
+      font-size: 15px;
+    }
+    .step:nth-child(4)::after, .step:last-child::after { display: none; }
+
+    .reject-rail {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      border: 2px solid var(--red);
+      background: #f3d5c9;
+    }
+    .reject-rail strong, .reject-rail p { padding: 17px 19px; margin: 0; }
+    .reject-rail strong { color: var(--white); background: var(--red); }
+    .shortcut-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .shortcut-grid .reject-rail {
+      grid-template-columns: 1fr;
+      margin-top: 0;
+    }
+
+    .flow-board {
+      display: grid;
+      grid-template-columns: 1fr 68px 1fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+    .flow-box {
+      border: 2px solid var(--ink);
+      background: var(--white);
+      padding: 26px;
+    }
+    .flow-box h3 { font-size: 24px; }
+    .flow-box ul { padding-left: 20px; margin-bottom: 0; }
+    .flow-arrow {
+      display: grid;
+      place-items: center;
+      font-family: "Iowan Old Style", serif;
+      font-size: 44px;
+      color: var(--orange-dark);
+    }
+    .side-effect {
+      grid-column: 1 / -1;
+      margin-top: 2px;
+      padding: 18px 22px;
+      color: var(--white);
+      background: var(--ink);
+      border-left: 12px solid var(--orange);
+    }
+
+    .failure-table-wrap { overflow-x: auto; border: 2px solid var(--ink); }
+    table { width: 100%; border-collapse: collapse; background: var(--white); min-width: 790px; }
+    th, td { padding: 15px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th {
+      color: var(--paper);
+      background: var(--ink);
+      font-family: "SFMono-Regular", Menlo, monospace;
+      font-size: 12px;
+      letter-spacing: .08em;
+    }
+    td:first-child { font-weight: 800; }
+    tr:last-child td { border-bottom: 0; }
+    .critical-row td { background: #f0d1c7; }
+
+    .stats-grid { margin-top: 18px; grid-template-columns: repeat(4, 1fr); }
+    .stats-grid .card { border-top: 7px solid var(--orange); }
+    .stats-grid .big { font-size: 42px; }
+
+    .experiment-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 2px solid var(--ink);
+      box-shadow: var(--shadow);
+      background: var(--white);
+    }
+    .experiment-box > div { padding: 27px; }
+    .experiment-box > div + div { border-left: 1px solid var(--ink); }
+    .result-list { margin: 0; padding-left: 20px; }
+    .no-r {
+      display: inline-block;
+      margin-bottom: 15px;
+      padding: 6px 10px;
+      color: var(--white);
+      background: var(--red);
+      font-family: "SFMono-Regular", Menlo, monospace;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .implementation-grid {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 24px;
+    }
+    details {
+      border-top: 1px solid var(--ink);
+      padding: 15px 0;
+    }
+    details:last-child { border-bottom: 1px solid var(--ink); }
+    summary { cursor: pointer; font-weight: 800; }
+    details p { margin: 12px 0 0 22px; color: var(--muted); }
+    .version-tape {
+      padding: 28px;
+      color: var(--paper);
+      background: var(--blue);
+      border: 3px solid var(--ink);
+    }
+    .version-tape h3 { font-size: 24px; }
+    .version-tape p { margin: 0 0 16px; }
+    .version-tape p:last-child { margin-bottom: 0; }
+
+    .boundary {
+      margin-top: 22px;
+      padding: 20px 22px;
+      border: 2px dashed var(--ink);
+      background: rgba(255,253,245,.64);
+    }
+    .boundary strong { color: var(--orange-dark); }
+
+    .unknown-grid { grid-template-columns: repeat(2, 1fr); }
+    .unknown-grid .card:last-child { grid-column: 1 / -1; }
+
+    .sources-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-top: 3px solid var(--ink);
+    }
+    .sources-list li {
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr);
+      gap: 12px;
+      padding: 17px 4px;
+      border-bottom: 1px solid var(--line);
+    }
+    .sources-list b { font-family: "SFMono-Regular", Menlo, monospace; color: var(--orange-dark); }
+
+    .repro {
+      margin-top: 28px;
+      padding: 23px;
+      border: 2px solid var(--ink);
+      background: var(--paper-2);
+    }
+    .repro ol { margin-bottom: 0; padding-left: 22px; }
+
+    footer {
+      margin-top: 86px;
+      padding-top: 24px;
+      border-top: 5px solid var(--orange);
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      color: var(--muted);
+      font-family: "SFMono-Regular", Menlo, monospace;
+      font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; min-height: 0; }
+      .machine { max-width: 560px; transform: none; }
+      .terms-grid { grid-template-columns: repeat(2, 1fr); }
+      .legend-grid { grid-template-columns: repeat(2, 1fr); }
+      .sequence-track { grid-template-columns: repeat(2, 1fr); }
+      .step:nth-child(2n)::after { display: none; }
+      .step:nth-child(4)::after { display: none; }
+      .flow-board { grid-template-columns: 1fr; }
+      .flow-arrow { transform: rotate(90deg); height: 36px; }
+      .side-effect { grid-column: 1; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .implementation-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 600px) {
+      .topline { position: static; flex-direction: column; gap: 3px; padding: 10px 18px; }
+      .page { width: min(100% - 28px, 1180px); padding-top: 28px; }
+      .hero { padding-bottom: 44px; }
+      h1 { font-size: clamp(40px, 14vw, 60px); }
+      .jump { margin-bottom: 56px; }
+      section { margin-top: 66px; }
+      .section-head { grid-template-columns: 1fr; gap: 10px; }
+      .terms-grid, .legend-grid, .unknown-grid, .stats-grid { grid-template-columns: 1fr; }
+      .unknown-grid .card:last-child { grid-column: 1; }
+      .sequence-track { grid-template-columns: 1fr; }
+      .step { min-height: 0; }
+      .step::after { display: none; }
+      .reject-rail { grid-template-columns: 1fr; }
+      .shortcut-grid { grid-template-columns: 1fr; }
+      .experiment-box { grid-template-columns: 1fr; box-shadow: 4px 4px 0 var(--ink); }
+      .experiment-box > div + div { border-left: 0; border-top: 1px solid var(--ink); }
+      .sources-list li { grid-template-columns: 42px minmax(0, 1fr); }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：工具执行层、结果整形与失败分类。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-core-02-built-in-tools/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CORE-02 · 工具执行层、结果整形与失败分类">
+  <meta property="og:description" content="Claude Code X-Ray：工具执行层、结果整形与失败分类。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-core-02-built-in-tools/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CORE-02 · 工具执行层、结果整形与失败分类">
+  <meta name="twitter:description" content="Claude Code X-Ray：工具执行层、结果整形与失败分类。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CORE-02</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <div class="topline">
+    <div>CLAUDE CODE XRY / CORE-02 / <span class="status">documented</span></div>
+    <div>基线 2026-08-27 / Claude Code 2.1.247 / <a href="../index.html">返回总索引</a></div>
+  </div>
+
+  <main class="page">
+    <section class="hero" data-xray-section="answer" id="answer">
+      <div>
+        <div class="kicker">CORE-02 · 工具执行层、结果整形与失败分类</div>
+        <h1>校验通过以后，工具才有资格执行</h1>
+        <p class="lede">Claude Code 先核对工具名、schema 和工具专属条件。合格调用随后经过 PreToolUse 与正常权限流，获准后才会分派实现。原始输出会被收进有大小边界的结构化结果。输入拒绝、运行失败、abort 和用户取消各有自己的返回路径。</p>
+        <p class="hero-proof"><span class="badge o">O</span>官方把校验、hook、权限、成功与失败事件的先后写清了。<span class="badge i">I</span>工具名怎样映射到本机具体函数仍未公开，本页只画出必要的分派连接。</p>
+      </div>
+      <aside class="machine" aria-label="工具调用加工单">
+        <p class="machine-label">CALL INSPECTION / 2.1.247</p>
+        <div class="ticket">
+          tool_name&nbsp;&nbsp;<strong>Bash</strong><br>
+          tool_input&nbsp;<strong>{ command, timeout }</strong><br>
+          tool_use_id <strong>一次调用的关联键</strong><br>
+          gate&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<strong>validate → hook → permission</strong><br>
+          output&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<strong>bounded result</strong>
+        </div>
+        <span class="stamp">DOCUMENTED</span>
+      </aside>
+    </section>
+
+    <nav class="jump" aria-label="本页导航">
+      <a href="#terms">名词</a><a href="#sequence">时序</a><a href="#flow">数据流</a><a href="#limits">失败与停止</a><a href="#experiment">本机核对</a><a href="#implementation">实现边界</a><a href="#unknowns">未知项</a><a href="#sources">来源</a>
+    </nav>
+
+    <section data-xray-section="terms" id="terms">
+      <header class="section-head">
+        <span class="section-no">01</span>
+        <div><h2>先分清请求、结果和停止范围</h2><p>这几个词混在一起，权限拒绝就会被误写成执行失败，用户取消也会被误写成 failure hook。</p></div>
+      </header>
+      <div class="terms-grid">
+        <article class="card"><span class="big">CALL</span><h3>工具请求</h3><p>模型提交工具名、输入对象和调用 ID。模型为何选它由 CORE-01 解释。</p></article>
+        <article class="card"><span class="big">GATE</span><h3>执行前门禁</h3><p>名称与输入先校验，随后才轮到 PreToolUse 和权限流。</p></article>
+        <article class="card"><span class="big">SHAPE</span><h3>结果整形</h3><p>实现产生的内容被整理成工具专属结构，超大内容会截断、分页或落到工作文件。</p></article>
+        <article class="card"><span class="big">ABORT</span><h3>中断型失败</h3><p>failure hook 的 is_interrupt 表示错误以 abort 进入 Claude Code，用户按键取消走另一条返回路径。</p></article>
+        <article class="card"><span class="big">CANCEL</span><h3>用户取消</h3><p>运行中工具被用户取消时，hook 不触发。中断说明直接放进工具结果。</p></article>
+        <article class="card"><span class="big">RETRY</span><h3>下一步选择</h3><p>错误回到循环后，Claude 可以改参数，也可以换工具。官方没有给所有内置工具承诺统一自动重试。</p></article>
+      </div>
+      <div class="legend-grid" aria-label="证据身份图例">
+        <article class="card"><h3><span class="badge o">O</span>官方契约</h3><p>Anthropic 文档、帮助、changelog 与官方仓库。</p></article>
+        <article class="card"><h3><span class="badge l">L</span>本机证据</h3><p>版本、帮助、安装文件与匿名静态标记。</p></article>
+        <article class="card"><h3><span class="badge r">R</span>真实实验</h3><p>本页没有。模型调用会消耗订阅额度或产生按量费用，本轮没有启动。</p></article>
+        <article class="card"><h3><span class="badge i">I</span>研究推断</h3><p>只补官方未公开的实现连接，保留不确定性。</p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="sequence" id="sequence">
+      <header class="section-head">
+        <span class="section-no">02</span>
+        <div><h2>一次调用要过八个位置</h2><p><span class="badge o">O</span>时间从模型已经提交调用开始。第三、四步是本页必须保留的门，执行不能越过它们提前发生。</p></div>
+      </header>
+      <div class="sequence-track" aria-label="工具调用时序">
+        <article class="step"><span class="step-no">01 RECEIVE</span><h3>接收调用</h3><p>Claude Code 拿到 tool_name、tool_input 与 tool_use_id。</p></article>
+        <article class="step"><span class="step-no">02 VALIDATE</span><h3>三项校验</h3><p>确认工具名存在，再检查输入 schema 和工具专属条件。</p></article>
+        <article class="step"><span class="step-no">03 PRE HOOK</span><h3>PreToolUse</h3><p>hook 可以 deny、ask、allow、defer，也能替换整个输入对象。</p></article>
+        <article class="step"><span class="step-no">04 PERMISSION</span><h3>正常权限流</h3><p>deny 和 ask 规则仍要评估。hook 给出的 allow 不能跨过它们。</p></article>
+        <article class="step"><span class="step-no">05 DISPATCH</span><h3>分派实现</h3><p><span class="badge i">I</span>名称落到 Read、Edit、Bash 等能力。内部注册表没有公开。</p></article>
+        <article class="step"><span class="step-no">06 EXECUTE</span><h3>实际执行</h3><p>Bash 启动独立进程，Edit 应用替换，Read 读取内容。</p></article>
+        <article class="step"><span class="step-no">07 SHAPE</span><h3>分类并整形</h3><p>成功触发 PostToolUse。执行失败触发 PostToolUseFailure。输出按工具规则限制体积。</p></article>
+        <article class="step"><span class="step-no">08 RETURN</span><h3>回到循环</h3><p>结果与调用 ID 关联。Claude 收到它以后再决定继续或停下。</p></article>
+      </div>
+      <div class="shortcut-grid" aria-label="执行前短路分支">
+        <div class="reject-rail"><strong>校验拒绝</strong><p><code>tool_use_error</code> 直接回到循环。PreToolUse 和 failure hook 都不出现。</p></div>
+        <div class="reject-rail"><strong>PreToolUse 拒绝</strong><p>调用在 hook 门停止。实现没有启动，后面的权限流无法把它重新放行。</p></div>
+        <div class="reject-rail"><strong>权限拒绝</strong><p>PreToolUse 已经运行，工具仍不执行，也不会触发 PostToolUseFailure。</p></div>
+      </div>
+    </section>
+
+    <section data-xray-section="flow" id="flow">
+      <header class="section-head">
+        <span class="section-no">03</span>
+        <div><h2>数据返回，副作用留在原处</h2><p>PostToolUse 可以改 Claude 最后看到的结果。它在执行后才出现，文件和进程已经发生的变化不会随结果改写而撤销。</p></div>
+      </header>
+      <div class="flow-board">
+        <article class="flow-box">
+          <h3>进入执行层</h3>
+          <ul>
+            <li>精确工具名</li>
+            <li>通过校验的输入对象</li>
+            <li>关联调用与结果的 ID</li>
+            <li>PreToolUse 与权限决定</li>
+          </ul>
+        </article>
+        <div class="flow-arrow" aria-hidden="true">→</div>
+        <article class="flow-box">
+          <h3>离开执行层</h3>
+          <ul>
+            <li>成功时带 tool_response</li>
+            <li>失败时带 error 与可选 is_interrupt</li>
+            <li>超大内容已截断、分页或改为文件指针</li>
+            <li>结果送回 agentic loop</li>
+          </ul>
+        </article>
+        <div class="side-effect"><span class="badge o">O</span>PostToolUse 的 updatedToolOutput 必须符合对应工具的输出形状。替换失败时沿用原结果。替换成功也只改变 Claude 看到的内容。</div>
+      </div>
+    </section>
+
+    <section data-xray-section="limits" id="limits">
+      <header class="section-head">
+        <span class="section-no">04</span>
+        <div><h2>同一句“失败”藏着五条路</h2><p>先看实现有没有启动，再看错误从哪里来。这个顺序决定 hook 是否出现，也决定后续该检查输入、权限、进程还是用户操作。</p></div>
+      </header>
+      <div class="failure-table-wrap">
+        <table>
+          <thead><tr><th>分类</th><th>发生位置</th><th>公开返回</th><th>接下来会怎样</th></tr></thead>
+          <tbody>
+            <tr><td>输入拒绝</td><td>执行前校验</td><td><code>tool_use_error</code>，没有 PreToolUse 与 failure hook</td><td>Claude 可修工具名、输入或范围</td></tr>
+            <tr><td>权限拒绝</td><td>PreToolUse 之后的权限流</td><td>拒绝结果，不触发 PostToolUseFailure</td><td>是否再试取决于拒绝类型与模型下一步</td></tr>
+            <tr><td>普通执行失败</td><td>实现已经启动</td><td>PostToolUseFailure，带 error</td><td>错误回到循环，Claude 可改参数或换办法</td></tr>
+            <tr><td>abort 型失败</td><td>执行中错误以 abort 进入 Claude Code</td><td>PostToolUseFailure，is_interrupt 可为 true</td><td>它是失败 hook 分支，不能直接叫用户取消</td></tr>
+            <tr class="critical-row"><td>用户取消</td><td>运行中按 Esc 或 Ctrl+C</td><td>不触发 PostToolUseFailure，中断说明进入工具结果</td><td>当前调用停止，已完成工作保留，会话仍可继续</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="stats-grid" aria-label="Bash 结果边界">
+        <article class="card"><span class="big">≈30K</span><h3>有效结果内联</h3><p>更大时给工作文件路径和开头预览。</p></article>
+        <article class="card"><span class="big">≈10K</span><h3>失败结果内联</h3><p>更大时只给读回窗口里的头尾摘录。</p></article>
+        <article class="card"><span class="big">5 GB</span><h3>运行输出硬线</h3><p>命令输出越过它，Claude Code 会杀掉命令。</p></article>
+        <article class="card"><span class="big">100</span><h3>Glob 文件上限</h3><p>命中上限后带截断标记，Claude 可缩小 pattern。</p></article>
+      </div>
+      <div class="boundary"><strong>子进程停止</strong> Bash 超时通常把命令移到后台。以 sleep 开头、包含 git 或无法完全解析的复合命令会在超时时停止。背景任务还能由 TaskStop 停掉。这里讨论命令生命周期，不扩展到 turn、退出、清空或换会话。</div>
+    </section>
+
+    <section data-xray-section="experiment" id="experiment">
+      <header class="section-head">
+        <span class="section-no">05</span>
+        <div><h2>本机只做静态核对</h2><p>本轮不发 prompt，不读取私人会话或登录凭据，也不改 hooks 或 settings。结果能确认版本和公开表面，无法升级成端到端验证。</p></div>
+      </header>
+      <div class="experiment-box">
+        <div>
+          <span class="no-r">NO R / DOCUMENTED</span>
+          <h3>实际运行过的只读命令</h3>
+          <ul class="result-list">
+            <li><code>claude --version</code></li>
+            <li><code>claude --help</code></li>
+            <li>对版本化二进制运行 file、SHA-256 与定向 strings 筛选</li>
+            <li>通过管道核对官方 llms.txt 哈希</li>
+            <li>只读查看公开 settings schema 的 hook 字段</li>
+          </ul>
+        </div>
+        <div>
+          <h3>核对结果</h3>
+          <ul class="result-list">
+            <li>版本为 Claude Code 2.1.247</li>
+            <li>二进制 SHA-256 与固定基线相同</li>
+            <li>官方索引 SHA-256 与固定基线相同</li>
+            <li>安装文件含输入校验、failure hook、权限决定、分派开始和输出上限的静态标记</li>
+          </ul>
+          <p><span class="badge l">L</span>静态字符串存在不证明运行时一定走过某条分支。端到端 R 会调用模型并使用当前选中的认证路径，本轮没有启动。</p>
+        </div>
+      </div>
+      <div class="boundary"><strong>登录与费用边界</strong> 本轮没有读取登录凭据，也没有检查当前账号身份，因此不知道这台机器若启动会话会选哪条认证。官方列出三类常见路径。Claude Pro、Max、Team 与 Enterprise 通过 Claude.ai OAuth 登录，用量先计入订阅额度。Claude Console 使用 API 凭据，按 API 用量计费。Amazon Bedrock、Google Cloud’s Agent Platform 与 Microsoft Foundry 使用各自云凭据，token 费用记到云账户。云提供商开关或 API key 还可能排在订阅登录之前，所以已有订阅不能证明一次新实验不会产生额外账单。没有另行确认认证路径、账单归属并取得模型调用授权前，本页不启动端到端 R。</div>
+    </section>
+
+    <section data-xray-section="implementation" id="implementation">
+      <header class="section-head">
+        <span class="section-no">06</span>
+        <div><h2>公开实现轮廓到哪里为止</h2><p>工具专属行为有文档，统一注册表没有。页面把公开契约画实，把内部连接留白。</p></div>
+      </header>
+      <div class="implementation-grid">
+        <div>
+          <details open><summary>PreToolUse 还能修改输入</summary><p>updatedInput 会替换整个输入对象。hook 也能让调用进入 ask、deny、allow 或 defer。deny 优先级最高。</p></details>
+          <details><summary>Edit 在执行时继续做专属检查</summary><p>它检查是否读过文件、old_string 是否精确匹配、命中是否唯一。这里的失败发生在工具能力内部。</p></details>
+          <details><summary>成功结果也可以后处理</summary><p>PostToolUse 能增加上下文或替换结果。内置工具的替换值要过输出 schema，副作用已经无法收回。</p></details>
+          <details><summary>并行调用各自收尾</summary><p>自 2.1.161 起，一个 Bash 失败不会取消同批其他调用。每个工具先得到自己的结果，PostToolBatch 再在整批结束后出现一次。</p></details>
+          <details><summary>重试没有统一承诺</summary><p>公开 loop 契约只保证结果回给 Claude。它可能纠正输入、改用其他工具或停止，页面不虚构统一次数和退避。</p></details>
+        </div>
+        <aside class="version-tape">
+          <h3>版本差异</h3>
+          <p><strong>2.1.247</strong><br>修复超大 hook 或后台 agent 错误输出挤爆上下文，也修复输出文件写入失败后的无界内存增长。</p>
+          <p><strong>2.1.246</strong><br>修复 MCP 中断被误报为完成无输出，也让中途被打断的命令显示中断状态。</p>
+          <p><strong>2.1.208</strong><br>改进 Grep 非法输入、Read 超大范围与 Edit 检查。</p>
+          <p><strong>2.1.161</strong><br>同批 Bash 失败不再取消兄弟调用。</p>
+        </aside>
+      </div>
+      <div class="boundary"><strong>相邻页分工</strong> 模型为何选择工具留给 CORE-01。权限优先级与对话框留给 SAFE-01。Bash 沙箱留给 SAFE-02。turn 输入调度留给 UI-01。退出、清空和换会话留给 CTX-02。EndConversation 只在 Tools reference 边界出现，不进入本页状态机。</div>
+    </section>
+
+    <section data-xray-section="unknowns" id="unknowns">
+      <header class="section-head">
+        <span class="section-no">07</span>
+        <div><h2>还有五件事不能写死</h2><p>这些缺口会直接影响调试结论，因此保留在页面上，不用静态字符串把它们补成事实。</p></div>
+      </header>
+      <div class="unknown-grid">
+        <article class="card"><h3>内部注册表</h3><p>工具名到实现的数据结构、函数名和异常继承没有公开。</p></article>
+        <article class="card"><h3>全量 schema</h3><p>官方没有发布覆盖 2.1.247 每个内置工具输入、输出、大小上限和错误码的版本化总表。</p></article>
+        <article class="card"><h3>本机端到端顺序</h3><p>没有 R，Read、Edit、Bash 与用户取消还没有在新会话里逐项复核。</p></article>
+        <article class="card"><h3>系统信号映射</h3><p>POSIX signal、Windows 进程状态与 is_interrupt 的完整对应关系没有公开。</p></article>
+        <article class="card"><h3>实现级自动重试</h3><p>除官方点名的特例外，内置工具是否按错误类型自动重试、重试几次和怎样退避仍未知。</p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="sources" id="sources">
+      <header class="section-head">
+        <span class="section-no">08</span>
+        <div><h2>从一手资料复核</h2><p>下面都直达 Anthropic 官方契约或官方 changelog。完整主张和命令摘要见本目录 evidence.md。</p></div>
+      </header>
+      <ol class="sources-list">
+        <li><b>O1</b><a href="https://code.claude.com/docs/en/hooks#posttoolusefailure">Hooks reference 证明校验短路、PostToolUseFailure、abort 与用户取消的分界</a></li>
+        <li><b>O2</b><a href="https://code.claude.com/docs/en/permissions#extend-permissions-with-hooks">Configure permissions 证明 PreToolUse 先于正常权限提示，hook allow 不能跨过 deny 与 ask</a></li>
+        <li><b>O3</b><a href="https://code.claude.com/docs/en/tools-reference#bash-tool-behavior">Tools reference 证明 Bash 子进程、超时、输出上限与工具专属行为</a></li>
+        <li><b>O4</b><a href="https://code.claude.com/docs/en/how-claude-code-works#tools">How Claude Code works 证明工具结果回到 agentic loop</a></li>
+        <li><b>O5</b><a href="https://code.claude.com/docs/en/interactive-mode#general-controls">Interactive mode 证明 Esc 与 Ctrl+C 的用户中断语义</a></li>
+        <li><b>O6</b><a href="https://code.claude.com/docs/en/changelog">Claude Code changelog 证明 2.1.247、2.1.246 与 2.1.161 的版本变化</a></li>
+        <li><b>O7</b><a href="https://code.claude.com/docs/en/authentication">Authentication 说明订阅 OAuth、Console API 凭据、云提供商凭据与认证优先级</a></li>
+        <li><b>O8</b><a href="https://code.claude.com/docs/en/costs">Costs 说明订阅额度、Console API 用量和云账户计费的归属</a></li>
+      </ol>
+      <div class="repro">
+        <h3>安全复现顺序</h3>
+        <ol>
+          <li>先运行 version 与 help，不传 prompt。</li>
+          <li>核对版本化二进制和官方 llms.txt 的 SHA-256。</li>
+          <li>打开 O1 到 O8，按本页时序和认证费用边界逐项对照。</li>
+          <li>只有另行确认认证路径与账单归属，并获得模型调用和会话写入授权后，才安装一次性 hooks 并制造成功、输入拒绝、权限拒绝、执行失败、abort 与用户取消。</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page">
+    <span>CORE-02 · documented · O + L + I · no R</span>
+    <span>Claude Code 2.1.247 · 研究日 2026-08-28 · <a href="../index.html">返回总索引</a></span>
+  </footer>
+</body>
+</html>

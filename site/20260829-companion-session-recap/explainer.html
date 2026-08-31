@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-PAR-RECAP">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>伴页 后台会话回归时的 Session Recap</title>
+  <style>
+    :root {
+      --night: #08171b;
+      --night-2: #10272b;
+      --paper: #efe8d3;
+      --ink: #172226;
+      --chalk: #f6f0de;
+      --muted: #aab9b6;
+      --acid: #d7f45a;
+      --amber: #ffb23e;
+      --red: #ff6b5e;
+      --cyan: #58d6d1;
+      --rule: rgba(246, 240, 222, .22);
+      --max: 1160px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--chalk);
+      background:
+        linear-gradient(rgba(88,214,209,.05) 1px, transparent 1px) 0 0 / 100% 34px,
+        var(--night);
+      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      line-height: 1.72;
+    }
+    a { color: inherit; text-underline-offset: .22em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--acid); }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--acid); outline-offset: 4px; }
+    code { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: .88em; background: rgba(215,244,90,.12); padding: .12em .34em; }
+    .wrap { width: min(calc(100% - 40px), var(--max)); margin-inline: auto; }
+    .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+    .topbar {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      border-bottom: 1px solid var(--rule);
+      font-size: .76rem;
+      letter-spacing: .065em;
+    }
+    .stamps { display: flex; flex-wrap: wrap; gap: 8px; }
+    .stamp { padding: 4px 9px; border: 1px solid currentColor; }
+    .stamp.status { color: var(--night); background: var(--acid); border-color: var(--acid); font-weight: 900; }
+    .hero {
+      min-height: min(760px, calc(100vh - 58px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
+      gap: clamp(38px, 8vw, 110px);
+      align-items: center;
+      padding-block: clamp(72px, 11vh, 130px);
+    }
+    .eyebrow { color: var(--cyan); font: 800 .72rem/1.4 "SFMono-Regular", Menlo, monospace; letter-spacing: .14em; }
+    h1, h2, h3 { font-family: "Iowan Old Style", "Songti SC", STSong, serif; }
+    h1 { margin: 18px 0 30px; font-size: clamp(3.4rem, 8.2vw, 7.9rem); line-height: .9; letter-spacing: -.065em; max-width: 8ch; }
+    h2 { margin: 0; font-size: clamp(2.15rem, 5vw, 4.4rem); line-height: 1.05; letter-spacing: -.04em; }
+    h3 { margin: 0 0 8px; font-size: 1.32rem; line-height: 1.25; }
+    p { margin: 0; }
+    .lede { max-width: 720px; font-size: clamp(1.08rem, 2vw, 1.42rem); }
+    .ev {
+      display: inline-grid;
+      place-items: center;
+      width: 1.78em;
+      height: 1.78em;
+      margin-left: .24em;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      font: 900 .64rem/1 "SFMono-Regular", Menlo, monospace;
+      vertical-align: .16em;
+    }
+    .return-ticket { position: relative; color: var(--ink); background: var(--paper); padding: 30px; box-shadow: 12px 12px 0 var(--cyan); }
+    .return-ticket::before { content: "RETURN / 回归"; display: block; margin-bottom: 36px; border-bottom: 4px solid var(--ink); padding-bottom: 10px; font: 900 .72rem/1 "SFMono-Regular", Menlo, monospace; letter-spacing: .12em; }
+    .ticket-line { display: grid; grid-template-columns: 72px 1fr; gap: 14px; padding: 12px 0; border-bottom: 1px dashed rgba(23,34,38,.35); }
+    .ticket-line b { font: 900 .69rem/1.5 "SFMono-Regular", Menlo, monospace; }
+    .ticket-line span { font-size: .94rem; }
+    .ticket-note { margin-top: 24px; font-size: .82rem; color: #455357; }
+    .rail { position: sticky; top: 0; z-index: 5; background: rgba(8,23,27,.96); border-block: 1px solid var(--rule); backdrop-filter: blur(10px); }
+    .rail .wrap { display: flex; gap: 22px; overflow-x: auto; padding-block: 10px; scrollbar-width: thin; }
+    .rail a { flex: 0 0 auto; text-decoration: none; font: 800 .7rem/1.4 "SFMono-Regular", Menlo, monospace; }
+    section { padding-block: clamp(76px, 10vw, 132px); border-bottom: 1px solid var(--rule); scroll-margin-top: 48px; }
+    .head { display: grid; grid-template-columns: 94px 1fr; gap: 24px; margin-bottom: 50px; }
+    .section-no { color: var(--cyan); border-top: 5px solid currentColor; padding-top: 10px; font: 900 .72rem/1 "SFMono-Regular", Menlo, monospace; }
+    .terms { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--rule); }
+    .term { min-height: 215px; padding: 24px; border-right: 1px solid var(--rule); }
+    .term:last-child { border-right: 0; }
+    .term b { display: block; color: var(--acid); margin-bottom: 46px; font: 900 .7rem/1 "SFMono-Regular", Menlo, monospace; }
+    .term p { color: var(--muted); }
+    .legend { margin-top: 24px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .legend div { padding-top: 12px; border-top: 3px solid var(--chalk); }
+    .legend strong { margin-right: 8px; color: var(--acid); font-family: "SFMono-Regular", Menlo, monospace; }
+    .legend span { color: var(--muted); font-size: .84rem; }
+    .sequence-intro { max-width: 840px; margin: 0 0 42px 118px; color: var(--muted); }
+    .timeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border-block: 1px solid var(--rule); }
+    .moment { position: relative; min-height: 230px; padding: 34px 22px; border-right: 1px solid var(--rule); }
+    .moment:last-child { border-right: 0; }
+    .moment .time { display: block; margin-bottom: 54px; color: var(--amber); font: 900 .72rem/1 "SFMono-Regular", Menlo, monospace; }
+    .moment p { color: var(--muted); font-size: .92rem; }
+    .moment.current { color: var(--ink); background: var(--acid); }
+    .moment.current .time, .moment.current p { color: var(--ink); }
+    .flow-board { color: var(--ink); background: var(--paper); padding: clamp(24px, 5vw, 54px); }
+    .signal-lanes { display: grid; grid-template-columns: 150px repeat(3, 1fr); border: 2px solid var(--ink); }
+    .signal-lanes > div { min-height: 150px; padding: 20px; border-right: 1px solid rgba(23,34,38,.35); border-bottom: 1px solid rgba(23,34,38,.35); }
+    .signal-lanes > div:nth-child(4n) { border-right: 0; }
+    .signal-lanes > div:nth-last-child(-n+4) { border-bottom: 0; }
+    .lane-label { font: 900 .72rem/1.3 "SFMono-Regular", Menlo, monospace; letter-spacing: .08em; background: var(--ink); color: var(--chalk); }
+    .signal-lanes b { display: block; margin-bottom: 26px; font-size: .76rem; }
+    .signal-lanes p { font-size: .9rem; }
+    .flow-note { max-width: 820px; margin-top: 28px; color: #4c5b5d; }
+    .state-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .state { padding: 22px; border: 1px solid var(--rule); background: var(--night-2); }
+    .state .light { display: inline-block; width: 13px; height: 13px; margin-right: 10px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 5px rgba(88,214,209,.13); }
+    .state.need .light { background: var(--amber); box-shadow: 0 0 0 5px rgba(255,178,62,.13); }
+    .state.done .light { background: var(--acid); box-shadow: 0 0 0 5px rgba(215,244,90,.13); }
+    .state.fail .light { background: var(--red); box-shadow: 0 0 0 5px rgba(255,107,94,.13); }
+    .state.stop .light { background: #84918e; box-shadow: 0 0 0 5px rgba(132,145,142,.13); }
+    .state p { margin-top: 14px; color: var(--muted); font-size: .9rem; }
+    .limits { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 34px; }
+    .panel { padding: 26px; border: 1px solid var(--rule); }
+    .panel.warn { border-top: 8px solid var(--amber); }
+    .panel.fail { border-top: 8px solid var(--red); }
+    .panel.account { grid-column: 1 / -1; border-top: 8px solid var(--cyan); }
+    .plain { margin: 18px 0 0; padding: 0; list-style: none; }
+    .plain li { position: relative; padding: 12px 0 12px 24px; border-top: 1px solid var(--rule); }
+    .plain li::before { content: "↳"; position: absolute; left: 0; color: var(--acid); }
+    .observation { display: grid; grid-template-columns: .65fr 1.35fr; gap: 26px; }
+    .reading { color: var(--ink); background: var(--acid); padding: 28px; }
+    .reading .big { display: block; margin-bottom: 22px; font: 900 clamp(2.5rem, 6vw, 5.8rem)/.9 "SFMono-Regular", Menlo, monospace; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; vertical-align: top; padding: 14px 12px; border-bottom: 1px solid var(--rule); }
+    th { color: var(--acid); font: 900 .68rem/1.4 "SFMono-Regular", Menlo, monospace; }
+    .stack { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .stack article { min-height: 180px; padding: 24px; border: 1px solid var(--rule); }
+    .stack .label { display: block; margin-bottom: 36px; color: var(--cyan); font: 900 .7rem/1 "SFMono-Regular", Menlo, monospace; }
+    .stack p { color: var(--muted); }
+    .version-table { margin-top: 34px; }
+    details { border-top: 1px solid var(--rule); padding: 20px 0; }
+    summary { cursor: pointer; font-family: "Iowan Old Style", "Songti SC", serif; font-size: 1.22rem; font-weight: 700; }
+    details p { max-width: 850px; margin-top: 14px; color: var(--muted); }
+    .sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .source { min-height: 190px; display: flex; flex-direction: column; justify-content: space-between; padding: 24px; border: 1px solid var(--rule); text-decoration: none; }
+    .source:hover { color: var(--ink); background: var(--acid); }
+    .source small { color: var(--cyan); font: 900 .66rem/1.4 "SFMono-Regular", Menlo, monospace; }
+    .source:hover small { color: var(--ink); }
+    .source strong { font: 700 1.3rem/1.3 "Iowan Old Style", "Songti SC", serif; }
+    .source span { font-size: .88rem; color: var(--muted); }
+    .source:hover span { color: var(--ink); }
+    .backlink { display: inline-flex; margin-top: 34px; padding: 14px 18px; border: 1px solid var(--acid); color: var(--acid); text-decoration: none; }
+    footer { display: flex; justify-content: space-between; gap: 20px; padding-block: 34px 52px; color: var(--muted); font-size: .78rem; }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .return-ticket { max-width: 590px; }
+      .terms { grid-template-columns: 1fr 1fr; }
+      .term:nth-child(2) { border-right: 0; }
+      .term:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
+      .timeline { grid-template-columns: 1fr 1fr; }
+      .moment { border-bottom: 1px solid var(--rule); }
+      .moment:nth-child(2n) { border-right: 0; }
+      .moment:last-child { grid-column: 1 / -1; border-bottom: 0; }
+      .signal-lanes { grid-template-columns: 120px 1fr; }
+      .signal-lanes > div { border-right: 1px solid rgba(23,34,38,.35); border-bottom: 1px solid rgba(23,34,38,.35); }
+      .signal-lanes > div:nth-child(2n) { border-right: 0; }
+      .signal-lanes > div:nth-last-child(-n+2) { border-bottom: 0; }
+      .state-grid { grid-template-columns: 1fr 1fr; }
+      .observation { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .wrap { width: min(calc(100% - 28px), var(--max)); }
+      .topbar { align-items: flex-start; padding-block: 14px; }
+      .topbar > a { white-space: nowrap; }
+      .hero { min-height: auto; padding-block: 78px; }
+      h1 { font-size: clamp(3.4rem, 18vw, 5.2rem); }
+      .head { grid-template-columns: 54px 1fr; gap: 16px; }
+      .sequence-intro { margin-left: 0; }
+      .terms, .legend, .timeline, .state-grid, .limits, .stack, .sources { grid-template-columns: 1fr; }
+      .term, .term:nth-child(2) { min-height: 0; border-right: 0; border-bottom: 1px solid var(--rule); }
+      .term:last-child { border-bottom: 0; }
+      .term b { margin-bottom: 24px; }
+      .moment, .moment:nth-child(2n) { min-height: 0; border-right: 0; border-bottom: 1px solid var(--rule); }
+      .moment:last-child { grid-column: auto; }
+      .moment .time { margin-bottom: 26px; }
+      .signal-lanes { grid-template-columns: 88px 1fr; }
+      .signal-lanes > div { padding: 14px; min-height: 132px; }
+      .table-scroll { overflow-x: auto; border: 1px solid var(--rule); }
+      .table-scroll table { min-width: 650px; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：后台会话回归时的 Session Recap。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-session-recap/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-PAR-RECAP · 后台会话回归时的 Session Recap">
+  <meta property="og:description" content="Claude Code X-Ray：后台会话回归时的 Session Recap。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-session-recap/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-PAR-RECAP · 后台会话回归时的 Session Recap">
+  <meta name="twitter:description" content="Claude Code X-Ray：后台会话回归时的 Session Recap。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-PAR-RECAP</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="wrap topbar">
+    <div class="stamps">
+      <span class="stamp">COMP-PAR-RECAP</span>
+      <span class="stamp status">当前状态 documented</span>
+      <span class="stamp">Claude Code 2.1.247</span>
+    </div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <main>
+    <section id="answer" data-xray-section="answer">
+      <div class="wrap hero">
+        <div>
+          <div class="eyebrow">COMPANION XRY / RETURN HANDOFF</div>
+          <h1>回来先看一行，再决定要不要接手</h1>
+          <p class="lede">后台会话把回归信息分成几层。状态先告诉你它还在做、等你回答、已经完成或已经失败，行摘要补上进度、需求或产出，peek 给准确问题与结果。用户随后附着，Claude 再贴一条离开期间的短 recap。<span class="ev">O</span></p>
+        </div>
+        <aside class="return-ticket" aria-label="回归摘要">
+          <div class="ticket-line"><b>RUNNING</b><span>看当前动作与最新进度</span></div>
+          <div class="ticket-line"><b>NEEDS</b><span>看准确问题或权限请求</span></div>
+          <div class="ticket-line"><b>DONE</b><span>看结果，不必先翻完整记录</span></div>
+          <div class="ticket-line"><b>FAILED</b><span>先认红色状态，再查原因</span></div>
+          <p class="ticket-note">recap 没有公开的固定字段。它是一条短回归提示，不能替代状态、peek 或完整 transcript。<span class="ev">O</span><span class="ev">I</span></p>
+        </aside>
+      </div>
+    </section>
+
+    <nav class="rail" aria-label="页内导航">
+      <div class="wrap">
+        <a href="#terms">01 名词</a><a href="#sequence">02 时序</a><a href="#flow">03 流向</a><a href="#limits">04 边界</a><a href="#experiment">05 观察</a><a href="#implementation">06 实现</a><a href="#unknowns">07 未知</a><a href="#sources">08 来源</a>
+      </div>
+    </nav>
+
+    <section id="terms" data-xray-section="terms">
+      <div class="wrap">
+        <div class="head"><div class="section-no">01 / TERMS</div><h2>四个东西别混在一起</h2></div>
+        <div class="terms">
+          <article class="term"><b>STATE</b><h3>会话状态</h3><p>Working、Needs input、Idle、Completed、Failed 与 Stopped。它先回答会话现在处在哪一格。</p></article>
+          <article class="term"><b>ROW SUMMARY</b><h3>行摘要</h3><p>agent view 里的一句话，写会话正在做什么、需要什么或产出了什么。</p></article>
+          <article class="term"><b>PEEK</b><h3>展开查看</h3><p>按 Space 打开。等待时给准确问题，完成时给结果，运行时给完整状态句。</p></article>
+          <article class="term"><b>ATTACH RECAP</b><h3>附着回顾</h3><p>用户按 Enter 或右箭头附着以后出现的短 recap，概括离开期间发生的事。</p></article>
+        </div>
+        <div class="legend" aria-label="证据图例">
+          <div><strong>O</strong><span>官方契约</span></div>
+          <div><strong>L</strong><span>本机静态与帮助</span></div>
+          <div><strong>R</strong><span>本轮真实运行，本页缺失</span></div>
+          <div><strong>I</strong><span>研究者推断</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sequence" data-xray-section="sequence">
+      <div class="wrap">
+        <div class="head"><div class="section-no">02 / SEQUENCE</div><h2>离开以后，回归从扫一眼开始</h2></div>
+        <p class="sequence-intro">本页独有的转换是，用户从未附着转成重新附着，并在切入完整会话时收到一条回归 recap。后台会话怎样启动、运行与停止，仍归 PAR-07 和 PAR-02。<span class="ev">I</span></p>
+        <div class="timeline">
+          <article class="moment"><span class="time">T0 · 离开</span><h3>会话继续</h3><p>后台 session 没有终端附着也能继续。状态与最近输出会继续变化。<span class="ev">O</span></p></article>
+          <article class="moment"><span class="time">T1 · 列表</span><h3>先分状态</h3><p>回到 agent view，用户先看 Working、Needs input、Completed 或 Failed 等状态。<span class="ev">O</span></p></article>
+          <article class="moment"><span class="time">T2 · 一行</span><h3>补上近况</h3><p>行摘要交代正在做什么、需要什么或已经产出了什么。<span class="ev">O</span></p></article>
+          <article class="moment"><span class="time">T3 · PEEK</span><h3>按需展开</h3><p>准确问题、完成结果和完整状态句在这里出现，用户也可以直接回复。<span class="ev">O</span></p></article>
+          <article class="moment current"><span class="time">T4 · ATTACH</span><h3>收到 recap</h3><p>完整会话接管终端，Claude 贴出离开期间的短回顾。<span class="ev">O</span></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow" data-xray-section="flow">
+      <div class="wrap">
+        <div class="head"><div class="section-no">03 / FLOW</div><h2>同一份会话，四个读取深度</h2></div>
+        <div class="flow-board">
+          <div class="signal-lanes" aria-label="回归信息流">
+            <div class="lane-label">来源</div><div><b>运行中</b><p>最近输出与当前活动</p></div><div><b>轮次结束</b><p>会话自己的结束摘要</p></div><div><b>已存会话</b><p>完整 transcript 与状态</p></div>
+            <div class="lane-label">整形</div><div><b>15 秒内最多一次</b><p>从最近输出刷新行文字，不发模型请求</p></div><div><b>Haiku 级模型</b><p>每轮结束重写一条行摘要，经正常 provider 计费</p></div><div><b>会话状态</b><p>区分等待、完成、失败与停止</p></div>
+            <div class="lane-label">回给用户</div><div><b>ROW</b><p>进度或当前动作</p></div><div><b>PEEK / RECAP</b><p>准确需求、结果和回归短句</p></div><div><b>FULL SESSION</b><p>需要追原因时读取完整记录</p></div>
+          </div>
+          <p class="flow-note">2.1.186 的官方 changelog 说明，后台会话重复 recap 已修复，并由 agent 自己的 end-of-turn summary 充当 recap 行。运行中尚未结束一轮时，attach recap 究竟选哪段输入，官方没有公开。<span class="ev">O</span></p>
+        </div>
+      </div>
+    </section>
+
+    <section id="limits" data-xray-section="limits">
+      <div class="wrap">
+        <div class="head"><div class="section-no">04 / LIMITS</div><h2>状态可靠，短句有边界</h2></div>
+        <div class="state-grid">
+          <article class="state"><h3><span class="light"></span>Working</h3><p>Claude 正在运行工具或生成回复。行摘要写当前动作。</p></article>
+          <article class="state need"><h3><span class="light"></span>Needs input</h3><p>它等用户给答案、权限决定或只有用户能补的输入。peek 给准确问题。</p></article>
+          <article class="state"><h3><span class="light"></span>Idle</h3><p>会话无事可做，等下一条 prompt。</p></article>
+          <article class="state done"><h3><span class="light"></span>Completed</h3><p>任务成功结束。peek 直接给结果。</p></article>
+          <article class="state fail"><h3><span class="light"></span>Failed</h3><p>任务因错误结束。红色状态有明确契约，recap 是否逐字带出原因没有保证。</p></article>
+          <article class="state stop"><h3><span class="light"></span>Stopped</h3><p>用户停止、进程被外部结束，或后台服务关闭期间结束。</p></article>
+        </div>
+        <div class="limits">
+          <article class="panel warn">
+            <h3>信任与登录要先就绪</h3>
+            <ul class="plain">
+              <li>未信任的工作目录会先出现 workspace trust 对话框，拒绝后 agent view 不打开。</li>
+              <li>后台 worker 要能取得已存的登录凭据或 API key。没有凭据时，dispatch 会报认证方式无法解析。</li>
+              <li>权限请求本身会把会话放进 Needs input，用户要在 peek 或附着后的正常 prompt 里作决定。</li>
+              <li>recap 只报告近况，不会代替用户批准工具。</li>
+            </ul>
+            <p><span class="ev">O</span></p>
+          </article>
+          <article class="panel fail">
+            <h3>2.1.247 的并发打开有风险</h3>
+            <ul class="plain">
+              <li>2.1.247 还没有第二写入者拒绝。若同一 conversation 已在另一终端恢复，再从 stopped 行打开，可能启动第二个进程写同一 conversation。</li>
+              <li>拒绝并发打开的保护从 2.1.248 才加入，不能倒算成固定基线的行为。</li>
+              <li>会话没有已存 transcript 时，attach 会拒绝，并提供重新开始的路径。</li>
+              <li>终端 host 死亡或 supervisor 无响应，也可能先以 Failed 或错误提示出现。</li>
+            </ul>
+            <p><span class="ev">O</span></p>
+          </article>
+          <article class="panel account">
+            <h3>每条后台会话独立消耗额度</h3>
+            <ul class="plain">
+              <li>后台会话与交互会话一样消耗订阅用量。并行开的每一条 session 都单独占用配额。</li>
+              <li>官方给出的量级提醒是，十条并行 session 消耗配额的速度大约是一条的十倍。行摘要的模型请求也经正常 provider 计费。</li>
+            </ul>
+            <p><span class="ev">O</span></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="experiment" data-xray-section="experiment">
+      <div class="wrap">
+        <div class="head"><div class="section-no">05 / OBSERVATION</div><h2>本轮只做到安全静态复核</h2></div>
+        <div class="observation">
+          <article class="reading"><span class="big">2.1.247</span><p>固定路径上的本机程序返回这个版本。没有启动新会话，也没有附着任何现有会话。<span class="ev">L</span></p></article>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>只读动作</th><th>关键结果</th><th>仍然不能证明</th></tr></thead>
+              <tbody>
+                <tr><td><code>claude --version</code></td><td>返回 2.1.247</td><td>不能证明 recap 的实际文案与时机</td></tr>
+                <tr><td><code>claude --help</code></td><td>列出 background、agents、attach、resume 与 continue</td><td>不能证明 agent view 的真实渲染</td></tr>
+                <tr><td><code>claude agents --help</code></td><td>确认它管理 background agents</td><td>不能读取私人 session 列表，也没有这样做</td></tr>
+                <tr><td><code>claude attach --help</code></td><td>确认附着后可返回 agent view，session 继续运行</td><td>不能证明短 recap 包含哪些字段</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="implementation" data-xray-section="implementation">
+      <div class="wrap">
+        <div class="head"><div class="section-no">06 / IMPLEMENTATION</div><h2>公开实现边界落在四处</h2></div>
+        <div class="stack">
+          <article><span class="label">01 / SESSION STATE</span><h3>状态单独保存</h3><p>官方说明后台会话状态会落盘，并能跨自动更新与 supervisor 重启保留。本轮没有读取这些本机文件。<span class="ev">O</span></p></article>
+          <article><span class="label">02 / RECENT OUTPUT</span><h3>运行中轻量刷新</h3><p>行文字最多每 15 秒从最近输出更新一次，这一段不发模型请求。长回合中还会隔几分钟重写。<span class="ev">O</span></p></article>
+          <article><span class="label">03 / MODEL SUMMARY</span><h3>轮末重写一行</h3><p>Haiku 级模型经会话正常 provider 写新摘要，并按相同数据条款处理和计费。缺少 Haiku 配置时用主模型。<span class="ev">O</span></p></article>
+          <article><span class="label">04 / ATTACH</span><h3>回到完整会话</h3><p>Enter 或右箭头把 agent view 换成完整交互会话，并贴出离开期间的短 recap。recap prompt 与字段优先级没有公开。<span class="ev">O</span></p></article>
+        </div>
+        <div class="table-scroll version-table">
+          <table>
+            <thead><tr><th>版本</th><th>与本页有关的变化</th></tr></thead>
+            <tbody>
+              <tr><td>2.1.186</td><td>修复后台 session recap 重复，并让 agent 自己的 end-of-turn summary 显示为 recap 行。</td></tr>
+              <tr><td>2.1.198</td><td>Needs input、完成或失败开始通过既有通知通道提醒用户。</td></tr>
+              <tr><td>2.1.205</td><td>行摘要改为 session 自己的一行报告，peek 开始给完整状态句与准确问题。</td></tr>
+              <tr><td>2.1.207</td><td>peek 从终端边缘截断的那句话开始，等待时长另列一行。</td></tr>
+              <tr><td>2.1.225</td><td>未信任目录在打开 agent view 前加入 workspace trust 门。</td></tr>
+              <tr><td>2.1.247</td><td>Linux 与 WSL 的终端 host 死亡能更快转成带原因的失败，并提供重启入口。</td></tr>
+              <tr><td>2.1.248</td><td>基线之后才加入同一 conversation 的第二写入者拒绝。2.1.247 不能采用这项保护。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns">
+      <div class="wrap">
+        <div class="head"><div class="section-no">07 / UNKNOWNS</div><h2>短 recap 还有几处黑箱</h2></div>
+        <details open><summary>固定字段有没有</summary><p>官方只承诺一条短 recap，概括用户离开期间发生的事。没有 schema 保证它同时写出目标、进度、待输入、结果和错误原因。</p></details>
+        <details><summary>运行中附着取什么输入</summary><p>行摘要会从最近输出刷新，轮末摘要另由模型生成。用户在一轮尚未结束时附着，recap 选哪一份材料，官方没有说明。</p></details>
+        <details><summary>失败原因能否完整出现</summary><p>Failed 的红色状态有稳定含义，peek 对完成结果和准确问题有明确契约。失败 recap 是否带原始错误与恢复动作，没有同等保证。</p></details>
+        <details><summary>recap 自己怎样计费</summary><p>行摘要的 provider、模型回退与计费已经公开。attach recap 是否另发请求、怎样算用量，公开文档没有单列。</p></details>
+      </div>
+    </section>
+
+    <section id="sources" data-xray-section="sources">
+      <div class="wrap">
+        <div class="head"><div class="section-no">08 / SOURCES</div><h2>一手资料与复现入口</h2></div>
+        <div class="sources">
+          <a class="source" href="https://code.claude.com/docs/en/agent-view"><small>ANTHROPIC OFFICIAL DOCS</small><strong>Agent view 的状态、行摘要、peek 与 attach</strong><span>证明回归动作、认证与配额边界，也标出 2.1.248 才加入的并发写入保护</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/changelog#2-1-186"><small>ANTHROPIC OFFICIAL CHANGELOG</small><strong>2.1.186 的后台 recap 修复</strong><span>证明去重与 end-of-turn summary 充当 recap 行</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/interactive-mode#session-recap"><small>ANTHROPIC OFFICIAL DOCS</small><strong>普通交互终端的 Session recap</strong><span>只用来划清终端失焦自动 recap 与 agent view attach recap</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/commands"><small>ANTHROPIC OFFICIAL DOCS</small><strong>Claude Code 命令参考</strong><span>证明手动 recap 与会话相关命令的公开入口</span></a>
+        </div>
+        <details style="margin-top:34px"><summary>怎样补上真实运行证据</summary><p>得到账号与费用批准，并确认隔离环境已有登录凭据或 API key 后，在临时仓库用 2.1.247 启动四条无副作用后台 session。每条 session 都会独立消耗额度。让它们分别停在运行、等待输入、成功与可控失败，逐条记录状态、行摘要与 peek，再附着并只保存匿名化 recap。普通终端失焦后的自动 recap 不放进同一组实验。</p></details>
+        <a class="backlink" href="../20260827-par-07-subagent-core-lifecycle/explainer.html">回到 PAR-07 子 Agent 的前后台生命周期与停止</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <span>COMP-PAR-RECAP · documented · 2026-08-30</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

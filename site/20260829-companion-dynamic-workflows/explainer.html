@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-PAR-WORKFLOW">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>伴页 · Dynamic Workflows 的脚本生成、阶段调度与重跑</title>
+  <style>
+    :root{--night:#101714;--night2:#17211d;--paper:#f0ecd9;--paper2:#ded8bd;--ink:#18201d;--muted:#5e665f;--line:#8e9589;--lime:#cbe94e;--orange:#f06b3b;--cyan:#6ac6c8;--white:#fffef6;--focus:#f6b73c}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:var(--paper);font-family:"Avenir Next","PingFang SC","Noto Sans CJK SC",sans-serif;line-height:1.72}
+    body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;z-index:30;background-image:linear-gradient(90deg,rgba(16,23,20,.08) 1px,transparent 1px),linear-gradient(rgba(16,23,20,.08) 1px,transparent 1px);background-size:24px 24px;mix-blend-mode:multiply}
+    a{color:inherit;text-underline-offset:.24em;text-decoration-thickness:1px}a:hover{color:#aa310e}a:focus-visible,summary:focus-visible{outline:3px solid var(--focus);outline-offset:4px;border-radius:2px}
+    code{padding:.14em .38em;color:var(--white);background:var(--night2);font-family:"SFMono-Regular",Consolas,monospace;font-size:.88em;overflow-wrap:anywhere}
+    .topline{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:18px;padding:10px max(18px,calc((100vw - 1320px)/2));color:var(--white);background:rgba(16,23,20,.97);border-bottom:4px solid var(--lime);font-size:13px;letter-spacing:.04em}.topline nav{display:flex;gap:8px 18px;flex-wrap:wrap}.topline a{color:var(--white)}.topline a:hover{color:var(--lime)}
+    main{width:min(1320px,calc(100% - 40px));margin:0 auto}section{scroll-margin-top:72px}
+    .hero{position:relative;min-height:720px;display:grid;grid-template-columns:minmax(0,1.22fr) minmax(330px,.78fr);color:var(--white);background:var(--night);overflow:hidden;border-left:1px solid #45534c;border-right:1px solid #45534c}.hero:after{content:"";position:absolute;width:330px;height:330px;right:27%;bottom:-220px;border:58px solid var(--orange);border-radius:50%;opacity:.75}
+    .hero-copy{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;padding:70px clamp(28px,7vw,94px) 72px;border-right:1px solid #45534c}.kicker{display:flex;align-items:center;gap:12px;margin:0 0 28px;color:var(--lime);font:800 12px/1.4 "SFMono-Regular",monospace;letter-spacing:.14em}.kicker:before{content:"";width:42px;height:4px;background:var(--orange)}
+    h1,h2,h3{font-family:"Rockwell","Songti SC",STSong,serif;font-weight:600;line-height:1.13}h1{margin:0;max-width:800px;font-size:clamp(49px,6.8vw,96px);letter-spacing:-.055em}h1 em{display:block;color:var(--lime);font-style:normal}.lede{max-width:790px;margin:34px 0 0;font-size:clamp(19px,2.2vw,29px);line-height:1.48}.lede strong{color:var(--lime)}.hero-boundary{max-width:760px;margin:24px 0 0;color:#c5cec7}
+    .hero-panel{position:relative;z-index:1;display:grid;grid-template-rows:auto 1fr auto;gap:28px;padding:58px 34px 40px;background:linear-gradient(135deg,rgba(203,233,78,.08),transparent 45%),var(--night2)}.stamp{width:fit-content;padding:7px 13px 5px;color:var(--lime);border:2px solid var(--lime);transform:rotate(-1.5deg);font:800 13px/1.4 "SFMono-Regular",monospace;letter-spacing:.1em}
+    .split-run{align-self:center}.run-title{margin:0 0 15px;color:#b8c1bb;font-size:12px;letter-spacing:.12em}.run-row{display:grid;grid-template-columns:54px 1fr;gap:14px;align-items:stretch;margin-top:8px}.run-key{display:grid;place-items:center;color:var(--night);background:var(--lime);font:800 16px/1 "SFMono-Regular",monospace}.run-row:nth-of-type(3) .run-key{background:var(--orange)}.run-copy{padding:14px 16px;border:1px solid #53635b}.run-copy b{display:block}.run-copy span{display:block;margin-top:4px;color:#bec8c1;font-size:13px}
+    .meta-list{margin:0}.meta-list div{display:grid;grid-template-columns:92px 1fr;gap:12px;padding:10px 0;border-top:1px solid #53635b}.meta-list dt{color:#aab5ae;font-size:12px}.meta-list dd{margin:0;font-weight:750}.legend{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:16px}.legend span{min-height:38px;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid #53635b;color:#dfe6df;font-size:11px}.legend b{color:var(--night);background:var(--lime);padding:0 5px;font-family:"SFMono-Regular",monospace}.legend .r b{background:var(--orange)}.legend .i b{background:var(--cyan)}.hero .eid{color:var(--lime)}
+    .band{display:grid;grid-template-columns:230px minmax(0,1fr);border:1px solid var(--line);border-top:0;background:rgba(255,254,246,.38)}.band-head{padding:48px 26px;border-right:1px solid var(--line)}.band-no{color:#a63d1e;font:800 12px/1 "SFMono-Regular",monospace;letter-spacing:.12em}.band-head h2{margin:12px 0 0;font-size:clamp(30px,3.2vw,48px);letter-spacing:-.04em}.band-body{min-width:0;padding:50px clamp(24px,5vw,72px) 60px}.band-body>:first-child{margin-top:0}.band-body>:last-child{margin-bottom:0}
+    .terms{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line)}.term{min-height:210px;padding:22px;border-right:1px solid var(--line)}.term:last-child{border-right:0}.term .glyph{display:block;color:#a63d1e;font:800 13px/1 "SFMono-Regular",monospace}.term h3{margin:20px 0 9px;font-size:23px}.term p{margin:0;color:var(--muted);font-size:14px}.boundary-link{margin-top:20px;padding:18px 20px;border-left:5px solid var(--orange);background:#e8e1c8}
+    .timeline{position:relative;display:grid}.timeline:before{content:"";position:absolute;left:33px;top:32px;bottom:32px;width:3px;background:var(--orange)}.step{position:relative;display:grid;grid-template-columns:68px 170px minmax(0,1fr);min-height:126px;border-top:1px solid var(--line)}.step:last-child{border-bottom:1px solid var(--line)}.step-no{position:relative;z-index:1;align-self:start;width:38px;height:38px;margin:24px 15px;display:grid;place-items:center;color:var(--night);background:var(--lime);border:3px solid var(--paper);font:800 14px/1 "SFMono-Regular",monospace}.step-state{padding:26px 18px;border-left:1px solid var(--line);border-right:1px solid var(--line);font-weight:800}.step-copy{padding:21px 26px}.step-copy p{margin:5px 0}.eid{color:#8d351c;font:800 12px/1.4 "SFMono-Regular",monospace;letter-spacing:.06em}
+    .flow-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #4f5c55;background:var(--night);color:var(--white)}.flow-node{position:relative;min-height:270px;padding:26px;border-right:1px solid #4f5c55}.flow-node:last-child{border-right:0}.flow-node:after{content:"›";position:absolute;right:-15px;top:100px;z-index:2;width:29px;height:45px;display:grid;place-items:center;color:var(--night);background:var(--lime);font:800 30px/1 Georgia,serif}.flow-node:last-child:after{display:none}.flow-node .tag{color:var(--lime);font:800 12px/1 "SFMono-Regular",monospace;letter-spacing:.1em}.flow-node h3{margin:22px 0 12px;font-size:25px}.flow-node p{color:#cbd3ce;font-size:14px}.flow-node code{display:block;margin-top:18px;border-top:1px solid #4f5c55;padding:14px 0 0;color:var(--cyan);background:transparent}.file-note{display:grid;grid-template-columns:140px minmax(0,1fr);gap:18px;margin-top:18px;padding:22px;border:2px solid #27332e}.file-note strong{font-family:"Rockwell","Songti SC",serif;font-size:22px}.file-note p{margin:0}
+    .gates{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.gate{padding:22px;border:1px solid var(--line);background:#e7e1ca}.gate h3{margin:0 0 10px;font-size:23px}.gate p{margin:0;color:var(--muted)}.fail-strip{margin-top:18px;padding:24px;color:var(--white);background:var(--orange)}.fail-strip strong{display:block;margin-bottom:8px;color:var(--night);font-family:"Rockwell","Songti SC",serif;font-size:25px}.replay{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}.replay article{padding:21px;border:2px solid var(--night)}.replay article:last-child{color:var(--white);background:var(--night)}.replay h3{margin:0 0 9px;font-size:23px}.replay p{margin:0}
+    .access-note{margin-bottom:18px;padding:24px;border:3px solid var(--night);background:#e8e1c8}.access-note h3{margin:0 0 10px;font-size:27px}.access-note p{margin:8px 0}.access-note .eid{display:inline-block;margin-top:7px}.surface-table{width:100%;margin:0 0 18px;border-collapse:collapse;background:rgba(255,254,246,.35)}.surface-table th,.surface-table td{padding:15px 17px;text-align:left;vertical-align:top;border:1px solid var(--line)}.surface-table th{color:var(--white);background:var(--night);font-size:13px}.surface-table td:first-child{width:150px;font-weight:800}.run-input{margin:18px 0;padding:24px;color:var(--white);background:var(--night);border-left:7px solid var(--lime)}.run-input strong{display:block;margin-bottom:8px;color:var(--lime);font-family:"Rockwell","Songti SC",serif;font-size:25px}.run-input p{margin:7px 0}
+    .method{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(240px,.75fr);gap:16px}.terminal{padding:24px;color:#e2e9e4;background:var(--night);border-left:6px solid var(--lime)}.terminal pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.75}.verdict{padding:24px;border:3px solid var(--orange)}.verdict h3{margin:0 0 8px;color:#a63d1e;font-size:28px}.verdict p{margin:0}
+    .code-map{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,.7fr);gap:18px}.code-map pre{margin:0;padding:24px;color:#e5ece7;background:var(--night);white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}.code-map aside{padding:22px;border:1px solid var(--line)}.code-map aside h3{margin:0 0 10px;font-size:23px}.code-map aside p{margin:8px 0;color:var(--muted)}.versions{display:grid;grid-template-columns:repeat(3,1fr);margin-top:18px;border:1px solid var(--line)}.version{padding:18px;border-right:1px solid var(--line)}.version:nth-child(3n){border-right:0}.version:nth-child(-n+3){border-bottom:1px solid var(--line)}.version b{display:block;color:#a63d1e;font-family:"SFMono-Regular",monospace}.version span{display:block;margin-top:7px;font-size:13px}
+    details{border-top:1px solid var(--line)}details:last-child{border-bottom:1px solid var(--line)}summary{cursor:pointer;padding:17px 4px;font-weight:800}details p{margin:0 0 18px;color:var(--muted)}.sources{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.source{min-height:120px;display:block;padding:20px;border:1px solid var(--line);background:#e7e1ca;text-decoration:none}.source:hover{color:var(--ink);border-color:#a63d1e;box-shadow:6px 6px 0 var(--orange);transform:translate(-2px,-2px)}.source b{display:block;margin-bottom:7px;color:#9d3517}.repro{margin-top:20px;padding:22px;border-left:6px solid var(--lime);color:var(--white);background:var(--night)}.repro h3{margin:0 0 10px;color:var(--lime);font-size:24px}.repro ol{margin:0;padding-left:20px}.foot{display:flex;justify-content:space-between;gap:20px;padding:42px 0 70px;color:var(--muted);font-size:13px}
+    @media(max-width:920px){main{width:min(100% - 24px,760px)}.hero{min-height:auto;grid-template-columns:1fr}.hero-copy{border-right:0;border-bottom:1px solid #45534c}.hero-panel{padding:36px 26px}.band{grid-template-columns:1fr}.band-head{padding:34px 24px 22px;border-right:0;border-bottom:1px solid var(--line)}.band-body{padding:34px 24px 45px}.terms,.versions{grid-template-columns:1fr 1fr}.term:nth-child(2),.version:nth-child(2n){border-right:0}.term:nth-child(-n+2){border-bottom:1px solid var(--line)}.version{border-bottom:1px solid var(--line)}.version:nth-last-child(-n+2){border-bottom:0}.flow-grid{grid-template-columns:1fr}.flow-node{min-height:auto;border-right:0;border-bottom:1px solid #4f5c55}.flow-node:last-child{border-bottom:0}.flow-node:after{right:auto;left:50%;top:auto;bottom:-15px;width:45px;height:29px;transform:translateX(-50%) rotate(90deg)}.method,.code-map{grid-template-columns:1fr}}
+    @media(max-width:560px){.topline{padding:9px 12px}.topline nav a:not(:first-child){display:none}main{width:calc(100% - 14px)}.hero-copy{padding:50px 21px 42px}h1{font-size:clamp(44px,14.5vw,66px)}.hero-panel{padding:30px 20px}.legend{grid-template-columns:1fr 1fr}.terms,.versions,.gates,.replay,.sources{grid-template-columns:1fr}.term,.version{border-right:0;border-bottom:1px solid var(--line)}.term:last-child,.version:last-child{border-bottom:0}.step{grid-template-columns:50px minmax(0,1fr)}.timeline:before{left:24px}.step-no{grid-row:1 / span 2;margin:20px 6px}.step-state{padding:18px 15px 7px;border-right:0}.step-copy{grid-column:2;padding:5px 15px 22px}.file-note{grid-template-columns:1fr}.surface-table,.surface-table tbody,.surface-table tr,.surface-table th,.surface-table td{display:block}.surface-table thead{display:none}.surface-table tr{border:1px solid var(--line);border-bottom:0}.surface-table tr:last-child{border-bottom:1px solid var(--line)}.surface-table td{border:0}.surface-table td:first-child{width:auto;padding-bottom:3px;color:#8d351c}.surface-table td:last-child{padding-top:3px}.foot{flex-direction:column}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Dynamic Workflows 的脚本生成、阶段调度与重跑。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-dynamic-workflows/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-PAR-WORKFLOW · Dynamic Workflows 的脚本生成、阶段调度与重跑">
+  <meta property="og:description" content="Claude Code X-Ray：Dynamic Workflows 的脚本生成、阶段调度与重跑。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-dynamic-workflows/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-PAR-WORKFLOW · Dynamic Workflows 的脚本生成、阶段调度与重跑">
+  <meta name="twitter:description" content="Claude Code X-Ray：Dynamic Workflows 的脚本生成、阶段调度与重跑。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-PAR-WORKFLOW</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topline">
+    <a href="../index.html">← 返回总索引</a>
+    <nav aria-label="页内导航"><a href="#sequence">阶段时序</a><a href="#flow">结果流</a><a href="#limits">失败与重放</a><a href="#sources">一手来源</a></nav>
+  </header>
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div class="hero-copy">
+        <p class="kicker">COMP-PAR-WORKFLOW · CLAUDE CODE XRY 伴页</p>
+        <h1 id="answer-title">一段脚本，<em>决定下一拨谁上场。</em></h1>
+        <p class="lede">上一阶段的 subagent 返回结果，脚本先把它留在变量里。<strong>等结果到齐以后</strong>，后面的调用才按这些结果创建新 subagent。失败和停止会改变下次重放的起点。</p>
+        <p class="hero-boundary">阶段标题只负责进度展示。等待关系来自脚本顺序与 <code>await</code>。同一会话重放可以复用未变化的结果，未来新会话运行保存脚本会从头开始。<span class="eid"> O + I</span></p>
+      </div>
+      <aside class="hero-panel" aria-label="状态、重放区别与证据图例">
+        <div class="stamp">documented · 已文档化</div>
+        <div class="split-run">
+          <p class="run-title">两种以后再跑</p>
+          <div class="run-row"><div class="run-key">↺</div><div class="run-copy"><b>恢复同一会话</b><span>未变化的已完成结果可以直接返回，失败点及其后续再跑。</span></div></div>
+          <div class="run-row"><div class="run-key">▶</div><div class="run-copy"><b>新会话重跑</b><span>保存脚本仍在，旧 run 的结果缓存不跟过去，整段编排重新执行。</span></div></div>
+        </div>
+        <div>
+          <dl class="meta-list"><div><dt>冻结版本</dt><dd>Claude Code 2.1.247</dd></div><div><dt>当前状态</dt><dd>documented</dd></div><div><dt>真实实验</dt><dd>未运行</dd></div></dl>
+          <div class="legend" aria-label="O L R I 证据图例"><span><b>O</b>官方契约</span><span><b>L</b>本机静态</span><span class="r"><b>R</b>真实运行</span><span class="i"><b>I</b>研究推断</span></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="band" data-xray-section="terms" aria-labelledby="terms-title">
+      <header class="band-head"><span class="band-no">01 / TERMS</span><h2 id="terms-title">先认四样东西</h2></header>
+      <div class="band-body">
+        <div class="terms">
+          <article class="term"><span class="glyph">JS</span><h3>workflow 脚本</h3><p>Claude 为任务写出的 JavaScript。runtime 执行它，循环、分支和等待关系都在脚本里。</p></article>
+          <article class="term"><span class="glyph">PH</span><h3>phase</h3><p>它把随后创建的 agents 归到同一个进度标题下。重放规则按 agent 结果判断。</p></article>
+          <article class="term"><span class="glyph">OUT</span><h3>结果变量</h3><p>一个 agent 返回的文本或结构化值。后续脚本可据此拼 prompt、生成列表或决定是否继续。</p></article>
+          <article class="term"><span class="glyph">RUN</span><h3>run 记录</h3><p>同一会话里跟踪 agent 的结果与顺序，为暂停恢复和停止后的重放提供依据。</p></article>
+        </div>
+        <p class="boundary-link"><strong>本页边界</strong> 这里没有共享工单与 teammate 信箱。Lead、Task list、Mailbox 和 shutdown 属于 <a href="../20260827-par-08-agent-teams/explainer.html">PAR-08 Agent Teams 主页面</a>。</p>
+      </div>
+    </section>
+
+    <section class="band" id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <header class="band-head"><span class="band-no">02 / SEQUENCE</span><h2 id="sequence-title">一趟运行的时序</h2></header>
+      <div class="band-body"><div class="timeline">
+        <article class="step"><div class="step-no">0</div><div class="step-state">用户提出任务</div><div class="step-copy"><span class="eid">O · 交互入口</span><p>用户直接要求使用 workflow，或在交互输入里用 <code>ultracode</code>。Claude 随后为这件事写脚本。字面触发词在 2.1.160 已从 <code>workflow</code> 改为 <code>ultracode</code>，自然语言请求仍有效。</p></div></article>
+        <article class="step"><div class="step-no">1</div><div class="step-state">先过启动门</div><div class="step-copy"><span class="eid">O · 权限与入口</span><p>CLI 的批准页可显示阶段并打开 raw script，Desktop 改用带用量提醒的批准卡。<code>claude -p</code> 与 Agent SDK 不显示这两种界面，Workflow 调用仍接受各自的权限评估。workflow 内 agent 的工具也继续接受会话权限与沙箱检查。</p></div></article>
+        <article class="step"><div class="step-no">2</div><div class="step-state">runtime 启动</div><div class="step-copy"><span class="eid">O · 隔离执行</span><p>runtime 在对话之外执行脚本，并把本次脚本写进会话目录。主会话保持可响应。中间结果不会逐条灌进主对话上下文。</p></div></article>
+        <article class="step"><div class="step-no">3</div><div class="step-state">第一批返回</div><div class="step-copy"><span class="eid">O · agent()</span><p><code>agent()</code> 生成一个 subagent。脚本可以要求结构化输出，等待它返回以后，把结果放进普通 JavaScript 变量。</p></div></article>
+        <article class="step"><div class="step-no">4</div><div class="step-state">派生下一批</div><div class="step-copy"><span class="eid">O + I · 调度门</span><p>脚本从上一批结果生成列表或新的 prompt，再调用 <code>pipeline()</code> 或 <code>parallel()</code>。<code>phase()</code> 给随后出现的 agents 标题，<code>await</code> 与函数调用顺序才建立阶段门。</p></div></article>
+        <article class="step"><div class="step-no">5</div><div class="step-state">汇总或收住</div><div class="step-copy"><span class="eid">O · return</span><p>末段 agent 可以合并前面的发现，脚本也可以过滤空结果或按条件停下。最终返回值进入主会话。中途停止和不可恢复 API 错误可能给脚本一个 <code>null</code>。</p></div></article>
+      </div></div>
+    </section>
+
+    <section class="band" id="flow" data-xray-section="flow" aria-labelledby="flow-title">
+      <header class="band-head"><span class="band-no">03 / FLOW</span><h2 id="flow-title">结果怎样往后走</h2></header>
+      <div class="band-body">
+        <div class="flow-grid">
+          <article class="flow-node"><span class="tag">DISCOVER</span><h3>先找出工作清单</h3><p>第一个 subagent 可以返回带 schema 的对象。脚本拿到其中的文件列表或问题列表。</p><code>const found = await agent(…)</code></article>
+          <article class="flow-node"><span class="tag">FAN OUT</span><h3>按结果创建 workers</h3><p>脚本遍历上一项结果。每个列表项成为一名新 subagent 的 prompt 输入。</p><code>await pipeline(found.files, …)</code></article>
+          <article class="flow-node"><span class="tag">SYNTHESIZE</span><h3>再把发现合起来</h3><p>后续 agent 接收前面返回的文本或对象，去重、排序或验证，最后只把总结果交回会话。</p><code>return results.filter(Boolean)</code></article>
+        </div>
+        <div class="file-note"><strong>文件走另一条路</strong><p>workflow 脚本没有直接文件系统或 shell 访问。早期 subagent 若写了文件，文件留在它获准访问的工作目录。后续 subagent 要靠已知路径再读，仍会经过自己的工具权限。脚本变量只传返回值，文件不会随变量形成快照。<span class="eid"> O + I</span></p></div>
+      </div>
+    </section>
+
+    <section class="band" id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <header class="band-head"><span class="band-no">04 / LIMITS</span><h2 id="limits-title">失败、停止与重放</h2></header>
+      <div class="band-body">
+        <aside class="access-note"><h3>先要有可用凭据与付费入口</h3><p>当前官方指南把 Dynamic Workflows 开放给所有付费计划，也支持 Anthropic API、Amazon Bedrock、Google Cloud Agent Platform 与 Microsoft Foundry。Claude Code 仍要先用对应的 Claude.ai、Console、API 或云端凭据完成认证。Pro 用户还要在 <code>/config</code> 的 Dynamic workflows 一行开启功能。</p><p>这项能力覆盖 CLI、Desktop、IDE 扩展、<code>claude -p</code> 与 Agent SDK。本轮没有登录，也没有在任何入口真实启动 workflow。这里的可用性与界面差异只有当前官方文档这一层 O，尚无 2.1.247 的 L 或 R。</p><span class="eid">O · 当前官方契约，L / R 未验证</span></aside>
+        <table class="surface-table">
+          <thead><tr><th>入口</th><th>启动时实际看到什么</th></tr></thead>
+          <tbody>
+            <tr><td>CLI</td><td>交互批准页列出计划阶段，可查看 raw script。Auto、手动和绕过权限三种模式的提示时机不同。</td></tr>
+            <tr><td>Desktop</td><td>批准卡显示 workflow 名称、阶段与 token 用量提醒，操作是 Once、Always 和 Deny。进度放在 Background tasks 侧栏。</td></tr>
+            <tr><td>IDE 扩展</td><td>官方确认可以使用 workflow，用户亲手输入的 <code>ultracode</code> 关键字也能触发。指南没有单列 IDE 的批准界面，本轮同样没有实测。</td></tr>
+            <tr><td><code>claude -p</code></td><td>没有交互批准页。Workflow 工具调用直接进入会话的 allow、deny、ask、<code>dontAsk</code> 或宿主批准流程。</td></tr>
+            <tr><td>Agent SDK</td><td>也没有交互批准页。调用可由权限规则、hook、<code>canUseTool</code> 或宿主回调决定。SDK 只有把键盘输入标成 human origin 时，<code>ultracode</code> 关键字才会触发。</td></tr>
+          </tbody>
+        </table>
+        <div class="gates">
+          <article class="gate"><h3>启动权限</h3><p>手写或现生成脚本在开始前可能需要批准。已保存 workflow 可按名称写 allow 规则。提示形式与权限判定要按上表的入口分别看。</p></article>
+          <article class="gate"><h3>运行权限</h3><p>脚本本身只编排。subagent 调用 Read、Write、Bash 或网络工具时，各自接受会话规则与沙箱约束。权限提示可以暂停 run。</p></article>
+          <article class="gate"><h3>脚本硬限</h3><p>脚本不能动态加载模块。单次 <code>parallel()</code> 或 <code>pipeline()</code> 最多接收 4096 项，一次 run 最多创建 1000 agents，并发最多 16，CPU 较少时还会降低。</p></article>
+          <article class="gate"><h3>用户停止</h3><p><code>/workflows</code> 里用 <code>p</code> 暂停或恢复，用 <code>x</code> 停一个 agent 或整次 run，用 <code>r</code> 重启选中的运行中 agent。停止整次 run 不把所有仍在跑的 agent 记成 failed。</p></article>
+        </div>
+        <div class="run-input"><strong>运行中没有普通用户输入。</strong><p>主会话保持可响应，不等于脚本会在阶段之间收取新指令。一次 workflow 开始以后，只有 agent 的权限提示可以暂停这次 run。</p><p>流程若要求人在发现阶段结束后签字，再决定是否进入修改阶段，就要拆成两个 workflow。前一段先返回并结束，用户确认以后再启动后一段。</p><span class="eid">O · Behavior and limits</span></div>
+        <div class="fail-strip"><strong>空结果要由脚本处理。</strong><code>agent()</code> 被单独停止或遇到不可恢复 API 错误时返回 <code>null</code>。<code>pipeline()</code> 会保留它。脚本可以过滤、记录为未验证、换一条分支，也可以让后续步骤停止。官方没有替所有 workflow 规定一种统一失败策略。</div>
+        <div class="replay">
+          <article><h3>同一会话里的重放</h3><span class="eid">O</span><p>完成且 prompt 未变化的 agent 直接返回保存结果。首个 prompt 变化、首个不同上游结果、failed agent 或停止时仍在运行的 agent 会再跑。该点以后已经完成的 agents 也会再跑。</p></article>
+          <article><h3>保存脚本后的重跑</h3><span class="eid">O + I</span><p>用户可把脚本保存成 <code>/name</code>。未来新会话执行的是同一段编排，旧 run 的结果缓存不属于这个新会话，所以全程重新开始。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <header class="band-head"><span class="band-no">05 / EXPERIMENT</span><h2 id="experiment-title">本机核对停在哪里</h2></header>
+      <div class="band-body">
+        <div class="method">
+          <div class="terminal" aria-label="本机命令摘要"><pre>claude --version
+→ command not found
+
+claude --help
+→ command not found
+
+known frozen install entry
+→ Operation not permitted</pre></div>
+          <aside class="verdict"><h3>documented</h3><p>O 已经讲清公开契约。L 只证明当前 Codex shell 无法调用 CLI，也无法读取冻结入口。R 缺席。登录、各入口批准界面与 workflow 运行均未实测，因为运行会写入会话状态并产生模型用量。</p></aside>
+        </div>
+        <p>这组负结果不能证明机器没有安装 Claude Code，也不能推翻题设给出的 2.1.247 基线。它只说明本轮无法用本机 help 与静态文件补强 O。研究没有打开私人会话文件。</p>
+      </div>
+    </section>
+
+    <section class="band" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <header class="band-head"><span class="band-no">06 / IMPLEMENTATION</span><h2 id="implementation-title">脚本与版本断点</h2></header>
+      <div class="band-body">
+        <div class="code-map">
+          <pre aria-label="经过简化的 workflow 形状"><code>export const meta = { name, description }
+
+phase('发现')
+const found = await agent('列出目标', { schema })
+
+phase('逐项处理')
+const work = await pipeline(found.files, file =>
+  agent('处理 ' + file)
+)
+
+phase('汇总')
+return work.filter(Boolean)</code></pre>
+          <aside><h3>读这段代码看三件事</h3><p><code>phase()</code> 改进度分组。</p><p><code>await</code> 让下一段等结果。</p><p>变量 <code>found</code> 和 <code>work</code> 承接产物。文件操作仍由 agent 工具完成。</p></aside>
+        </div>
+        <div class="versions">
+          <div class="version"><b>2.1.154</b><span>首次引入 dynamic workflows 与 <code>/workflows</code>。</span></div>
+          <div class="version"><b>2.1.160</b><span>字面触发词改为 <code>ultracode</code>，自然语言请求保留。</span></div>
+          <div class="version"><b>2.1.202</b><span>加入规模建议设置与 workflow 的 OTel 属性。</span></div>
+          <div class="version"><b>2.1.219</b><span>默认规模建议改为少于 15 agents，仍非硬上限。</span></div>
+          <div class="version"><b>2.1.248</b><span>脚本写作参考移入 bundled skill，晚于本页冻结版本。</span></div>
+          <div class="version"><b>2.1.251</b><span>修复未获准脚本路径在权限检查前被读取并进入错误文本的问题。</span></div>
+        </div>
+        <p>当前官方文档晚于 2.1.247。页面只把已在冻结版本出现的主链写进时序，并把 2.1.248 与 2.1.251 的变化单独列出。</p>
+      </div>
+    </section>
+
+    <section class="band" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <header class="band-head"><span class="band-no">07 / UNKNOWNS</span><h2 id="unknowns-title">还没有证据的地方</h2></header>
+      <div class="band-body">
+        <details open><summary>2.1.247 怎样落盘每个 agent 的结果</summary><p>官方说明结果保存在 session 目录并支持重放，没有公开内部文件名、字段、刷新时机与事务边界。本轮也没有读取私人会话目录。</p></details>
+        <details><summary>部分输出遇上不可恢复 API 错误后留下什么</summary><p>官方写明 <code>agent()</code> 会返回 <code>null</code>，没有说明已经流出的部分文本是否另行保存。缺少 R，页面不补这个细节。</p></details>
+        <details><summary>同一阶段的开始顺序怎样稳定下来</summary><p>重放规则按 agents 原先开始顺序判断。多个 agent 几乎同时启动时，内部如何排序与持久化，公开文档没有给格式。</p></details>
+        <details><summary>长期无人处理的权限请求有没有超时</summary><p>官方只说 permission prompt 可以暂停 run。固定超时、超时身份与自动重试策略没有公开契约。</p></details>
+        <details><summary>崩溃或磁盘写满时还能复用多少结果</summary><p>没有 R，也没有公开的原子写入保证。页面只把正常暂停、停止和恢复画进主链。</p></details>
+      </div>
+    </section>
+
+    <section class="band" id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <header class="band-head"><span class="band-no">08 / SOURCES</span><h2 id="sources-title">一手来源与复现</h2></header>
+      <div class="band-body">
+        <div class="sources">
+          <a class="source" href="https://code.claude.com/docs/en/workflows"><b>O · Dynamic workflows 官方指南</b>证明生成入口、脚本原语、结果变量、权限、限制、暂停与重放。</a>
+          <a class="source" href="https://code.claude.com/docs/en/agents"><b>O · 并行方式官方总览</b>证明脚本编排与普通 subagent、Agent Teams 的协调边界。</a>
+          <a class="source" href="https://code.claude.com/docs/en/permission-modes"><b>O · 权限模式官方文档</b>证明 permission mode、allow 与 deny 规则、沙箱各自控制什么。</a>
+          <a class="source" href="https://code.claude.com/docs/en/authentication"><b>O · 认证官方指南</b>证明 Claude.ai、Console、API 与云端凭据的登录前提。</a>
+          <a class="source" href="https://code.claude.com/docs/en/changelog"><b>O · Claude Code 官方 changelog</b>证明 2.1.154 到 2.1.251 之间与本页有关的版本断点。</a>
+          <a class="source" href="https://code.claude.com/docs/llms.txt"><b>O · 官方文档索引</b>研究冻结基线记录为 202 个入口与题设给定 SHA-256。</a>
+          <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+        </div>
+        <div class="repro"><h3>怎样安全复现</h3><ol><li>固定 2.1.247，在临时配置目录和空仓库启动。</li><li>让三阶段脚本先返回结构化列表，再 fan-out，最后汇总。</li><li>停止中段一个 agent，用同一脚本重新启动，记录复用与重跑边界。</li><li>恢复同一会话再试一次，随后用新会话运行保存脚本作对照。</li><li>只留匿名计数，实验结束后删除整个临时环境。</li></ol></div>
+      </div>
+    </section>
+    <footer class="foot"><span>COMP-PAR-WORKFLOW · 状态 documented · Claude Code 2.1.247</span><span><a href="../20260827-par-08-agent-teams/explainer.html">回到 Agent Teams 主页面</a> · <a href="../index.html">返回总索引</a></span></footer>
+  </main>
+</body>
+</html>

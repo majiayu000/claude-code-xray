@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="ADM-06">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>ADM-06 使用事件、OpenTelemetry 与隐私边界</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f4f1e8;
+      --muted: #aab5b3;
+      --panel: #101a20;
+      --panel-2: #152229;
+      --line: #32424a;
+      --orange: #ff9a4a;
+      --mint: #66d9bf;
+      --red: #ff786e;
+      --blue: #82b9ff;
+      --paper: #e9e2d1;
+      --paper-ink: #1b2529;
+      --max: 1180px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+        #091116;
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      line-height: 1.75;
+    }
+    a { color: var(--mint); text-underline-offset: .22em; }
+    a:hover { color: var(--orange); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--orange);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .9em;
+      color: #ffe0a5;
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
+      background: rgba(9,17,22,.93);
+      backdrop-filter: blur(12px);
+    }
+    .topbar-inner {
+      width: min(calc(100% - 32px), var(--max));
+      margin: auto;
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: .08em;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 800;
+    }
+    .brand::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--mint);
+      box-shadow: 8px 0 0 -3px var(--orange);
+    }
+    .topnav { display: flex; gap: 16px; font-size: .86rem; }
+    .topnav a { color: var(--muted); text-decoration: none; }
+    main { overflow: hidden; }
+    section {
+      width: min(calc(100% - 32px), var(--max));
+      margin: 0 auto;
+      padding: 82px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow {
+      margin: 0 0 18px;
+      color: var(--orange);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { line-height: 1.15; font-weight: 800; }
+    h1 { margin: 0; max-width: 850px; font-size: clamp(2.7rem, 7vw, 6.3rem); letter-spacing: -.055em; }
+    h2 { margin: 0 0 26px; max-width: 790px; font-size: clamp(2rem, 4.5vw, 4.2rem); letter-spacing: -.035em; }
+    h3 { margin: 0 0 12px; font-size: 1.18rem; }
+    p { margin: 0 0 1.1em; }
+    .hero {
+      min-height: calc(100vh - 58px);
+      display: grid;
+      align-content: center;
+      grid-template-columns: minmax(0, 1.5fr) minmax(260px, .5fr);
+      gap: clamp(40px, 8vw, 110px);
+      position: relative;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: 8%;
+      bottom: 8%;
+      width: 190px;
+      height: 190px;
+      border: 1px solid rgba(102,217,191,.22);
+      border-radius: 50%;
+      box-shadow: 0 0 0 28px rgba(102,217,191,.035), 0 0 0 58px rgba(102,217,191,.025);
+      pointer-events: none;
+    }
+    .lede {
+      max-width: 770px;
+      margin-top: 30px;
+      color: #d8deda;
+      font-size: clamp(1.12rem, 2vw, 1.42rem);
+      line-height: 1.7;
+    }
+    .hero-note {
+      align-self: end;
+      padding: 24px 0 24px 24px;
+      border-left: 4px solid var(--orange);
+      color: var(--muted);
+      position: relative;
+      z-index: 1;
+    }
+    .statusline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 30px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .76rem;
+      background: rgba(255,255,255,.025);
+    }
+    .pill.live { color: var(--orange); border-color: rgba(255,154,74,.6); }
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      margin-top: 38px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+    .legend div { background: var(--panel); padding: 16px; }
+    .legend b { display: block; color: var(--mint); font-family: "SFMono-Regular", Consolas, monospace; font-size: 1.1rem; }
+    .legend span { color: var(--muted); font-size: .82rem; }
+    .intro-grid, .two-col, .three-col {
+      display: grid;
+      gap: 24px;
+    }
+    .intro-grid { grid-template-columns: 1.25fr .75fr; }
+    .two-col { grid-template-columns: repeat(2, 1fr); }
+    .three-col { grid-template-columns: repeat(3, 1fr); }
+    .card {
+      border-top: 4px solid var(--mint);
+      background: var(--panel);
+      padding: 26px;
+      min-width: 0;
+    }
+    .card.warn { border-color: var(--orange); }
+    .card.danger { border-color: var(--red); }
+    .card p:last-child { margin-bottom: 0; }
+    .card .mini { color: var(--muted); font-size: .9rem; }
+    .paper {
+      color: var(--paper-ink);
+      background: var(--paper);
+      padding: clamp(24px, 5vw, 54px);
+      box-shadow: 12px 12px 0 rgba(255,154,74,.16);
+      transform: rotate(-.4deg);
+    }
+    .paper h2, .paper h3 { color: #172126; }
+    .paper .eyebrow { color: #9a3f10; }
+    .timeline {
+      margin-top: 36px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      position: relative;
+    }
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 3%;
+      right: 3%;
+      top: 17px;
+      height: 2px;
+      background: #8a958f;
+    }
+    .step { position: relative; padding: 52px 14px 0; }
+    .step::before {
+      content: attr(data-step);
+      position: absolute;
+      top: 0;
+      left: 12px;
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 2px solid #27373d;
+      border-radius: 50%;
+      color: var(--paper);
+      background: #27373d;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-weight: 800;
+    }
+    .step h3 { font-size: 1rem; }
+    .step p { font-size: .82rem; line-height: 1.55; }
+    .flow-shell {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: stretch;
+      gap: 14px;
+      margin-top: 34px;
+    }
+    .node { border: 1px solid var(--line); background: var(--panel); padding: 24px; }
+    .node strong { display: block; margin-bottom: 10px; color: var(--mint); }
+    .node span { color: var(--muted); font-size: .9rem; }
+    .arrow { display: grid; place-items: center; color: var(--orange); font-family: monospace; font-size: 1.7rem; }
+    .branch {
+      margin-top: 16px;
+      padding: 18px 22px;
+      border-left: 4px solid var(--red);
+      background: rgba(255,120,110,.07);
+    }
+    .field-table { width: 100%; border-collapse: collapse; margin-top: 28px; }
+    .field-table th, .field-table td { padding: 16px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .field-table th { color: var(--orange); font-family: "SFMono-Regular", Consolas, monospace; font-size: .78rem; letter-spacing: .08em; }
+    .field-table td:first-child { width: 26%; color: var(--mint); font-weight: 800; }
+    .field-table td:last-child { color: var(--muted); }
+    .risk-meter {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      margin-top: 28px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+    .risk-meter article { padding: 22px; background: var(--panel); }
+    .risk-meter article:nth-child(2) { background: #142129; }
+    .risk-meter article:nth-child(3) { background: #2a211c; }
+    .risk-meter article:nth-child(4) { background: #311d1d; }
+    .risk-meter b { display: block; margin-bottom: 10px; color: var(--orange); }
+    .risk-meter p { margin: 0; color: var(--muted); font-size: .85rem; }
+    .callout {
+      margin-top: 30px;
+      padding: 24px;
+      color: #132024;
+      background: var(--mint);
+      font-weight: 700;
+    }
+    .terminal {
+      border: 1px solid #3f515a;
+      background: #05090b;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      box-shadow: 10px 10px 0 rgba(130,185,255,.09);
+    }
+    .terminal-head { padding: 10px 16px; border-bottom: 1px solid #2f3d43; color: #7f9299; font-size: .8rem; }
+    .terminal pre { margin: 0; padding: 22px; overflow-x: auto; color: #c9d7d5; line-height: 1.65; }
+    .checklist { margin: 0; padding: 0; list-style: none; }
+    .checklist li { padding: 14px 0 14px 30px; border-bottom: 1px solid var(--line); position: relative; }
+    .checklist li::before { content: "□"; position: absolute; left: 0; color: var(--orange); font-family: monospace; }
+    details { border-top: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 18px 4px; font-weight: 800; color: var(--ink); }
+    details p { color: var(--muted); padding: 0 4px 18px; }
+    .source-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0; list-style: none; }
+    .source-list a { display: block; min-height: 100%; padding: 20px; border: 1px solid var(--line); background: var(--panel); }
+    footer { width: min(calc(100% - 32px), var(--max)); margin: auto; padding: 36px 0 60px; display: flex; justify-content: space-between; gap: 20px; color: var(--muted); font-size: .85rem; }
+    @media (max-width: 860px) {
+      .topnav { display: none; }
+      .hero, .intro-grid, .two-col, .three-col { grid-template-columns: 1fr; }
+      .hero { min-height: auto; padding-top: 92px; }
+      .hero-note { max-width: 520px; }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+      .timeline { grid-template-columns: repeat(2, 1fr); row-gap: 28px; }
+      .timeline::before { display: none; }
+      .flow-shell { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); min-height: 28px; }
+      .risk-meter { grid-template-columns: repeat(2, 1fr); }
+      .source-list { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 520px) {
+      section { width: min(calc(100% - 24px), var(--max)); padding: 58px 0; }
+      .topbar-inner { width: calc(100% - 24px); }
+      h1 { font-size: clamp(2.55rem, 14vw, 4.1rem); }
+      h2 { font-size: 2.15rem; }
+      .hero::after { display: none; }
+      .legend, .timeline, .risk-meter { grid-template-columns: 1fr; }
+      .card, .node { padding: 21px; }
+      .paper { transform: none; padding: 26px 18px; box-shadow: 6px 6px 0 rgba(255,154,74,.16); }
+      .step { padding-left: 8px; }
+      .field-table, .field-table tbody, .field-table tr, .field-table td { display: block; }
+      .field-table thead { position: absolute; clip: rect(0 0 0 0); }
+      .field-table tr { padding: 16px 0; border-bottom: 1px solid var(--line); }
+      .field-table td { width: auto !important; border: 0; padding: 4px 0; }
+      footer { width: calc(100% - 24px); flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：使用事件、OpenTelemetry 与隐私边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-adm-06-otel-usage-events/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="ADM-06 · 使用事件、OpenTelemetry 与隐私边界">
+  <meta property="og:description" content="Claude Code X-Ray：使用事件、OpenTelemetry 与隐私边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-adm-06-otel-usage-events/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ADM-06 · 使用事件、OpenTelemetry 与隐私边界">
+  <meta name="twitter:description" content="Claude Code X-Ray：使用事件、OpenTelemetry 与隐私边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>ADM-06</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">XRY / ADM-06</div>
+      <nav class="topnav" aria-label="页内导航">
+        <a href="#sequence">时序</a>
+        <a href="#privacy">隐私</a>
+        <a href="#unknowns">未知项</a>
+        <a href="#sources">来源</a>
+      </nav>
+      <a href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <p class="eyebrow">使用事件、OpenTelemetry 与隐私边界</p>
+        <h1 id="answer-title">动作变成记录，出口由你指定</h1>
+        <p class="lede">启用以后，Claude Code 会把会话启动、prompt、API 请求和工具结果等动作变成指标或事件，先按默认规则隐藏正文，再分批送往你配置的观测后端。邮箱、账户标识和终端类型等身份字段仍可能随记录出现。内容开关一旦打开，prompt、命令、路径和工具输出都可能离开本机。</p>
+        <div class="statusline" aria-label="页面状态">
+          <span class="pill live">状态 documented</span>
+          <span class="pill">Claude Code 2.1.247</span>
+          <span class="pill">基线 2026-08-27</span>
+        </div>
+        <div class="legend" aria-label="证据图例">
+          <div><b>O</b><span>官方契约</span></div>
+          <div><b>L</b><span>本机静态与帮助</span></div>
+          <div><b>R</b><span>真实实验，本页缺失</span></div>
+          <div><b>I</b><span>研究者推断</span></div>
+        </div>
+      </div>
+      <aside class="hero-note">
+        <p><b>先抓住边界</b></p>
+        <p>组织 OTel 发往 Claude Code 最终解析出的 exporter endpoint。Anthropic 的运营遥测另走自己的数据流。默认脱敏仍会保留身份元数据，OAuth 邮箱在可用时会进入标准属性。</p>
+      </aside>
+    </section>
+
+    <section data-xray-section="terms" aria-labelledby="terms-title">
+      <p class="eyebrow">Terms</p>
+      <h2 id="terms-title">四个名词就够用</h2>
+      <div class="intro-grid">
+        <div class="two-col">
+          <article class="card"><h3>指标</h3><p>按时间累计的数值。会话数、token、成本估算和代码行数属于这一类，默认 60 秒导出一次。</p></article>
+          <article class="card"><h3>事件</h3><p>一次动作的结构化记录。prompt 提交、API 请求、工具结果和权限决定都有各自的生成时点，默认 5 秒一批。</p></article>
+          <article class="card"><h3>Trace</h3><p>把一次 prompt 下的模型请求和工具调用串成 span。2.1.247 仍属 beta，默认关闭，并有单独的内容风险。</p></article>
+          <article class="card warn"><h3>下游消费者</h3><p>Collector、SIEM、时序数据库与团队报表负责保存、查询和告警。Claude Code 只生成并导出原始记录。</p></article>
+        </div>
+        <aside class="card danger">
+          <h3>本页不展开</h3>
+          <p>成本优化、权威账单、团队采用率和 ROI 都依赖这些记录，却有自己的统计口径。它们只在这里出现一次，作为导出后的消费者。</p>
+          <p class="mini">O 成本字段是估算值，权威账单要回到 API provider。</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="paper">
+        <p class="eyebrow">Sequence</p>
+        <h2 id="sequence-title">一轮会话里的生成顺序</h2>
+        <p>下面是官方事件契约允许确认的先后。一个 prompt 可能带出多次 API 请求与多个工具动作，图中的中段会重复。</p>
+        <div class="timeline">
+          <article class="step" data-step="0"><h3>启动前配置</h3><p>打开 telemetry，再为 metrics、logs 或 traces 选择 exporter。</p></article>
+          <article class="step" data-step="1"><h3>会话开始</h3><p>session counter 增加一次，并带上可用的标准属性。</p></article>
+          <article class="step" data-step="2"><h3>提交 prompt</h3><p>生成 user_prompt。正文默认隐藏，只保留长度。</p></article>
+          <article class="step" data-step="3"><h3>模型请求</h3><p>每次 API 请求生成 api_request，失败放弃后生成 api_error。</p></article>
+          <article class="step" data-step="4"><h3>工具分支</h3><p>拒绝只留下 decision。工具执行完成才有 tool_result。</p></article>
+          <article class="step" data-step="5"><h3>批量导出</h3><p>events 与 metrics 按各自 interval 发往所选后端。</p></article>
+        </div>
+        <p><b>O</b> 同一轮的事件可用 <code>prompt.id</code> 归组，再用 <code>event.sequence</code> 排序。借 transcript 内部字段做更细 join 会随版本变化。</p>
+      </div>
+    </section>
+
+    <section data-xray-section="flow" aria-labelledby="flow-title">
+      <p class="eyebrow">Flow</p>
+      <h2 id="flow-title">三段数据流，两个控制点</h2>
+      <div class="flow-shell" role="img" aria-label="Claude Code 生成记录，内容门控制字段，导出器发送到组织后端">
+        <div class="node"><strong>Claude Code</strong><span>会话动作触发 metrics、events，beta trace 另行启用。</span></div>
+        <div class="arrow" aria-hidden="true">›</div>
+        <div class="node"><strong>字段与内容门</strong><span>默认正文 redacted。身份属性和显式内容开关决定记录里还有什么。</span></div>
+        <div class="arrow" aria-hidden="true">›</div>
+        <div class="node"><strong>Exporter 与后端</strong><span>console、Prometheus 或 OTLP。endpoint、protocol 与 credentials 决定出口。</span></div>
+      </div>
+      <div class="branch"><b>O 与 I 的分界</b> 官方说明 exporter 失败会留下 debug 诊断，却没有承诺失败时是否阻塞主会话、何时丢弃或退出时一定 flush。本页把这些都留在未知项。</div>
+      <div class="callout"><b>2.1.247 的管理边界</b> Managed settings 会移除一批冲突的 endpoint、protocol 与 credential，exporter selector 还要逐项设置。官方到 2.1.251 才修复低作用域 beta trace endpoint 绕过固定 collector，以及项目设置开启详细 tracing 或 raw API body logging 的问题。2.1.247 不能视为已经可靠锁住目的地和内容面。</div>
+    </section>
+
+    <section data-xray-section="fields" aria-labelledby="fields-title">
+      <p class="eyebrow">Fields</p>
+      <h2 id="fields-title">先认事件，再看它带了哪些字段</h2>
+      <p><b>O</b> 记录跟着动作生成。动作发生到哪一步，相应的记录就在那一步出现。排查缺失事件时，先确认动作有没有走到生成点，再检查 exporter。这样可以避免把“工具被拒绝”误报成“tool_result 导出丢失”。</p>
+      <table class="field-table">
+        <thead><tr><th>记录</th><th>生成条件</th><th>读记录时要留意什么</th></tr></thead>
+        <tbody>
+          <tr><td>session counter</td><td>Claude Code 会话开始时增加。</td><td>OAuth 登录可带邮箱、Claude 账户与组织字段。直接 API key、Bedrock、Vertex 或 Foundry 没有 Claude 账户字段，只填 <code>user.id</code> 与 <code>session.id</code>。</td></tr>
+          <tr><td>user_prompt</td><td>用户提交一次 prompt 时生成。</td><td>默认只留下长度，正文写成 redacted。同一个 prompt 引出的后续动作可用 <code>prompt.id</code> 归在一起。</td></tr>
+          <tr><td>api_request 与 api_error</td><td>每次模型 API 请求都有 request。内部重试最终放弃后才有 error。</td><td><code>api_error</code> 记录的 attempt 是总尝试数。它结束的是这次请求，不能单凭这一条判断整个会话随后也停止。</td></tr>
+          <tr><td>tool_decision 与 tool_result</td><td>权限决定和工具执行结果分开生成。拒绝调用时没有 tool_result。</td><td>要判断工具有没有真正执行，应先看 decision，再找 result。命令、路径、URL 与输入通常受工具详情开关控制。2.1.214 起另有 Desktop 例外。</td></tr>
+        </tbody>
+      </table>
+      <div class="two-col" style="margin-top: 28px">
+        <article class="card"><h3>关联顺序</h3><p><code>prompt.id</code> 用来收拢同一轮 prompt 带出的请求和工具动作，<code>event.sequence</code> 给会话内记录排序。一个 prompt 可以触发多次请求，也可以触发多个工具动作，中间几步重复出现属于正常情况。</p></article>
+        <article class="card warn"><h3>缺失怎样解释</h3><p><b>O</b> 被拒绝的工具调用按契约不会生成 tool_result。Collector 不可达时则要查看 debug 诊断。<b>I</b> 官方没有公开队列上限、丢弃规则与退出 flush 保证，因此缺一条记录时还不能直接断言它在哪一段消失。</p></article>
+      </div>
+    </section>
+
+    <section id="privacy" data-xray-section="limits" aria-labelledby="limits-title">
+      <p class="eyebrow">Privacy limits</p>
+      <h2 id="limits-title">默认隐藏内容，身份仍然可见</h2>
+      <table class="field-table">
+        <thead><tr><th>字段层</th><th>默认状态</th><th>隐私判断</th></tr></thead>
+        <tbody>
+          <tr><td>标准身份</td><td>OAuth 可用时包含邮箱、账户与组织标识，还会有安装标识和终端类型。</td><td>邮箱没有客户端关闭开关。直接 API key 或云 provider 没有 Claude 账户字段。组织仍需在 telemetry backend 过滤或脱敏。</td></tr>
+          <tr><td>prompt 与回复</td><td>默认只记录长度，正文显示为 redacted。</td><td>分别受 prompt 与 response 开关控制。response 开关未设置时会跟随 prompt 开关。</td></tr>
+          <tr><td>工具细节</td><td>参数与输入通常默认不记录。Desktop 自有会话里的内置 MCP server/tool 名称是例外。</td><td>2.1.214 起，这组 host-authored 名称会留在 decision/result 的 <code>tool_parameters</code>，即使 details 关闭。details 打开后还可出现 Bash 命令、路径、URL 与输入。</td></tr>
+          <tr><td>Raw API bodies</td><td>默认关闭。</td><td>打开后可含系统 prompt、完整历史和工具结果。文件模式会在指定目录写未截断正文。</td></tr>
+        </tbody>
+      </table>
+      <div class="risk-meter" aria-label="内容暴露等级">
+        <article><b>默认</b><p>正文 redacted。仍有身份、长度、时间和行为元数据。</p></article>
+        <article><b>Prompt 或回复</b><p>用户输入或模型文本进入组织后端。</p></article>
+        <article><b>Tool details</b><p>命令、路径、URL、搜索模式和工具参数可能出现。</p></article>
+        <article><b>Raw bodies</b><p>完整会话历史可能进入事件或本地文件。风险最高。</p></article>
+      </div>
+      <p><b>O</b> Extended thinking 在 raw API bodies 中仍会脱敏。<b>I</b> 这条保证不能替部署方决定邮箱、命令和正文在后端保留多久。</p>
+      <div class="two-col" style="margin-top: 28px">
+        <article class="card warn"><h3>登录方式会改字段</h3><p><b>O</b> OAuth 可带邮箱和 Claude 账户字段。直接 API key、Bedrock、Vertex 与 Foundry 只带安装侧的 <code>user.id</code> 和会话标识。当前官方文档说 gateway 会带 IdP subject、邮箱和 groups，本页没有在 2.1.247 上做运行核对。</p></article>
+        <article class="card"><h3>Anthropic 运营遥测另有两路</h3><p><b>O</b> Usage metrics 记录延迟、可靠性与使用模式，由 <code>DISABLE_TELEMETRY</code> 关闭。Error reports 可能含已脱敏的错误消息与堆栈，由 <code>DISABLE_ERROR_REPORTING</code> 关闭。两者都不等同于组织 OTel。</p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="experiment" aria-labelledby="experiment-title">
+      <p class="eyebrow">Local evidence</p>
+      <h2 id="experiment-title">核到二进制，没有启动会话</h2>
+      <div class="two-col">
+        <div class="terminal" aria-label="本机只读命令摘要">
+          <div class="terminal-head">只读静态核对</div>
+          <pre><code>&lt;2.1.247 binary&gt; --version
+shasum -a 256 &lt;2.1.247 binary&gt;
+&lt;2.1.247 binary&gt; --help
+strings &lt;binary&gt; | rg &lt;allowlist&gt;</code></pre>
+        </div>
+        <div>
+          <ul class="checklist">
+            <li><b>L</b> 版本输出为 2.1.247。</li>
+            <li><b>L</b> SHA-256 与基线给定值一致。</li>
+            <li><b>L</b> 二进制包含启用开关、三类 exporter 和五组内容开关。</li>
+            <li><b>R</b> 缺失。没有发 prompt，没有连接 collector，也没有读取私人会话。</li>
+          </ul>
+          <p>这能证明本机指定版本带有配置入口，不能证明运行时字段、默认值或失败行为。</p>
+          <p><b>验收边界</b> 取得 R 需要登录可用的模型 provider 并提交合成 prompt，这可能产生订阅或 API 用量。本轮没有获准执行。Desktop、gateway、Bedrock、Vertex、Foundry 与 self-hosted runner 也都没有做真实导出核对。</p>
+        </div>
+      </div>
+    </section>
+
+    <section data-xray-section="implementation" aria-labelledby="implementation-title">
+      <p class="eyebrow">Implementation boundary</p>
+      <h2 id="implementation-title">2.1.247 有两处版本陷阱</h2>
+      <div class="three-col">
+        <article class="card warn"><h3>诊断标签</h3><p>当前文档把自有 collector 故障写成 <code>[3P telemetry]</code>。官方 changelog 说明 2.1.248 才把 Anthropic exporter 故障改标为 <code>[Anthropic telemetry]</code>。</p></article>
+        <article class="card"><h3>子进程隔离</h3><p>Claude Code 不把 <code>OTEL_*</code> 传给 Bash、hooks、MCP 和 language server。子程序要另配自己的出口与凭据。</p></article>
+        <article class="card danger"><h3>管理员锁定</h3><p>2.1.251 修复了 beta trace endpoint 与详细 tracing/raw body logging 的低作用域绕过。这个修复晚于本页基线，2.1.247 的目的地与内容面不能写成已可靠锁定。</p></article>
+      </div>
+      <div class="callout"><b>版本结论</b> 在 2.1.247 上只看到 <code>[3P telemetry]</code> 不能直接断言组织 collector 有问题。要结合 endpoint、exporter 配置和相邻 debug 行判断。</div>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <p class="eyebrow">Unknowns</p>
+      <h2 id="unknowns-title">官方还没有承诺这些运行细节</h2>
+      <details open><summary>Collector 长期不可达时会怎样</summary><p>队列上限、退避、丢弃和内存策略没有公开。本页不猜。</p></details>
+      <details><summary>退出时是否保证 flush</summary><p>官方给了默认导出间隔，没有给正常退出或中断时的 flush 保证。</p></details>
+      <details><summary>Exporter 失败是否影响主会话</summary><p>官方只说明 debug 诊断，没有说明它是否改变主会话退出码、工具结果或停止条件。</p></details>
+      <details><summary>后端会保留数据多久</summary><p>组织 OTel 发往部署方自己的后端。邮箱、命令与正文的保留期由那套部署决定。</p></details>
+      <details><summary>冻结在 2.1.247 的完整字段表在哪里</summary><p>Monitoring 页面持续更新，官方没有提供该版本的独立冻结页。本页排除了明确要求 2.1.248 或更高版本的字段。</p></details>
+    </section>
+
+    <section id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <p class="eyebrow">Sources and reproduction</p>
+      <h2 id="sources-title">一手来源与复现入口</h2>
+      <ul class="source-list">
+        <li><a href="https://code.claude.com/docs/en/monitoring-usage">Monitoring 文档，证明 OTel 配置、字段、事件、导出与隐私开关</a></li>
+        <li><a href="https://code.claude.com/docs/en/data-usage">Data usage 文档，证明 Anthropic 运营遥测与组织 OTel 的边界</a></li>
+        <li><a href="https://code.claude.com/docs/en/changelog">官方 changelog，证明 2.1.247、2.1.248 与 2.1.251 的版本边界</a></li>
+        <li><a href="https://code.claude.com/docs/en/settings">Settings 文档，证明 env 注入和配置作用域入口</a></li>
+      </ul>
+      <div class="two-col" style="margin-top: 28px">
+        <article class="card"><h3>安全复现</h3><p>固定 2.1.247，用临时目录与 loopback collector，先关闭所有内容开关。还需获准登录模型 provider，并接受提交合成 prompt 可能产生的订阅或 API 用量。再按 <code>prompt.id</code> 与 <code>event.sequence</code> 核对。</p></article>
+        <article class="card warn"><h3>失败复现</h3><p>把 endpoint 指到未监听的 loopback 端口，用 <code>--debug-file</code> 写临时日志。分别正常退出与中断，记录诊断标签、主会话状态和最后收到的 sequence。完成后删除临时文件。</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>ADM-06 · 状态 documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

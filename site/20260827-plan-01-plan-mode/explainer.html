@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="PLAN-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>PLAN-01｜Plan Mode 的调研、提问、批准与执行边界</title>
+  <style>
+    :root {
+      --ink: #182126;
+      --paper: #ece7d8;
+      --paper-2: #f6f2e7;
+      --red: #d94b2b;
+      --teal: #14766f;
+      --amber: #d69b2d;
+      --line: rgba(24, 33, 38, .26);
+      --muted: #5c625f;
+      --max: 1160px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(24,33,38,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(24,33,38,.045) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      line-height: 1.78;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: .22em; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    .mono, code, .eyebrow, .tag, .badge, .step-no, nav, .mini-label {
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+
+    header {
+      border-bottom: 1px solid var(--ink);
+      background: rgba(246, 242, 231, .9);
+    }
+
+    .topbar {
+      width: min(var(--max), calc(100% - 40px));
+      margin: 0 auto;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      font-size: .84rem;
+    }
+
+    .identity { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .tag {
+      border: 1px solid currentColor;
+      padding: 3px 8px 2px;
+      letter-spacing: .04em;
+      background: var(--paper-2);
+    }
+    .tag.status { color: var(--red); }
+    .back { white-space: nowrap; font-weight: 700; }
+
+    main { overflow: hidden; }
+    section { scroll-margin-top: 24px; }
+    .wrap { width: min(var(--max), calc(100% - 40px)); margin: 0 auto; }
+
+    .hero {
+      min-height: calc(100vh - 64px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
+      align-items: center;
+      gap: 7vw;
+      padding: 82px 0 72px;
+      position: relative;
+    }
+
+    .hero::before {
+      content: "HOLD";
+      position: absolute;
+      right: -2vw;
+      top: 5vh;
+      font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+      font-size: clamp(7rem, 19vw, 16rem);
+      line-height: .8;
+      letter-spacing: -.05em;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(24,33,38,.12);
+      transform: rotate(-6deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: .77rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+    }
+    .eyebrow::before { content: ""; width: 42px; height: 5px; background: var(--red); }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      margin-bottom: 26px;
+      max-width: 13ch;
+      font-size: clamp(3.2rem, 7.3vw, 7rem);
+      line-height: .94;
+      letter-spacing: -.065em;
+      font-weight: 900;
+    }
+    h1 span { display: block; color: var(--red); }
+    .lead {
+      max-width: 34em;
+      font-size: clamp(1.18rem, 1.9vw, 1.62rem);
+      line-height: 1.62;
+      font-weight: 700;
+    }
+    .lead strong { color: var(--red); }
+
+    .gate {
+      position: relative;
+      min-height: 460px;
+      border: 1px solid var(--ink);
+      background: rgba(246,242,231,.78);
+      padding: 26px;
+      box-shadow: 14px 14px 0 rgba(24,33,38,.12);
+    }
+    .gate::before, .gate::after { content: ""; position: absolute; left: 50%; transform: translateX(-50%); }
+    .gate::before { top: 70px; bottom: 72px; width: 10px; background: var(--ink); }
+    .gate::after { top: 238px; width: 88%; height: 6px; background: var(--red); }
+    .gate-title { position: relative; z-index: 1; font-weight: 900; font-size: 1.1rem; }
+    .gate-side {
+      position: absolute;
+      z-index: 1;
+      width: 42%;
+      padding: 14px;
+      border: 1px solid var(--ink);
+      background: var(--paper-2);
+    }
+    .gate-side b { display: block; font-size: 1.25rem; }
+    .gate-side small { display: block; color: var(--muted); margin-top: 6px; }
+    .gate-side.left { left: 22px; top: 130px; }
+    .gate-side.right { right: 22px; bottom: 86px; }
+    .stop-mark {
+      position: absolute;
+      z-index: 2;
+      left: 50%;
+      top: 238px;
+      transform: translate(-50%, -50%);
+      width: 72px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      border: 8px solid var(--paper-2);
+      color: white;
+      background: var(--red);
+      font-family: ui-monospace, monospace;
+      font-weight: 900;
+      font-size: .78rem;
+    }
+    .gate-note { position: absolute; bottom: 20px; left: 26px; font-size: .72rem; color: var(--muted); }
+
+    nav.page-nav {
+      border-block: 1px solid var(--ink);
+      background: var(--ink);
+      color: var(--paper-2);
+    }
+    nav.page-nav .wrap {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    nav.page-nav a { padding: 14px 18px; flex: 0 0 auto; text-decoration: none; border-right: 1px solid rgba(255,255,255,.24); }
+    nav.page-nav a:hover { color: white; background: var(--red); }
+
+    .block { padding: 92px 0; border-bottom: 1px solid var(--ink); }
+    .section-head {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+      margin-bottom: 48px;
+    }
+    .section-no { font-family: Impact, sans-serif; color: var(--red); font-size: 4.8rem; line-height: .85; }
+    h2 { font-size: clamp(2rem, 4vw, 4rem); line-height: 1.08; letter-spacing: -.045em; margin-bottom: 12px; }
+    .section-intro { max-width: 48em; color: var(--muted); font-size: 1.03rem; }
+
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 1px solid var(--ink); }
+    .legend article { padding: 24px; min-height: 190px; border-right: 1px solid var(--ink); background: rgba(246,242,231,.64); }
+    .legend article:last-child { border-right: 0; }
+    .badge {
+      display: inline-grid;
+      place-items: center;
+      width: 34px;
+      aspect-ratio: 1;
+      margin-bottom: 22px;
+      background: var(--ink);
+      color: white;
+      font-weight: 900;
+    }
+    .badge.o { background: var(--teal); }
+    .badge.l { background: var(--red); }
+    .badge.r { background: var(--amber); color: var(--ink); }
+    .badge.i { background: transparent; color: var(--ink); border: 2px dashed var(--ink); }
+    .legend h3 { margin-bottom: 6px; }
+    .legend p { font-size: .9rem; color: var(--muted); }
+
+    .terms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .term {
+      padding: 26px;
+      border-top: 7px solid var(--ink);
+      background: var(--paper-2);
+      min-height: 240px;
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+    .term:nth-child(2) { border-top-color: var(--teal); }
+    .term:nth-child(3) { border-top-color: var(--red); }
+    .term h3 { font-size: 1.28rem; }
+    .mini-label { color: var(--muted); font-size: .72rem; letter-spacing: .08em; }
+
+    .timeline { position: relative; display: grid; gap: 0; }
+    .timeline::before { content: ""; position: absolute; left: 33px; top: 24px; bottom: 24px; width: 4px; background: var(--ink); }
+    .step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 68px minmax(0, .9fr) minmax(230px, .65fr);
+      gap: 26px;
+      align-items: start;
+      padding: 22px 0;
+    }
+    .step-no {
+      z-index: 1;
+      width: 68px;
+      height: 68px;
+      display: grid;
+      place-items: center;
+      border: 3px solid var(--ink);
+      background: var(--paper);
+      font-size: 1.05rem;
+      font-weight: 900;
+    }
+    .step.is-gate .step-no { border-radius: 50%; background: var(--red); color: white; border-color: var(--red); }
+    .step h3 { margin: 2px 0 4px; font-size: 1.24rem; }
+    .step p { margin: 0; color: var(--muted); }
+    .evidence-chip { justify-self: end; font-family: ui-monospace, monospace; font-size: .75rem; border: 1px solid var(--line); padding: 4px 8px; background: rgba(246,242,231,.7); }
+
+    .branch-board {
+      display: grid;
+      grid-template-columns: 1fr 90px 1fr;
+      gap: 18px;
+      align-items: stretch;
+      margin-top: 48px;
+    }
+    .branch { border: 1px solid var(--ink); padding: 28px; background: var(--paper-2); }
+    .branch.keep { border-top: 8px solid var(--teal); }
+    .branch.go { border-top: 8px solid var(--red); }
+    .branch-arrow { display: grid; place-items: center; font-family: Impact, sans-serif; font-size: 3rem; }
+    .branch h3 { font-size: 1.45rem; }
+
+    .flow-sheet { border: 1px solid var(--ink); background: var(--paper-2); padding: 28px; }
+    .flow-line {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(90px, 1fr));
+      gap: 0;
+      align-items: center;
+    }
+    .flow-node { min-height: 112px; display: grid; place-items: center; text-align: center; padding: 12px; border: 1px solid var(--ink); background: white; }
+    .flow-node.file { background: #d7ebe5; }
+    .flow-node.gate-node { background: var(--red); color: white; }
+    .flow-arrow { text-align: center; font-size: 1.8rem; font-family: Impact, sans-serif; }
+    .flow-caption { margin: 20px 0 0; color: var(--muted); font-size: .9rem; }
+
+    .limit-grid { display: grid; grid-template-columns: 1.1fr .9fr; border: 1px solid var(--ink); }
+    .limit-col { padding: 30px; background: rgba(246,242,231,.72); }
+    .limit-col + .limit-col { border-left: 1px solid var(--ink); background: var(--ink); color: var(--paper-2); }
+    .limit-col h3 { font-size: 1.5rem; }
+    .rule { padding: 16px 0; border-top: 1px solid currentColor; }
+    .rule b { display: block; margin-bottom: 4px; }
+    .rule p { margin: 0; opacity: .78; font-size: .93rem; }
+    .warning { margin-top: 24px; padding: 18px; border: 2px solid var(--red); background: #fff3ec; color: var(--ink); font-weight: 700; }
+
+    .experiment-box { display: grid; grid-template-columns: .65fr 1.35fr; border: 1px solid var(--ink); background: var(--paper-2); }
+    .experiment-score { display: grid; place-items: center; min-height: 280px; border-right: 1px solid var(--ink); background: var(--red); color: white; text-align: center; }
+    .experiment-score strong { display: block; font-family: Impact, sans-serif; font-size: 7rem; line-height: .8; }
+    .experiment-copy { padding: 34px; }
+    .observation { display: grid; grid-template-columns: 120px 1fr; gap: 20px; padding: 14px 0; border-top: 1px solid var(--line); }
+    .observation:first-of-type { border-top: 0; }
+    .observation .mini-label { font-weight: 900; color: var(--red); }
+
+    .implementation-grid { display: grid; grid-template-columns: 1.12fr .88fr; gap: 18px; }
+    .panel { border: 1px solid var(--ink); padding: 28px; background: var(--paper-2); }
+    .panel h3 { font-size: 1.45rem; }
+    .panel ol, .panel ul { padding-left: 1.25em; }
+    .panel li { margin-bottom: 12px; }
+    .version-row { display: grid; grid-template-columns: 110px 1fr; gap: 18px; padding: 14px 0; border-top: 1px solid var(--line); }
+    .version-row code { color: var(--red); font-weight: 900; }
+
+    details { border-top: 1px solid var(--ink); background: rgba(246,242,231,.55); }
+    details:last-child { border-bottom: 1px solid var(--ink); }
+    summary { cursor: pointer; list-style: none; padding: 20px 48px 20px 0; position: relative; font-weight: 900; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; position: absolute; right: 12px; font-family: ui-monospace, monospace; color: var(--red); font-size: 1.6rem; }
+    details[open] summary::after { content: "×"; }
+    details p { max-width: 54em; padding: 0 44px 20px 0; color: var(--muted); }
+
+    .sources-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; border: 1px solid var(--ink); background: var(--ink); }
+    .source { display: block; padding: 24px; background: var(--paper-2); text-decoration: none; min-height: 130px; }
+    .source:hover { background: #fff3ec; }
+    .source b { display: block; font-size: 1.08rem; margin-bottom: 6px; }
+    .source small { display: block; color: var(--muted); }
+    footer { padding: 34px 0 50px; background: var(--ink); color: var(--paper-2); }
+    footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+    @media (max-width: 860px) {
+      .hero { grid-template-columns: 1fr; padding-top: 64px; }
+      .gate { min-height: 400px; }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+      .legend article:nth-child(2) { border-right: 0; }
+      .legend article:nth-child(-n+2) { border-bottom: 1px solid var(--ink); }
+      .terms-grid { grid-template-columns: 1fr; }
+      .term { min-height: 0; }
+      .step { grid-template-columns: 68px 1fr; }
+      .evidence-chip { grid-column: 2; justify-self: start; }
+      .branch-board { grid-template-columns: 1fr; }
+      .branch-arrow { transform: rotate(90deg); }
+      .flow-line { grid-template-columns: 1fr; }
+      .flow-arrow { transform: rotate(90deg); padding: 6px; }
+      .limit-grid, .experiment-box, .implementation-grid { grid-template-columns: 1fr; }
+      .limit-col + .limit-col, .experiment-score { border-left: 0; border-top: 1px solid var(--ink); }
+      .experiment-score { border-right: 0; }
+    }
+
+    @media (max-width: 520px) {
+      .topbar, .wrap { width: min(100% - 28px, var(--max)); }
+      .topbar { align-items: flex-start; padding: 12px 0; }
+      .identity { gap: 6px; }
+      .tag { font-size: .68rem; }
+      .hero { min-height: auto; padding: 54px 0; gap: 40px; }
+      h1 { font-size: clamp(3.1rem, 18vw, 5rem); }
+      .lead { font-size: 1.12rem; }
+      .gate { min-height: 380px; padding: 20px; box-shadow: 8px 8px 0 rgba(24,33,38,.12); }
+      .gate-side { width: 45%; padding: 10px; }
+      .gate-side.left { left: 12px; }
+      .gate-side.right { right: 12px; }
+      .block { padding: 64px 0; }
+      .section-head { grid-template-columns: 1fr; gap: 14px; margin-bottom: 34px; }
+      .section-no { font-size: 3.2rem; }
+      .legend { grid-template-columns: 1fr; }
+      .legend article { min-height: 0; border-right: 0; border-bottom: 1px solid var(--ink); }
+      .legend article:last-child { border-bottom: 0; }
+      .step { grid-template-columns: 52px 1fr; gap: 16px; }
+      .step-no { width: 52px; height: 52px; }
+      .timeline::before { left: 24px; }
+      .observation, .version-row { grid-template-columns: 1fr; gap: 4px; }
+      .sources-list { grid-template-columns: 1fr; }
+      .source { min-height: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print { nav.page-nav { display: none; } .hero { min-height: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Plan Mode 的调研、提问、批准与执行边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-plan-01-plan-mode/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="PLAN-01 · Plan Mode 的调研、提问、批准与执行边界">
+  <meta property="og:description" content="Claude Code X-Ray：Plan Mode 的调研、提问、批准与执行边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-plan-01-plan-mode/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="PLAN-01 · Plan Mode 的调研、提问、批准与执行边界">
+  <meta name="twitter:description" content="Claude Code X-Ray：Plan Mode 的调研、提问、批准与执行边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>PLAN-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header>
+    <div class="topbar">
+      <div class="identity">
+        <span class="tag">PLAN-01</span>
+        <span class="tag status">当前状态 documented</span>
+        <span class="tag">Claude Code 2.1.247</span>
+      </div>
+      <a class="back" href="../index.html">← 返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="wrap hero" data-xray-section="answer" id="answer">
+      <div>
+        <div class="eyebrow">Plan Mode control trace</div>
+        <h1>先查清楚<span>再放行写入</span></h1>
+        <p class="lead">进入 Plan Mode 后，Claude 可以读项目、跑探索命令、向你补问并写下计划。<strong>源码修改停在批准之前。</strong>你批准后，会话才切到所选执行权限模式并开始改文件。<sup>O</sup></p>
+      </div>
+      <div class="gate" aria-label="Plan Mode 写入边界示意">
+        <div class="gate-title">一次状态转换</div>
+        <div class="gate-side left"><b>规划侧</b><small>调研并补齐疑问，计划写入磁盘</small></div>
+        <div class="stop-mark">批准</div>
+        <div class="gate-side right"><b>执行侧</b><small>按所选权限模式开始写入</small></div>
+        <div class="gate-note">研究者状态图 I　主链依据 O</div>
+      </div>
+    </section>
+
+    <nav class="page-nav" aria-label="页内导航">
+      <div class="wrap">
+        <a href="#terms">证据与名词</a>
+        <a href="#sequence">时间顺序</a>
+        <a href="#flow">文件流</a>
+        <a href="#limits">权限与停止</a>
+        <a href="#experiment">本机核对</a>
+        <a href="#implementation">实现边界</a>
+        <a href="#unknowns">未知项</a>
+        <a href="#sources">一手来源</a>
+      </div>
+    </nav>
+
+    <section class="block" data-xray-section="terms" id="terms">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-no">01</div>
+          <div><h2>四种证据，分开说</h2><p class="section-intro">页面状态为 documented。官方契约和本机入口已经核过，本轮没有启动付费会话，也没有观察真实批准界面。</p></div>
+        </div>
+        <div class="legend" aria-label="O L R I 证据图例">
+          <article><span class="badge o">O</span><h3>官方契约</h3><p>Anthropic 文档、changelog 与 Agent SDK 文档，证明公开承诺和接口。</p></article>
+          <article><span class="badge l">L</span><h3>本机静态证据</h3><p>2.1.247 的版本、帮助文本和二进制摘要，证明本机入口存在。</p></article>
+          <article><span class="badge r">R</span><h3>真实实验</h3><p>本页缺失。没有启动 Claude 会话，页面不把文档流程写成亲历。</p></article>
+          <article><span class="badge i">I</span><h3>研究者推断</h3><p>用来整理状态名与条件分支，不能替代一轮真实运行。</p></article>
+        </div>
+        <div class="terms-grid" style="margin-top: 28px">
+          <article class="term"><div class="mini-label">STATE</div><h3>Plan Mode</h3><p>一项权限模式。Claude 在这里研究和提方案，源码编辑被挡在批准以后。计划文件本身仍会写入磁盘。<sup>O</sup></p></article>
+          <article class="term"><div class="mini-label">QUESTION</div><h3><code>AskUserQuestion</code></h3><p>遇到多个可行方向时，Claude 可发出一至四个选择题。你也能通过 Other 或 notes 写自己的回答。<sup>O</sup></p></article>
+          <article class="term"><div class="mini-label">GATE</div><h3><code>ExitPlanMode</code></h3><p>Claude 先写计划文件，再用这个工具呈交计划。批准结果决定继续规划，或切到执行权限模式。<sup>O</sup></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="sequence" id="sequence">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-no">02</div>
+          <div><h2>一轮计划怎样往前走</h2><p class="section-intro">下面六步按产品契约排列。提问可以省略，也可以重复；批准是从计划走向写入的关键分支。</p></div>
+        </div>
+        <div class="timeline">
+          <article class="step"><div class="step-no">00</div><div><h3>用户进入 Plan Mode</h3><p>CLI 可按 <code>Shift+Tab</code>、使用 <code>/plan</code>，或在启动时传入 plan 权限模式。模式要通过界面或启动控制切换，聊天里口头要求不等同于切换。<sup>O</sup></p></div><span class="evidence-chip">F01</span></article>
+          <article class="step"><div class="step-no">01</div><div><h3>Claude 只读探索</h3><p>它读文件并运行探索命令。内置只读 shell 集合可直接运行，集合外命令仍要经过 classifier 或人工批准。<sup>O</sup></p></div><span class="evidence-chip">F02 F03</span></article>
+          <article class="step"><div class="step-no">02</div><div><h3>缺口出现时补问</h3><p>多个可行方向需要你决定时，<code>AskUserQuestion</code> 显示选项和自由回答入口。默认等到你回答，显式超时设置会允许它稍后自行继续。<sup>O</sup></p></div><span class="evidence-chip">F04 F05 F06</span></article>
+          <article class="step"><div class="step-no">03</div><div><h3>计划先落到磁盘</h3><p>Claude 把计划写进计划文件。这里发生了磁盘写入，但官方明确区分它与修改项目源码。<sup>O</sup></p></div><span class="evidence-chip">F02 F07</span></article>
+          <article class="step is-gate"><div class="step-no">04</div><div><h3>计划进入批准门</h3><p><code>ExitPlanMode</code> 读取计划并呈交用户。计划批准没有空闲超时，等待不会自行变成同意。<sup>O</sup></p></div><span class="evidence-chip">F08 F09</span></article>
+          <article class="step"><div class="step-no">05</div><div><h3>选择决定后继状态</h3><p>继续规划会保留 Plan Mode。批准会退出计划态，切到 auto 或逐项审核编辑等可用模式，Claude 随后开始改文件。<sup>O</sup></p></div><span class="evidence-chip">F09 F10</span></article>
+        </div>
+        <div class="branch-board">
+          <article class="branch keep"><div class="mini-label">NO / FEEDBACK</div><h3>继续规划</h3><p>计划带着你的反馈返回规划侧。Claude 会继续调查，必要时重问，然后改好计划。<sup>O</sup></p></article>
+          <div class="branch-arrow" aria-hidden="true">OR</div>
+          <article class="branch go"><div class="mini-label">YES / MODE</div><h3>批准并执行</h3><p>会话退出 Plan Mode，并按照批准项描述的权限方式执行。批准并不抹掉后续权限规则。<sup>O</sup></p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="flow" id="flow">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-no">03</div>
+          <div><h2>计划文件怎样穿过批准点</h2><p class="section-intro">公开 hook 契约给出了足够清楚的数据流。它没有公开本机计划目录的生命周期。</p></div>
+        </div>
+        <div class="flow-sheet">
+          <div class="flow-line" aria-label="计划数据流">
+            <div class="flow-node">模型生成计划</div><div class="flow-arrow">→</div>
+            <div class="flow-node file">磁盘计划文件</div><div class="flow-arrow">→</div>
+            <div class="flow-node">Claude Code 注入正文与路径</div><div class="flow-arrow">→</div>
+            <div class="flow-node gate-node">用户批准</div>
+          </div>
+          <div class="flow-line" style="margin-top: 16px" aria-label="批准后的数据流">
+            <div class="flow-node">工具返回计划正文与路径</div><div class="flow-arrow">→</div>
+            <div class="flow-node file">后继权限模式</div><div class="flow-arrow">→</div>
+            <div class="flow-node">编辑与命令工具</div><div class="flow-arrow">→</div>
+            <div class="flow-node gate-node">项目文件变化</div>
+          </div>
+          <p class="flow-caption">上排发生在批准前。下排只在用户批准并选择执行模式后成立。<sup>O</sup>　计划目录、文件名与清理时机仍未知。<sup>I</sup></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="limits" id="limits">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-no">04</div>
+          <div><h2>哪些地方会停，哪些不会</h2><p class="section-intro">Plan Mode 只给源码写入增加一道强约束。探索命令、交互工具和预先启用的危险模式各有自己的例外。</p></div>
+        </div>
+        <div class="limit-grid">
+          <div class="limit-col">
+            <h3>正常路径</h3>
+            <div class="rule"><b>源码写入停在批准前</b><p>官方把 reads、shell exploration、plan file 与 source edits 分开。<sup>O</sup></p></div>
+            <div class="rule"><b>探索命令仍受判断</b><p>只读集合外的 shell 命令可能由 auto classifier 审核，也可能弹出人工批准。<sup>O</sup></p></div>
+            <div class="rule"><b>问题可超时，批准不会</b><p>只有配置过的选择题能空闲后继续。计划批准一直等到用户作答。<sup>O</sup></p></div>
+            <div class="rule"><b>非交互运行通常会阻塞</b><p><code>-p</code> 中两个交互工具都需要宿主通过 hook 提供完整更新输入。单独 allow 无效。<sup>O</sup></p></div>
+          </div>
+          <div class="limit-col">
+            <h3>绕行与停止</h3>
+            <div class="rule"><b>选择继续规划</b><p>不退出，不执行，计划按反馈重做。</p></div>
+            <div class="rule"><b>按键直接离开</b><p><code>Shift+Tab</code> 可无批准离开。官方没有把这次动作称为批准。<sup>O I</sup></p></div>
+            <div class="rule"><b>预先启用 bypass</b><p>Plan Mode 的写入阻断不再强制，Claude 只剩规划指令约束。<sup>O</sup></p></div>
+            <div class="rule"><b>关闭或中断会话</b><p>本页没有真实运行证据，不推断未公开的恢复细节。</p></div>
+            <div class="warning">bypass permissions 是主链的明确例外，页面把它单列在这里。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="experiment" id="experiment">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-no">05</div>
+          <div><h2>本机只核入口，不冒充运行</h2><p class="section-intro">任务禁止新开付费 Claude 会话。本页只做不会产生会话的版本、帮助和二进制摘要核对。</p></div>
+        </div>
+        <div class="experiment-box">
+          <div class="experiment-score"><div><strong>0</strong><span>真实交互 R</span></div></div>
+          <div class="experiment-copy">
+            <div class="observation"><div class="mini-label">VERSION</div><div><code>claude --version</code> 返回 2.1.247。<sup>L</sup></div></div>
+            <div class="observation"><div class="mini-label">HELP</div><div><code>claude --help</code> 把 plan 列进 permission mode choices。<sup>L</sup></div></div>
+            <div class="observation"><div class="mini-label">BINARY</div><div>本机安装二进制 SHA-256 与固定基线一致，记录时隐藏了安装路径。<sup>L</sup></div></div>
+            <div class="observation"><div class="mini-label">CANNOT PROVE</div><div>这些静态结果无法证明问题卡片、批准选择、计划文件写入和源码变化在本机实际发生。</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="implementation" id="implementation">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-no">06</div>
+          <div><h2>公开实现边界与版本差异</h2><p class="section-intro">官方 hook 字段揭示了计划文件流。内部状态枚举、调度函数和计划目录生命周期没有公开，本页不会靠二进制字符串补故事。</p></div>
+        </div>
+        <div class="implementation-grid">
+          <article class="panel">
+            <h3>hook 能看见什么</h3>
+            <ol>
+              <li><code>AskUserQuestion</code> 输入含 questions 数组。每题有文字、选项与是否多选。</li>
+              <li><code>ExitPlanMode</code> 调用前，Claude 已把 Markdown 计划写入磁盘。</li>
+              <li>Claude Code 向 hook 注入计划正文和计划文件路径。</li>
+              <li>批准后的 PostToolUse 结果含计划正文与文件路径。官方建议直接读返回正文。<sup>O</sup></li>
+            </ol>
+          </article>
+          <article class="panel">
+            <h3>2.1.247 所在的版本线</h3>
+            <div class="version-row"><code>2.0.21</code><span>加入交互问题工具，并提高 Plan Mode 中提问频率。</span></div>
+            <div class="version-row"><code>2.1.205</code><span><code>allowedPrompts</code> 从此不再承载执行计划所需的提示式权限。</span></div>
+            <div class="version-row"><code>2.1.212–217</code><span>只读集合外命令曾一律请求批准。</span></div>
+            <div class="version-row"><code>2.1.246</code><span>修复结束于 Plan Mode 的会话恢复后丢失模式。</span></div>
+            <div class="version-row"><code>2.1.247</code><span>本页固定基线，官方 changelog 日期为 2026-08-26。<sup>O L</sup></span></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="unknowns" id="unknowns">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-no">07</div>
+          <div><h2>仍然不知道的地方</h2><p class="section-intro">这些缺口会改变复现实验的解释，所以保留。它们没有被状态图悄悄写成确定事实。</p></div>
+        </div>
+        <details open><summary>计划文件在 2.1.247 本机放在哪里，何时清理</summary><p>官方只公开 hook 收到计划路径。本轮禁止读取本机 Claude 会话目录，也没有 R，具体目录、命名和清理时机保持未知。</p></details>
+        <details><summary>反复继续规划会怎样更新计划文件</summary><p>原地改写、换文件还是保留版本，官方没有说明。本页只画出计划内容回到规划侧。</p></details>
+        <details><summary>无批准按键离开后具体回到哪种权限模式</summary><p>官方确认可以离开，没有说明所有入口、宿主和可用模式组合下的后继模式。</p></details>
+        <details><summary>批准后编辑从哪个内部调度点开始</summary><p>官方给出可观察结果，批准后切换模式并开始编辑。统一的内部事件名与回合边界没有公开。</p></details>
+        <details><summary>问题超时后的自主判断怎样处理关键缺口</summary><p>官方说 Claude 可以自行继续并稍后重问，没有承诺它会对每类产品选择采取哪种默认行为。</p></details>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="sources" id="sources">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-no">08</div>
+          <div><h2>一手来源与复现入口</h2><p class="section-intro">所有技术事实回到 Anthropic 官方资料。完整主张、命令摘要、实验限制与复现草案在同目录 evidence.md。</p></div>
+        </div>
+        <div class="sources-list">
+          <a class="source" href="https://code.claude.com/docs/en/permission-modes"><b>Permission modes</b><small>进入方式、只读探索、批准分支与 bypass 例外</small></a>
+          <a class="source" href="https://code.claude.com/docs/en/tools-reference"><b>Tools reference</b><small>问题行为、空闲超时以及批准等待</small></a>
+          <a class="source" href="https://code.claude.com/docs/en/hooks"><b>Hooks reference</b><small>计划文件流、工具输入输出与非交互阻塞</small></a>
+          <a class="source" href="https://code.claude.com/docs/en/commands"><b>Commands</b><small>单次 plan 命令入口</small></a>
+          <a class="source" href="https://platform.claude.com/docs/en/agent-sdk/user-input"><b>Agent SDK user input</b><small>澄清问题怎样交给宿主回调</small></a>
+          <a class="source" href="https://code.claude.com/docs/en/changelog"><b>Claude Code changelog</b><small>2.1.247 日期与相关版本差异</small></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap"><span>PLAN-01　documented　Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></div>
+  </footer>
+</body>
+</html>

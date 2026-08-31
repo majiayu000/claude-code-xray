@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-ADM-AUTH-MATRIX">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>订阅、Console 与第三方 Provider 可用性矩阵</title>
+  <style>
+    :root {
+      --night: #081b26;
+      --night-2: #102c38;
+      --paper: #f1ead9;
+      --ink: #13242b;
+      --line: #31505b;
+      --signal: #ff5c35;
+      --lime: #c7ff5e;
+      --sky: #7cd8f2;
+      --muted: #a9bbc1;
+      --serif: "Iowan Old Style", "Baskerville", "Songti SC", "STSong", serif;
+      --sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SFMono-Regular", "Menlo", "Noto Sans Mono CJK SC", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--night); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.72;
+    }
+    a { color: inherit; text-underline-offset: .22em; text-decoration-thickness: 1px; }
+    a:hover { text-decoration-thickness: 2px; }
+    a:focus-visible, summary:focus-visible, .table-shell:focus-visible {
+      outline: 3px solid var(--ink);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 6px #f8f3e8;
+    }
+    .topline a:focus-visible,
+    .dark a:focus-visible,
+    .sources a:focus-visible,
+    footer a:focus-visible {
+      outline-color: var(--lime);
+      box-shadow: 0 0 0 6px var(--night);
+    }
+    code {
+      padding: .12em .35em;
+      color: #eaffbf;
+      background: #173541;
+      font: .86em/1.4 var(--mono);
+      overflow-wrap: anywhere;
+    }
+    .wrap { width: min(1320px, calc(100% - 48px)); margin-inline: auto; }
+    .topline {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      color: #f8f3e8;
+      background: rgba(8, 27, 38, .96);
+      border-bottom: 1px solid #47636d;
+      backdrop-filter: blur(12px);
+    }
+    .topline .wrap {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      font: 700 11px/1.2 var(--mono);
+      letter-spacing: .08em;
+    }
+    .topline nav { display: flex; flex-wrap: wrap; gap: 18px; }
+    .topline a { color: #f8f3e8; }
+    .live { color: var(--lime); }
+
+    .hero {
+      min-height: min(880px, calc(100vh - 46px));
+      color: #f8f3e8;
+      background:
+        linear-gradient(90deg, rgba(124, 216, 242, .08) 1px, transparent 1px),
+        linear-gradient(rgba(124, 216, 242, .08) 1px, transparent 1px),
+        var(--night);
+      background-size: 42px 42px;
+      border-bottom: 8px solid var(--signal);
+    }
+    .hero-grid {
+      min-height: inherit;
+      display: grid;
+      grid-template-columns: minmax(0, .92fr) minmax(500px, 1.08fr);
+      gap: clamp(48px, 7vw, 110px);
+      align-items: center;
+      padding-block: clamp(70px, 10vw, 132px);
+    }
+    .eyebrow { margin: 0 0 20px; color: var(--lime); font: 800 12px/1 var(--mono); letter-spacing: .13em; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 750px;
+      margin-bottom: 26px;
+      font: 700 clamp(48px, 6.6vw, 96px)/.98 var(--serif);
+      letter-spacing: -.06em;
+    }
+    .hero-answer { max-width: 760px; margin-bottom: 30px; color: #dce8e8; font-size: clamp(18px, 1.7vw, 24px); }
+    .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { padding: 7px 9px; border: 1px solid #68808a; font: 700 11px/1.2 var(--mono); }
+    .chip.status { color: var(--night); background: var(--lime); border-color: var(--lime); }
+
+    .route-board { position: relative; padding: 18px; border: 1px solid #64808a; background: #0c2530; box-shadow: 18px 18px 0 #06151d; }
+    .route-board::before { content: ""; position: absolute; inset: 8px; border: 1px dashed #35535d; pointer-events: none; }
+    .board-head { position: relative; display: flex; justify-content: space-between; gap: 20px; padding: 16px 18px 22px; color: var(--sky); font: 700 11px/1.2 var(--mono); }
+    .route { position: relative; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 12px; min-height: 62px; padding: 9px 17px; border-top: 1px solid #35535d; }
+    .route:last-child { border-bottom: 1px solid #35535d; }
+    .route b { font: 700 15px/1.25 var(--sans); }
+    .route small { color: var(--muted); font: 10px/1.25 var(--mono); text-align: right; }
+    .route-no { display: grid; place-items: center; width: 26px; height: 26px; color: var(--night); background: var(--signal); font: 800 10px/1 var(--mono); }
+    .route:nth-child(3) .route-no, .route:nth-child(5) .route-no { background: var(--lime); }
+    .route:nth-child(4) .route-no, .route:nth-child(6) .route-no { background: var(--sky); }
+    .board-foot { position: relative; margin: 17px; padding: 12px 14px; color: var(--night); background: #f2d59f; font: 800 12px/1.4 var(--mono); }
+
+    .legend-bar { color: #f8f3e8; background: #102c38; }
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .legend div { padding: 18px 22px; border-inline-start: 1px solid #3a5964; }
+    .legend div:last-child { border-inline-end: 1px solid #3a5964; }
+    .legend b { display: block; color: var(--lime); font: 800 16px/1 var(--mono); }
+    .legend div:nth-child(2) b { color: var(--sky); }
+    .legend div:nth-child(3) b { color: #ffd071; }
+    .legend div:nth-child(4) b { color: #ff8061; }
+    .legend span { color: #cbd7d9; font-size: 13px; }
+
+    .section { padding-block: clamp(74px, 9vw, 126px); border-bottom: 1px solid #b5ad9c; }
+    .section-head { display: grid; grid-template-columns: 96px minmax(0, 820px); gap: 24px; margin-bottom: 46px; }
+    .section-no { padding-top: 12px; font: 800 11px/1 var(--mono); letter-spacing: .12em; }
+    h2 { margin-bottom: 13px; font: 700 clamp(36px, 4.8vw, 66px)/1.03 var(--serif); letter-spacing: -.045em; }
+    .intro { max-width: 800px; margin-bottom: 0; font-size: 18px; }
+
+    .term-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--ink); border: 1px solid var(--ink); }
+    .term { min-height: 250px; padding: 25px; background: var(--paper); }
+    .term i { color: #5a6b70; font: normal 800 10px/1 var(--mono); }
+    .term h3 { margin: 62px 0 11px; font: 700 24px/1.15 var(--serif); }
+    .term p { margin-bottom: 0; font-size: 14px; }
+
+    .sequence { display: grid; grid-template-columns: repeat(5, 1fr); counter-reset: seq; border-block: 1px solid var(--ink); }
+    .seq-step { counter-increment: seq; padding: 23px 20px 28px; border-right: 1px solid #827e72; }
+    .seq-step:last-child { border-right: 0; }
+    .seq-step::before { content: "0" counter(seq); display: block; width: fit-content; margin-bottom: 52px; padding: 6px 8px; color: var(--paper); background: var(--ink); font: 800 10px/1 var(--mono); }
+    .seq-step:nth-child(4)::before { color: var(--night); background: var(--signal); }
+    .seq-step:nth-child(5)::before { color: var(--night); background: var(--lime); }
+    .seq-step h3 { font: 700 20px/1.2 var(--serif); }
+    .seq-step p { margin: 0; font-size: 14px; }
+    .ev { color: #586b71; font: 800 10px/1 var(--mono); letter-spacing: .06em; }
+
+    .dark { color: #f8f3e8; background: var(--night); border-bottom-color: #45616a; }
+    .dark .intro { color: #c7d5d8; }
+    .flow-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .flow-card { position: relative; min-height: 255px; padding: 24px; border: 1px solid #53717c; background: #0f2a35; }
+    .flow-card::after { content: "→"; position: absolute; top: 50%; right: -22px; z-index: 2; color: var(--lime); font: 24px/1 var(--mono); }
+    .flow-card:last-child::after { display: none; }
+    .flow-card strong { display: block; margin-bottom: 55px; color: var(--sky); font: 800 11px/1 var(--mono); }
+    .flow-card h3 { margin-bottom: 12px; font: 700 24px/1.15 var(--serif); }
+    .flow-card p { margin: 0; color: #d1dddf; font-size: 14px; }
+    .boundary { margin-top: 24px; padding: 20px 23px; border-left: 7px solid var(--signal); background: #173641; }
+
+    .table-shell { overflow-x: auto; border: 1px solid var(--ink); box-shadow: 10px 10px 0 #c8bea9; }
+    table { width: 100%; min-width: 1260px; border-collapse: collapse; background: #f6f0e2; }
+    th, td { padding: 17px 16px; text-align: left; vertical-align: top; border-right: 1px solid #8d8a7d; border-bottom: 1px solid #8d8a7d; }
+    th { color: #f8f3e8; background: var(--night); font: 800 11px/1.4 var(--mono); letter-spacing: .04em; }
+    td { font-size: 13px; }
+    td:first-child, th:first-child { position: sticky; left: 0; z-index: 2; min-width: 170px; }
+    td:first-child { background: #f2d59f; font-weight: 800; }
+    th:first-child { z-index: 3; }
+    tr:last-child td { border-bottom: 0; }
+    td:last-child, th:last-child { border-right: 0; }
+    .yes { color: #0f543f; font-weight: 800; }
+    .no { color: #9a321e; font-weight: 800; }
+    .matrix-note { margin: 25px 0 0; max-width: 970px; }
+
+    .limit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .limit-card { min-height: 225px; padding: 24px; border: 1px solid var(--ink); background: #f7f1e4; }
+    .limit-card:nth-child(2) { border-top: 8px solid var(--signal); }
+    .limit-card:nth-child(3) { border-top: 8px solid var(--sky); }
+    .limit-card:nth-child(4) { border-top: 8px solid var(--lime); }
+    .limit-card:nth-child(5) { border-top: 8px solid #f0b83d; }
+    .limit-card:nth-child(6) { border-top: 8px solid #496a75; }
+    .limit-card h3 { margin-bottom: 10px; font: 700 23px/1.2 var(--serif); }
+    .limit-card p { margin-bottom: 0; font-size: 14px; }
+
+    .experiment { display: grid; grid-template-columns: .82fr 1.18fr; gap: 48px; align-items: start; }
+    .status-box { padding: 28px; color: #f8f3e8; background: var(--night); box-shadow: 12px 12px 0 var(--signal); }
+    .status-box b { display: block; margin-bottom: 18px; color: var(--lime); font: 800 clamp(40px, 6vw, 70px)/1 var(--mono); }
+    .status-box p { margin: 0; color: #d3dee0; }
+    .obs { border-top: 1px solid var(--ink); }
+    .obs article { display: grid; grid-template-columns: 50px 1fr; gap: 16px; padding: 19px 0; border-bottom: 1px solid var(--ink); }
+    .obs span { width: 34px; height: 34px; display: grid; place-items: center; color: var(--night); background: var(--sky); font: 800 11px/1 var(--mono); }
+    .obs article:last-child span { background: #f0b83d; }
+    .obs h3 { margin-bottom: 5px; font: 700 18px/1.25 var(--serif); }
+    .obs p { margin: 0; font-size: 14px; }
+
+    .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    details { border: 1px solid var(--ink); background: #f7f1e4; }
+    summary { cursor: pointer; padding: 20px 22px; list-style: none; font: 700 18px/1.3 var(--serif); }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; float: right; font-family: var(--mono); }
+    details[open] summary { border-bottom: 1px solid var(--ink); }
+    details[open] summary::after { content: "×"; }
+    details > div { padding: 20px 22px; }
+    details p:last-child { margin-bottom: 0; }
+
+    .unknown-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: #47616a; border: 1px solid #47616a; counter-reset: unk; }
+    .unknown-grid article { counter-increment: unk; min-height: 230px; padding: 23px; background: #0f2a35; }
+    .unknown-grid article::before { content: "U0" counter(unk); display: block; margin-bottom: 52px; color: var(--signal); font: 800 11px/1 var(--mono); }
+    .unknown-grid p { margin: 0; color: #d3dee0; font-size: 14px; }
+
+    .sources { color: #f8f3e8; background: #061720; border-bottom: 0; }
+    .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #3b5964; border: 1px solid #3b5964; }
+    .source-grid a { min-height: 150px; padding: 22px; background: #0b2530; text-decoration: none; }
+    .source-grid a:hover { background: #12343f; }
+    .source-grid b { display: block; margin-bottom: 13px; color: var(--lime); font: 800 11px/1 var(--mono); }
+    .source-grid span { color: #e4ebeb; font-size: 14px; }
+    .repro { margin-top: 38px; padding: 25px 28px; border: 1px solid #55737d; }
+    .repro h3 { margin-bottom: 13px; font: 700 25px/1.2 var(--serif); }
+    .repro ol { margin: 0; padding-left: 22px; }
+    .repro li + li { margin-top: 7px; }
+    footer { padding: 26px 0 42px; color: #b9c9cc; background: #061720; font-size: 13px; }
+    footer .wrap { display: flex; justify-content: space-between; gap: 20px; }
+    footer a { color: #f8f3e8; }
+
+    @media (max-width: 980px) {
+      .hero-grid { grid-template-columns: 1fr; min-height: auto; }
+      .route-board { max-width: 680px; }
+      .term-grid { grid-template-columns: 1fr 1fr; }
+      .sequence { grid-template-columns: 1fr; border-block: 0; }
+      .seq-step { display: grid; grid-template-columns: 58px 1fr; gap: 16px; border-right: 0; border-bottom: 1px solid #827e72; }
+      .seq-step::before { grid-row: span 2; margin: 0; }
+      .seq-step h3 { margin-bottom: 6px; }
+      .flow-grid { grid-template-columns: 1fr 1fr; }
+      .flow-card::after { display: none; }
+      .limit-grid { grid-template-columns: 1fr 1fr; }
+      .unknown-grid { grid-template-columns: 1fr 1fr; }
+      .source-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 620px) {
+      .wrap { width: min(100% - 28px, 1320px); }
+      .topline .wrap { padding-block: 10px; }
+      .topline nav a:not(:last-child) { display: none; }
+      .hero-grid { padding-block: 58px 72px; }
+      h1 { font-size: clamp(46px, 15vw, 66px); }
+      .route-board { padding: 10px; box-shadow: 9px 9px 0 #06151d; }
+      .route { grid-template-columns: 30px 1fr; }
+      .route small { grid-column: 2; text-align: left; }
+      .legend { grid-template-columns: 1fr 1fr; }
+      .section-head { grid-template-columns: 1fr; gap: 10px; }
+      .section-no { padding-top: 0; }
+      .term-grid, .flow-grid, .limit-grid, .experiment, .details-grid, .unknown-grid, .source-grid { grid-template-columns: 1fr; }
+      .term { min-height: 0; }
+      .term h3 { margin-top: 30px; }
+      .flow-card { min-height: 0; }
+      .flow-card strong { margin-bottom: 28px; }
+      .unknown-grid article { min-height: 0; }
+      .unknown-grid article::before { margin-bottom: 28px; }
+      footer .wrap { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：订阅、Console 与第三方 Provider 可用性矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-auth-provider-matrix/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-ADM-AUTH-MATRIX · 订阅、Console 与第三方 Provider 可用性矩阵">
+  <meta property="og:description" content="Claude Code X-Ray：订阅、Console 与第三方 Provider 可用性矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-auth-provider-matrix/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-ADM-AUTH-MATRIX · 订阅、Console 与第三方 Provider 可用性矩阵">
+  <meta name="twitter:description" content="Claude Code X-Ray：订阅、Console 与第三方 Provider 可用性矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-ADM-AUTH-MATRIX</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topline">
+    <div class="wrap">
+      <span><span class="live">●</span> COMP-ADM-AUTH-MATRIX</span>
+      <nav aria-label="本页导航">
+        <a href="#matrix">总矩阵</a>
+        <a href="#limits">停止点</a>
+        <a href="#sources">来源</a>
+        <a href="../index.html">返回总索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="page-title">
+      <div class="wrap hero-grid">
+        <div>
+          <p class="eyebrow">伴页 · 管理员选路矩阵</p>
+          <h1 id="page-title">入口把账单和模型门槛一起带走</h1>
+          <p class="hero-answer">Claude.ai 订阅、Console 和四类云路线都能承接 Claude Code，随后由各自的账号、组织、区域和模型部署继续放行。先确定费用落到哪里，再查那条路线有没有目标模型。</p>
+          <div class="meta" aria-label="页面元数据">
+            <span class="chip">COMP-ADM-AUTH-MATRIX</span>
+            <span class="chip status">当前状态 documented</span>
+            <span class="chip">Claude Code 2.1.247</span>
+            <span class="chip">基线 2026-08-27</span>
+          </div>
+        </div>
+        <div class="route-board" aria-label="六类可用路线概览">
+          <div class="board-head"><span>ROUTE BOARD</span><span>费用归属 / 模型门</span></div>
+          <div class="route"><span class="route-no">01</span><b>Claude 订阅</b><small>CLAUDE.AI / 组织席位</small></div>
+          <div class="route"><span class="route-no">02</span><b>Anthropic Console</b><small>API KEY / ANTHROPIC PAYG</small></div>
+          <div class="route"><span class="route-no">03</span><b>Amazon Bedrock</b><small>AWS / IAM / REGION</small></div>
+          <div class="route"><span class="route-no">04</span><b>Claude Platform on AWS</b><small>WORKSPACE / AWS MARKETPLACE</small></div>
+          <div class="route"><span class="route-no">05</span><b>Google Cloud</b><small>PROJECT / QUOTA / REGION</small></div>
+          <div class="route"><span class="route-no">06</span><b>Microsoft Foundry</b><small>DEPLOYMENT / RBAC / AZURE</small></div>
+          <div class="board-foot">同一项 Claude Code 功能，费用和模型名单仍由选中的路线解释。</div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="legend-bar" aria-label="证据图例">
+      <div class="wrap legend">
+        <div><b>O</b><span>官方契约</span></div>
+        <div><b>L</b><span>本机静态或帮助证据</span></div>
+        <div><b>R</b><span>本轮真实实验，本页缺失</span></div>
+        <div><b>I</b><span>研究者推断</span></div>
+      </div>
+    </aside>
+
+    <section class="section wrap" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head">
+        <span class="section-no">01 / TERMS</span>
+        <div><h2 id="terms-title">矩阵里有四条不同的线</h2><p class="intro">认证说明你凭什么发请求。计费说明谁收钱。模型门说明能调哪一个部署。组织门还能在启动前或请求处收窄选择。</p></div>
+      </div>
+      <div class="term-grid">
+        <article class="term"><i>ENTRY</i><h3>登录入口</h3><p>浏览器 OAuth、Console 邀请、第三方平台向导或云端环境变量把用户带到对应路线。</p></article>
+        <article class="term"><i>CREDENTIAL</i><h3>凭据形态</h3><p>订阅 OAuth、Anthropic key、AWS 与 GCP 凭据链、workspace key、Azure key 或 Entra token 各自归平台管理。</p></article>
+        <article class="term"><i>BILLING</i><h3>计费主体</h3><p>费用会落到 Claude 订阅组织、Anthropic Console 组织、AWS、GCP、Azure 或 AWS Marketplace。<span class="ev">O</span></p></article>
+        <article class="term"><i>MODEL GATE</i><h3>模型门</h3><p>账号默认只是起点。管理员 allowlist、云端启用、区域、配额和部署名继续决定可见结果。<span class="ev">O＋I</span></p></article>
+      </div>
+    </section>
+
+    <section class="section wrap" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head">
+        <span class="section-no">02 / SEQUENCE</span>
+        <div><h2 id="sequence-title">从选路到第一次可用</h2><p class="intro">这段只走管理员选型和可用性检查。多个凭据怎样竞争、登录怎样续期和切换怎样持久化，由 ADM-02 继续解释。</p></div>
+      </div>
+      <div class="sequence">
+        <article class="seq-step"><div><h3>管理员或个人选路线</h3><p>先定订阅、Console、AWS、GCP 或 Azure，费用归属随之确定。</p></div></article>
+        <article class="seq-step"><div><h3>平台准备身份</h3><p>邀请成员、分配角色，或准备云账号、项目与 workspace。</p></div></article>
+        <article class="seq-step"><div><h3>用户交出凭据</h3><p>OAuth、API key 或云 SDK 凭据链向所选平台证明身份。</p></div></article>
+        <article class="seq-step"><div><h3>模型门逐项检查</h3><p>组织策略、模型批准、区域、部署名、IAM、RBAC 与配额都可能挡住请求。</p></div></article>
+        <article class="seq-step"><div><h3>首个请求给出结果</h3><p>成功后开始计量。失败则停在登录、权限、模型或配额对应的位置。</p></div></article>
+      </div>
+    </section>
+
+    <section class="section dark" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">03 / FLOW</span>
+          <div><h2 id="flow-title">一条路线上的四个角色</h2><p class="intro">用户只在本机启动 Claude Code。身份提供者、模型提供者和付款组织可能属于同一家公司，也可能分在不同平台。</p></div>
+        </div>
+        <div class="flow-grid">
+          <article class="flow-card"><strong>USER</strong><h3>用户</h3><p>选择入口并提供被批准的身份。用户能看见错误，通常无权补组织席位、云部署或配额。</p></article>
+          <article class="flow-card"><strong>CLAUDE CODE</strong><h3>本机客户端</h3><p>按所选 provider 组织请求，并把模型名换成对应平台识别的 ID、推理配置或部署名。</p></article>
+          <article class="flow-card"><strong>PROVIDER</strong><h3>身份与模型平台</h3><p>Claude.ai、Anthropic API、AWS、GCP 或 Azure 核验凭据，并检查目标模型能否调用。</p></article>
+          <article class="flow-card"><strong>PAYER</strong><h3>付款组织</h3><p>订阅席位消耗包含额度或 credits，API 与云路线由所属账号按量结算。</p></article>
+        </div>
+        <div class="boundary"><span class="ev">O＋I</span> 同一个人可以同时属于多个组织。当前请求由哪份凭据获胜仍要回到 <a href="../20260827-adm-02-auth-source-selection/explainer.html">ADM-02 认证来源选择与凭据生效</a>。</div>
+      </div>
+    </section>
+
+    <section class="section wrap" id="matrix" data-xray-section="limits" aria-labelledby="matrix-title">
+      <div class="section-head">
+        <span class="section-no">04 / MATRIX</span>
+        <div><h2 id="matrix-title">六条路线放在一张表里</h2><p class="intro">表内写的是公开契约。实际模型列表仍要在获准账号里查看，页面没有替任何组织猜测当前权限。</p></div>
+      </div>
+      <div class="table-shell" tabindex="0" aria-label="订阅、Console 与第三方 provider 可用性矩阵，可横向滚动">
+        <table>
+          <thead><tr><th>路线</th><th>登录入口</th><th>凭据形态</th><th>费用落点</th><th>模型可用性继续看</th><th>组织与权限门</th><th>Claude 网页端</th></tr></thead>
+          <tbody>
+            <tr><td>Claude 订阅</td><td>Claude.ai 账号。个人用 Pro 或 Max，组织成员用 Team 或 Enterprise</td><td>订阅 OAuth</td><td>个人订阅或组织席位。不同计划可含用量池、usage credits 或按量规则</td><td>账号类型的运行默认、计划权限、组织默认和 allowlist</td><td>邀请、席位、SSO、域捕获和管理员启用项</td><td class="yes">可用</td></tr>
+            <tr><td>Anthropic Console</td><td>Console 邀请与登录</td><td>Anthropic API key</td><td>Console 组织按量</td><td>Anthropic API 已开放模型、组织限制和本机 allowlist</td><td>Claude Code role 只能建 Claude Code key，Developer role 可建各类 key</td><td class="no">不可用</td></tr>
+            <tr><td>Amazon Bedrock</td><td>第三方平台向导或手工环境配置</td><td>AWS SDK 默认链，或 Bedrock API key</td><td>AWS 账号按量</td><td>Bedrock 模型访问、区域、推理配置和 Claude Code 的 provider 默认</td><td>IAM 权限、账号启用与区域。缺默认模型时可在本次启动回退</td><td class="no">不可用</td></tr>
+            <tr><td>Claude Platform on AWS</td><td>AWS 关联 workspace 的手工配置</td><td>AWS SigV4 凭据链，或 workspace API key</td><td>AWS Marketplace</td><td>Anthropic API 同步模型、workspace 权限和固定的模型 ID</td><td>独立 AWS 关联 Anthropic 组织、workspace ID 与 IAM</td><td class="no">不可用</td></tr>
+            <tr><td>Google Cloud Agent Platform</td><td>第三方平台向导或手工环境配置</td><td>Application Default Credentials、服务账号文件或环境凭据</td><td>GCP 项目按量</td><td>项目内模型批准、区域、配额和 provider 默认</td><td>项目 IAM、Agent Platform API 与配额。缺默认模型时可在本次启动回退</td><td class="no">不可用</td></tr>
+            <tr><td>Microsoft Foundry</td><td>手工 provision 与环境配置</td><td>Foundry API key、Entra 默认链或 bearer token</td><td>Azure 订阅按量</td><td>资源中的实际部署名和 Claude Code 的 provider 默认</td><td>Azure RBAC 与模型部署。没有同类启动回退检查</td><td class="no">不可用</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="matrix-note"><span class="ev">O＋I</span> “不可用”只指用该行凭据不能取得要求 Claude.ai 登录的 Claude Code 网页端。官方给 Desktop 的第三方推理配置留有例外，本表没有把它扩成订阅权益。</p>
+
+      <div id="limits" class="limit-grid" style="margin-top:52px">
+        <article class="limit-card"><h3>订阅停在席位或额度</h3><p>账号要有可用计划。Team 与 Enterprise 还可能受席位类型、管理员开关和组织策略影响。</p></article>
+        <article class="limit-card"><h3>Console 停在邀请或 key</h3><p>成员先接受邀请，再由角色决定能创建哪类 key。费用进入 Console 组织。</p></article>
+        <article class="limit-card"><h3>Bedrock 停在模型与 IAM</h3><p>AWS 身份有效以后，模型启用、区域与调用权限仍要逐项成立。</p></article>
+        <article class="limit-card"><h3>Platform on AWS 停在 workspace</h3><p>Marketplace 订阅、AWS 关联组织、workspace ID 与凭据缺一项，请求都会失败。</p></article>
+        <article class="limit-card"><h3>Google Cloud 停在项目</h3><p>项目要启用 API，目标模型要获批，区域有配额，当前身份还要具备 IAM 权限。</p></article>
+        <article class="limit-card"><h3>Foundry 停在部署</h3><p>Azure 身份过关后仍需实际部署名和 RBAC。缺省模型不可用时会报错。</p></article>
+      </div>
+    </section>
+
+    <section class="section wrap" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head">
+        <span class="section-no">05 / EXPERIMENT</span>
+        <div><h2 id="experiment-title">本页停在 documented</h2><p class="intro">官方契约已经能支撑比较。真实账号实验会触发登录、云权限或付费模型请求，本轮没有授权，当前 shell 也找不到可调用的 claude 命令。</p></div>
+      </div>
+      <div class="experiment">
+        <aside class="status-box"><b>O＋L</b><p>指定的 ADM-02 页面元数据和官方契约已经核对。没有 R，页面不写 verified。</p></aside>
+        <div class="obs">
+          <article><span>L</span><div><h3>CLI 不在当前 PATH</h3><p><code>claude --version</code> 与 <code>claude --help</code> 都返回 command not found。这只说明当前研究 shell 无法调用它。</p></div></article>
+          <article><span>L</span><div><h3>主页面边界一致</h3><p>指定的只读 ADM-02 页面写明 2.1.247 和 documented，并把凭据竞争与登录切换留在自己的主链。</p></div></article>
+          <article><span>R</span><div><h3>远端路径没有运行</h3><p>没有登录、查询状态、创建 key、读取私人配置或发出模型请求，也没有产生费用。</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head">
+        <span class="section-no">06 / DETAILS</span>
+        <div><h2 id="implementation-title">会改变选型的细节</h2><p class="intro">展开项都来自官方契约。它们解释矩阵里的例外，不延伸认证状态机。</p></div>
+      </div>
+      <div class="details-grid">
+        <details><summary>订阅与 Console 分开计量</summary><div><p>Claude 订阅凭据按计划或组织规则计量。Console API key 按量计费，付费订阅不会自动替 Console API 账单付款。</p><p class="ev">O / Authentication 与 Deployment overview</p></div></details>
+        <details><summary>组织限制只覆盖能核验的身份</summary><div><p>Claude.ai 登录可核验组织成员身份。环境 key 无法核验时会在启动处被挡住，云 provider 则交给云 IAM。</p><p class="ev">O / Authentication</p></div></details>
+        <details><summary>模型别名会随 provider 解释</summary><div><p>同一个别名在不同 provider 上会映射成不同 ID。官方建议团队部署固定版本，避免升级后集体移动。</p><p class="ev">O / Model configuration</p></div></details>
+        <details><summary>第三方 provider 的回退并不一致</summary><div><p>Bedrock 与 Google Cloud 会在内置默认不可用时提示并做本次启动回退。Foundry 没有同类启动检查。</p><p class="ev">O / Model configuration</p></div></details>
+        <details><summary>Claude Platform on AWS 是独立组织</summary><div><p>AWS Marketplace 会建立一个 AWS 关联 Anthropic 组织。既有 Console 组织的 key 不能直接搬过去使用。</p><p class="ev">O / Claude Platform on AWS</p></div></details>
+        <details><summary>网页端跟着订阅凭据</summary><div><p>Claude Code on the web 要求 Claude.ai 登录。Console key 和第三方 provider 不会把这项订阅能力带过去。</p><p class="ev">O / Feature availability</p></div></details>
+        <details><summary>2.1.247 位于两次模型检查改动之后</summary><div><p>2.1.219 改过若干 provider 的默认模型，2.1.211 改过显式选择模型时的启动检查。本文固定 2.1.247，也排除官方注明 2.1.248 才开放的三方 provider 能力。</p><p class="ev">O / Model configuration 与 Feature availability</p></div></details>
+      </div>
+    </section>
+
+    <section class="section dark" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">07 / UNKNOWNS</span>
+          <div><h2 id="unknowns-title">这些格子仍然空着</h2><p class="intro">它们都需要真实账号、合同或本机基线二进制。官方总表无法替某个组织回答。</p></div>
+        </div>
+        <div class="unknown-grid">
+          <article><p>本机固定安装文件的位置和 2.1.247 帮助输出未知。</p></article>
+          <article><p>任一私人账号此刻实际开放的模型列表未知。</p></article>
+          <article><p>Team 与 Enterprise 的具体合同、席位和 credits 配置未知。</p></article>
+          <article><p>云账号的区域、IAM、RBAC、配额与部署状态未知。</p></article>
+          <article><p>2.1.247 之后 provider 默认模型怎样继续变化，需要按版本重查。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section sources" id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="section-no">08 / SOURCES</span>
+          <div><h2 id="sources-title">一手来源与复现</h2><p class="intro">链接直达 Anthropic 官方文档。逐条事实身份、章节位置与实验限制见同目录 evidence.md。</p></div>
+        </div>
+        <div class="source-grid">
+          <a href="https://code.claude.com/docs/en/authentication"><b>AUTHENTICATION</b><span>证明登录入口、Console 角色与组织登录限制</span></a>
+          <a href="https://code.claude.com/docs/en/third-party-integrations"><b>DEPLOYMENT OVERVIEW</b><span>证明计费主体、部署路线和区域差异</span></a>
+          <a href="https://code.claude.com/docs/en/feature-availability"><b>FEATURE AVAILABILITY</b><span>证明认证路线与订阅专属能力边界</span></a>
+          <a href="https://code.claude.com/docs/en/model-config"><b>MODEL CONFIGURATION</b><span>证明模型默认、allowlist、固定版本和回退</span></a>
+          <a href="https://code.claude.com/docs/en/amazon-bedrock"><b>AMAZON BEDROCK</b><span>证明 AWS 凭据、IAM、模型启用和区域门</span></a>
+          <a href="https://code.claude.com/docs/en/claude-platform-on-aws"><b>CLAUDE PLATFORM ON AWS</b><span>证明 Marketplace、workspace 和独立组织</span></a>
+          <a href="https://code.claude.com/docs/en/google-vertex-ai"><b>GOOGLE CLOUD</b><span>证明项目、模型批准、区域和配额门</span></a>
+          <a href="https://code.claude.com/docs/en/microsoft-foundry"><b>MICROSOFT FOUNDRY</b><span>证明凭据、部署名和 RBAC 门</span></a>
+        </div>
+        <div class="repro">
+          <h3>安全复现办法</h3>
+          <ol>
+            <li>固定 Claude Code 2.1.247，记录二进制散列和研究日期。</li>
+            <li>在获准的隔离环境里一次只配置一种入口，并给 Console 或云账号设置费用上限。</li>
+            <li>匿名记录 provider 类别和可见模型族，不保留邮箱、组织 ID、workspace ID、资源名或 token。</li>
+            <li>发出一条最小请求，记录成功或失败类别，再撤销临时凭据并核对账单归属。</li>
+            <li>取得 O、L、R 三层互证后，再评估 verified。</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap"><span>COMP-ADM-AUTH-MATRIX / documented / Claude Code 2.1.247</span><span><a href="../20260827-adm-02-auth-source-selection/explainer.html">回到 ADM-02</a>　<a href="../index.html">返回总索引</a></span></div>
+  </footer>
+</body>
+</html>

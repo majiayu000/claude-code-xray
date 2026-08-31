@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-ADM-USAGE-CONSUMERS">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>成本、团队分析与数据政策矩阵</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #efe9dc;
+      --paper-deep: #e4dccb;
+      --ink: #17201d;
+      --muted: #5d655e;
+      --rule: #8e8b7d;
+      --heavy: #24302b;
+      --cost: #b9492f;
+      --team: #176b69;
+      --policy: #8a6114;
+      --dark: #17201d;
+      --dark-ink: #f4eedf;
+      --max: 1220px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(23,32,29,.045) 31px 32px),
+        var(--paper);
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      line-height: 1.72;
+    }
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: .24em; }
+    a:hover { color: var(--cost); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--team);
+      outline-offset: 4px;
+    }
+    code {
+      font-family: "SFMono-Regular", "Cascadia Mono", monospace;
+      font-size: .88em;
+      font-weight: 700;
+    }
+    .masthead {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      color: var(--dark-ink);
+      background: rgba(23,32,29,.96);
+      border-bottom: 1px solid #000;
+    }
+    .masthead-inner {
+      width: min(calc(100% - 32px), var(--max));
+      min-height: 56px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: "Avenir Next Condensed", "DIN Condensed", sans-serif;
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    .mark::before {
+      content: "";
+      width: 22px;
+      height: 13px;
+      background: linear-gradient(90deg, var(--cost) 0 33%, var(--team) 33% 66%, var(--policy) 66%);
+    }
+    .nav { display: flex; gap: 18px; font-size: .78rem; }
+    .nav a { color: #d7d2c6; text-decoration: none; }
+    main { overflow: hidden; }
+    section {
+      width: min(calc(100% - 32px), var(--max));
+      margin: auto;
+      padding: 84px 0;
+      border-bottom: 1px solid var(--heavy);
+    }
+    .kicker {
+      margin: 0 0 15px;
+      font-family: "Avenir Next Condensed", "DIN Condensed", sans-serif;
+      font-size: .75rem;
+      font-weight: 800;
+      letter-spacing: .17em;
+      text-transform: uppercase;
+    }
+    .section-no { color: var(--cost); margin-right: .7em; }
+    h1, h2, h3 { margin-top: 0; line-height: 1.08; }
+    h1 {
+      margin-bottom: 26px;
+      font-size: clamp(3.4rem, 8vw, 7.7rem);
+      letter-spacing: -.065em;
+      max-width: 900px;
+    }
+    h2 {
+      margin-bottom: 24px;
+      max-width: 820px;
+      font-size: clamp(2.2rem, 5vw, 4.9rem);
+      letter-spacing: -.045em;
+    }
+    h3 { margin-bottom: 12px; font-size: 1.15rem; }
+    p { margin: 0 0 1.05em; }
+    .hero {
+      min-height: calc(100vh - 56px);
+      display: grid;
+      align-content: center;
+      grid-template-columns: minmax(0, 1.6fr) minmax(280px, .6fr);
+      gap: clamp(38px, 7vw, 100px);
+      position: relative;
+    }
+    .hero::before {
+      content: "usage / cost / team / policy";
+      position: absolute;
+      right: -40px;
+      top: 55px;
+      color: rgba(23,32,29,.08);
+      font-family: "Avenir Next Condensed", "DIN Condensed", sans-serif;
+      font-size: clamp(2rem, 5vw, 5.5rem);
+      font-weight: 900;
+      letter-spacing: -.04em;
+      writing-mode: vertical-rl;
+      pointer-events: none;
+    }
+    .lede {
+      max-width: 790px;
+      font-size: clamp(1.12rem, 2vw, 1.42rem);
+      line-height: 1.72;
+    }
+    .hero-aside {
+      align-self: end;
+      position: relative;
+      z-index: 1;
+    }
+    .event-ticket {
+      padding: 24px;
+      color: var(--dark-ink);
+      background: var(--dark);
+      box-shadow: 13px 13px 0 var(--team);
+      transform: rotate(1deg);
+    }
+    .event-ticket b { color: #f0c869; }
+    .event-ticket p:last-child { margin-bottom: 0; }
+    .status-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0 0; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 10px;
+      border: 1px solid var(--heavy);
+      font-family: "SFMono-Regular", monospace;
+      font-size: .74rem;
+      background: rgba(255,255,255,.18);
+    }
+    .tag.state { color: #fff; background: var(--cost); border-color: var(--cost); }
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: 34px;
+      border: 1px solid var(--heavy);
+      background: var(--heavy);
+      gap: 1px;
+    }
+    .legend div { padding: 15px; background: var(--paper); }
+    .legend b { display: block; font: 900 1rem/1 "SFMono-Regular", monospace; }
+    .legend span { color: var(--muted); font-size: .78rem; }
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(300px, .7fr);
+      gap: clamp(30px, 6vw, 80px);
+      align-items: start;
+    }
+    .terms-grid { display: grid; grid-template-columns: repeat(2, 1fr); border: 1px solid var(--heavy); }
+    .term { min-height: 190px; padding: 24px; border: 1px solid var(--heavy); margin: -1px 0 0 -1px; }
+    .term b { display: block; margin-bottom: 14px; font-family: "Avenir Next Condensed", sans-serif; font-size: .74rem; letter-spacing: .13em; }
+    .term p { margin-bottom: 0; }
+    .margin-note { padding: 24px 0 24px 24px; border-left: 7px solid var(--policy); }
+    .margin-note p:last-child { margin-bottom: 0; }
+    .sequence-shell {
+      color: var(--dark-ink);
+      background: var(--dark);
+      padding: clamp(24px, 5vw, 56px);
+      box-shadow: 16px 16px 0 rgba(185,73,47,.32);
+    }
+    .sequence-shell .kicker, .sequence-shell .section-no { color: #f0c869; }
+    .sequence-shell h2 { color: #fff9eb; }
+    .timeline { display: grid; grid-template-columns: repeat(6, 1fr); margin-top: 42px; }
+    .step { position: relative; padding: 48px 18px 0 0; border-top: 1px solid #798079; }
+    .step::before {
+      content: attr(data-step);
+      position: absolute;
+      top: -17px;
+      left: 0;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      color: var(--dark);
+      background: #f0c869;
+      border-radius: 50%;
+      font: 900 .8rem/1 "SFMono-Regular", monospace;
+    }
+    .step h3 { font-size: .98rem; }
+    .step p { color: #bec5bc; font-size: .82rem; line-height: 1.55; }
+    .truth-strip {
+      margin-top: 34px;
+      padding: 18px 20px;
+      color: var(--ink);
+      background: #f0c869;
+      font-weight: 700;
+    }
+    .matrix-wrap { overflow-x: auto; border: 1px solid var(--heavy); }
+    .matrix { width: 100%; min-width: 830px; border-collapse: collapse; background: rgba(239,233,220,.86); }
+    .matrix th, .matrix td { padding: 18px 17px; text-align: left; vertical-align: top; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+    .matrix th:last-child, .matrix td:last-child { border-right: 0; }
+    .matrix tr:last-child td { border-bottom: 0; }
+    .matrix thead th { color: #fff; font-family: "Avenir Next Condensed", sans-serif; font-size: .83rem; letter-spacing: .08em; }
+    .matrix thead th:first-child { color: var(--dark-ink); background: var(--dark); }
+    .matrix thead th.cost { background: var(--cost); }
+    .matrix thead th.team { background: var(--team); }
+    .matrix thead th.policy { background: var(--policy); }
+    .matrix tbody td:first-child { width: 16%; font-weight: 800; background: var(--paper-deep); }
+    .matrix tbody td { font-size: .91rem; }
+    .matrix small { display: block; margin-top: 7px; color: var(--muted); line-height: 1.5; }
+    .flow-grid { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 14px; align-items: stretch; margin-top: 36px; }
+    .consumer { padding: 24px; border: 2px solid var(--heavy); background: rgba(255,255,255,.15); }
+    .consumer.cost { border-top: 9px solid var(--cost); }
+    .consumer.team { border-top: 9px solid var(--team); }
+    .consumer.policy { border-top: 9px solid var(--policy); }
+    .arrow { display: grid; place-items: center; color: var(--cost); font-size: 2rem; }
+    .callout { margin-top: 28px; padding: 22px 26px; color: #fff; background: var(--cost); }
+    .callout p:last-child { margin-bottom: 0; }
+    .limits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border: 1px solid var(--heavy); background: var(--heavy); }
+    .limit { padding: 25px; background: var(--paper); }
+    .limit:nth-child(2) { background: var(--paper-deep); }
+    .limit b { display: inline-block; margin-bottom: 12px; font-family: "SFMono-Regular", monospace; color: var(--cost); }
+    .limit p:last-child { margin-bottom: 0; }
+    .stop-list { margin: 28px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--heavy); }
+    .stop-list li { display: grid; grid-template-columns: 90px 1fr; gap: 20px; padding: 17px 0; border-bottom: 1px solid var(--rule); }
+    .stop-list b { color: var(--team); font-family: "Avenir Next Condensed", sans-serif; }
+    .terminal {
+      color: #dfe5dc;
+      background: #101613;
+      border: 1px solid #000;
+      box-shadow: 11px 11px 0 rgba(23,107,105,.3);
+    }
+    .terminal-head { padding: 10px 16px; color: #9da89f; border-bottom: 1px solid #3d4641; font: .75rem/1.5 "SFMono-Regular", monospace; }
+    .terminal pre { margin: 0; padding: 22px; overflow-x: auto; line-height: 1.7; }
+    .checks { margin: 0; padding: 0; list-style: none; }
+    .checks li { position: relative; padding: 14px 0 14px 32px; border-bottom: 1px solid var(--rule); }
+    .checks li::before { content: "×"; position: absolute; left: 0; top: 11px; color: var(--cost); font: 900 1.2rem/1 sans-serif; }
+    .evidence-band { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--heavy); }
+    .evidence-band article { min-height: 190px; padding: 23px; border-right: 1px solid var(--heavy); }
+    .evidence-band article:last-child { border-right: 0; }
+    .evidence-band strong { display: block; margin-bottom: 16px; font: 900 1.6rem/1 "SFMono-Regular", monospace; }
+    .evidence-band p { color: var(--muted); font-size: .88rem; }
+    .version-note { margin-top: 30px; padding: 22px; border: 2px solid var(--heavy); background: rgba(255,255,255,.18); }
+    details { border-top: 1px solid var(--heavy); }
+    details:last-of-type { border-bottom: 1px solid var(--heavy); }
+    summary { cursor: pointer; padding: 18px 4px; font-weight: 800; }
+    details p { max-width: 860px; color: var(--muted); padding: 0 4px 18px; }
+    .source-list { margin: 28px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); border: 1px solid var(--heavy); }
+    .source-list li { border: 1px solid var(--heavy); margin: -1px 0 0 -1px; }
+    .source-list a { display: block; min-height: 100%; padding: 21px; text-decoration: none; }
+    .source-list a:hover { color: #fff; background: var(--team); }
+    .repro { margin-top: 32px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 26px; }
+    .repro article { padding: 24px; border-top: 8px solid var(--policy); background: rgba(255,255,255,.15); }
+    footer {
+      width: min(calc(100% - 32px), var(--max));
+      margin: auto;
+      padding: 35px 0 55px;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+    @media (max-width: 900px) {
+      .nav { display: none; }
+      .hero, .split { grid-template-columns: 1fr; }
+      .hero { min-height: auto; padding-top: 105px; }
+      .hero-aside { max-width: 560px; }
+      .timeline { grid-template-columns: repeat(2, 1fr); row-gap: 42px; }
+      .flow-grid { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); min-height: 25px; }
+      .limits-grid { grid-template-columns: 1fr; }
+      .evidence-band { grid-template-columns: repeat(2, 1fr); }
+      .evidence-band article { border-bottom: 1px solid var(--heavy); }
+      .source-list { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      section { width: min(calc(100% - 24px), var(--max)); padding: 60px 0; }
+      .masthead-inner { width: calc(100% - 24px); }
+      .mark { letter-spacing: .08em; }
+      .hero::before { display: none; }
+      h1 { font-size: clamp(3rem, 15vw, 4.8rem); }
+      h2 { font-size: 2.45rem; }
+      .legend, .terms-grid, .timeline, .evidence-band, .repro { grid-template-columns: 1fr; }
+      .event-ticket { transform: none; box-shadow: 7px 7px 0 var(--team); }
+      .sequence-shell { padding: 28px 19px; box-shadow: 8px 8px 0 rgba(185,73,47,.32); }
+      .step { padding-right: 0; }
+      .stop-list li { grid-template-columns: 1fr; gap: 3px; }
+      .evidence-band article { border-right: 0; }
+      footer { width: calc(100% - 24px); flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print {
+      .masthead { position: static; }
+      body { background: #fff; }
+      section { break-inside: avoid; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：成本、团队分析与数据政策矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-usage-consumers-data-policy/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-ADM-USAGE-CONSUMERS · 成本、团队分析与数据政策矩阵">
+  <meta property="og:description" content="Claude Code X-Ray：成本、团队分析与数据政策矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-usage-consumers-data-policy/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-ADM-USAGE-CONSUMERS · 成本、团队分析与数据政策矩阵">
+  <meta name="twitter:description" content="Claude Code X-Ray：成本、团队分析与数据政策矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-ADM-USAGE-CONSUMERS</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="mark">XRY companion matrix</div>
+      <nav class="nav" aria-label="页内导航">
+        <a href="#matrix">消费矩阵</a>
+        <a href="#limits">政策边界</a>
+        <a href="#unknowns">未知项</a>
+        <a href="#sources">来源</a>
+      </nav>
+      <a href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <p class="kicker"><span class="section-no">伴页</span>成本、团队分析与数据政策矩阵</p>
+        <h1 id="answer-title">一条动作，三本账</h1>
+        <p class="lede">Claude Code 的一次使用，会在成本侧变成 token 与金额，在团队侧变成按日汇总的会话、接受率和代码贡献，在数据治理侧继续受账户类型、组织路由与功能范围限制。三处口径不同，保留期也不会自动相同。官方资料没有把它们描述成共用一份物理 event。</p>
+        <div class="status-row" aria-label="页面状态">
+          <span class="tag state">当前状态 documented</span>
+          <span class="tag">Claude Code 2.1.247</span>
+          <span class="tag">COMP-ADM-USAGE-CONSUMERS</span>
+          <span class="tag">基线 2026-08-27</span>
+        </div>
+        <div class="legend" aria-label="证据图例">
+          <div><b>O</b><span>官方契约</span></div>
+          <div><b>L</b><span>本机静态或帮助</span></div>
+          <div><b>R</b><span>真实实验，本页缺失</span></div>
+          <div><b>I</b><span>研究者推断</span></div>
+        </div>
+      </div>
+      <aside class="hero-aside">
+        <div class="event-ticket">
+          <p><b>先守住一个分界</b></p>
+          <p>OTel 事件如何产生、含有哪些字段、怎样导出，由 ADM-06 负责。本页从消费端接手，比较估算、日聚合和政策约束。</p>
+          <p><a href="../20260827-adm-06-otel-usage-events/explainer.html">回到 ADM-06 的事件与导出链</a></p>
+        </div>
+      </aside>
+    </section>
+
+    <section data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="split">
+        <div>
+          <p class="kicker"><span class="section-no">01</span>Terms</p>
+          <h2 id="terms-title">先分清记录的口径</h2>
+          <div class="terms-grid">
+            <article class="term"><b>USAGE EVENT</b><h3>使用动作</h3><p>一次 session、prompt、模型请求或工具决定。它在不同消费面可以形成多个派生数值。</p></article>
+            <article class="term"><b>ESTIMATE</b><h3>成本估算</h3><p>token 乘价格得到的参考金额。`/usage` 与 OTel cost metric 都不能替代 provider 账单。<b>O</b></p></article>
+            <article class="term"><b>DAILY AGGREGATE</b><h3>日聚合</h3><p>Analytics 把同一 UTC 日内的会话、工具接受与 token 按用户或 API key 汇总。<b>O</b></p></article>
+            <article class="term"><b>RETENTION SCOPE</b><h3>保留范围</h3><p>某条政策覆盖哪些产品、数据与组织。ZDR 只覆盖已路由到合格组织的 inference。<b>O</b></p></article>
+          </div>
+        </div>
+        <aside class="margin-note">
+          <h3>本页所说的“同一条”</h3>
+          <p>它指同一用户动作的业务含义。官方没有公开一条跨 OTel、Analytics 和账单系统通用的 event ID。把三处强行 join 成一条物理记录属于推断，本页不这样画。</p>
+          <p><b>I</b> 可靠做法是分别核对日期、用户身份、provider 和模型，再承认延迟与估算误差。</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="sequence-shell">
+        <p class="kicker"><span class="section-no">02</span>Sequence</p>
+        <h2 id="sequence-title">先计一次使用，随后各自结账</h2>
+        <p>下面只写官方能够支持的先后。中间没有画一条共用的远端事件总线。</p>
+        <div class="timeline">
+          <article class="step" data-step="1"><h3>用户开始动作</h3><p>会话、prompt、模型请求和工具决定按各自生成点发生。</p></article>
+          <article class="step" data-step="2"><h3>请求完成</h3><p>token、模型和身份口径可用于会话估算或后续汇总。</p></article>
+          <article class="step" data-step="3"><h3>本地估算</h3><p>`/usage` 根据 token 与价格表计算。数值仍是参考。<b>O</b></p></article>
+          <article class="step" data-step="4"><h3>组织自建观测</h3><p>显式配置 OTel 后，客户 backend 可按用户、团队与模型归因。<b>O</b></p></article>
+          <article class="step" data-step="5"><h3>Analytics 聚合</h3><p>日会话、接受率、代码行与成本按产品契约刷新。<b>O</b></p></article>
+          <article class="step" data-step="6"><h3>政策继续生效</h3><p>保留、训练、ZDR 与第三方例外跟随账户和数据面。<b>O</b></p></article>
+        </div>
+        <div class="truth-strip">费用停止累计，不代表 Analytics 立即刷新；ZDR 清掉 inference 留存，也不会清掉 Analytics 的 productivity metadata。</div>
+      </div>
+    </section>
+
+    <section id="matrix" data-xray-section="flow" aria-labelledby="flow-title">
+      <p class="kicker"><span class="section-no">03</span>Consumer matrix</p>
+      <h2 id="flow-title">三种消费面，六个判断口</h2>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead>
+            <tr><th>比较口</th><th class="cost">成本</th><th class="team">团队分析</th><th class="policy">数据治理</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>聚合</td>
+              <td>会话内按模型统计 token，再换成估算金额。OTel 还能按用户、团队、skill、plugin 或 agent 分组。</td>
+              <td>仪表板看日活、session、接受率和代码行。Admin API 按单个 UTC 日逐用户或 API key 返回。</td>
+              <td>按账户类型、组织和产品面套用政策。Inference、Analytics、本地 transcript 与第三方后端分别判断。</td>
+            </tr>
+            <tr>
+              <td>时间</td>
+              <td>`/usage` 随会话更新，`/clear` 在 2.1.211 起重新计数。权威账单跟随 provider。</td>
+              <td>贡献数据通常在 24 小时内出现并每日更新。Admin API 官方给出最多一小时延迟。</td>
+              <td>Consumer 训练开启时五年，关闭时 30 天。Commercial 标准 30 天。ZDR inference 响应后不保留。</td>
+            </tr>
+            <tr>
+              <td>身份</td>
+              <td>本地会话、OTel attributes、Console workspace 或 provider 账户各有自己的归因键。</td>
+              <td>OAuth 用户以邮箱表示，API 用户以 key 名表示。贡献指标只覆盖 claude.ai 组织用户。</td>
+              <td>ZDR 取决于请求是否进入已启用的组织。个人登录或另一组织 key 会落到别的政策。</td>
+            </tr>
+            <tr>
+              <td>脱敏</td>
+              <td>成本数值可以不含正文，仍能暴露用户、模型与使用强度。OTel 具体字段回到 ADM-06。</td>
+              <td>ZDR 下 Analytics 不存 prompt 或 response，仍收集邮箱和 usage statistics。</td>
+              <td>商业数据默认不用于训练，客户明确选择提供数据时例外。ZDR 也保留法律和违规处理例外。</td>
+            </tr>
+            <tr>
+              <td>权限</td>
+              <td>API 组织由 Console workspace limit 和账单角色管理。provider 账单权限另算。</td>
+              <td>Team 与 Enterprise 由 Owner 或 Admin 查看。贡献指标还需要 Owner 与 GitHub 管理员配合。</td>
+              <td>ZDR 需要 Anthropic 单独启用，并按组织生效。客户端开关无法独自获得这份政策。</td>
+            </tr>
+            <tr>
+              <td>停止与失败</td>
+              <td>预算或用量限制可以停止新请求。估算与账单不一致时，以 provider 为准。</td>
+              <td>角色不够会挡住查看。GitHub 未连接、仍在处理或 ZDR 会让贡献面缺失。</td>
+              <td>ZDR 组织会在服务端挡住依赖保存 prompt 或 completion 的功能。第三方集成仍按自己的规则处理。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flow-grid" aria-label="三个消费方的独立数据流">
+        <article class="consumer cost"><h3>成本账</h3><p>token、模型和价格表形成估算；workspace 或 provider 形成权威账单。</p></article>
+        <div class="arrow" aria-hidden="true">≠</div>
+        <article class="consumer team"><h3>团队账</h3><p>用户、UTC 日期和产品指标形成日汇总；GitHub 再补贡献归因。</p></article>
+        <div class="arrow" aria-hidden="true">≠</div>
+        <article class="consumer policy"><h3>政策账</h3><p>账户、组织路由和数据面决定训练、保留与功能限制。</p></article>
+      </div>
+      <div class="callout"><p><b>矩阵里的等号要谨慎。</b> 一个 OTel cost 数值、一个 Analytics estimated_cost 和一笔 provider charge 可以来自相近用量，官方仍把前两者定为估算。延迟、折扣、provider 与聚合窗口都会让它们不同。</p></div>
+    </section>
+
+    <section id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <p class="kicker"><span class="section-no">04</span>Limits</p>
+      <h2 id="limits-title">ZDR 只剪掉它覆盖的那一段</h2>
+      <div class="limits-grid">
+        <article class="limit"><b>INFERENCE</b><h3>已覆盖的部分</h3><p>合格 Enterprise 组织启用 ZDR 后，已路由进该组织的 Claude Code prompt 与 response 在返回后不由 Anthropic 保存。<b>O</b></p></article>
+        <article class="limit"><b>ANALYTICS</b><h3>仍然留下的部分</h3><p>Analytics 继续收集邮箱与使用统计。贡献指标停用，usage metrics 继续显示。<b>O</b></p></article>
+        <article class="limit"><b>OUTSIDE</b><h3>另行负责的部分</h3><p>第三方工具、MCP、组织 OTel backend 和其他 provider 服从各自的数据处理规则。<b>O</b></p></article>
+      </div>
+      <ul class="stop-list">
+        <li><b>角色门</b><span>没有相应 Owner、Admin、Billing 或 UsageView 权限，用户看不到对应仪表板或 API。</span></li>
+        <li><b>组织门</b><span>ZDR 按组织开启。新组织要单独启用，身份路由错误会让请求落出范围。</span></li>
+        <li><b>功能门</b><span>ZDR 会在服务端禁止需要保留 prompt 或 completion 的 Web、云会话、反馈和 Remote Control 等功能。</span></li>
+        <li><b>政策例外</b><span>法律要求和 Usage Policy 违规处理可能让相关输入输出保留最多两年。</span></li>
+      </ul>
+    </section>
+
+    <section data-xray-section="experiment" aria-labelledby="experiment-title">
+      <p class="kicker"><span class="section-no">05</span>Local evidence</p>
+      <h2 id="experiment-title">查到环境边界，没有进入产品</h2>
+      <div class="split">
+        <div class="terminal" aria-label="本机只读命令摘要">
+          <div class="terminal-head">read only / local shell</div>
+          <pre><code>command -v claude
+claude --version
+claude --help</code></pre>
+        </div>
+        <div>
+          <ul class="checks">
+            <li><b>L</b> 当前 shell 的 PATH 中没有 `claude`，版本与 help 均未复核。</li>
+            <li><b>L</b> 获取官方索引的本机 curl 又被系统 LibreSSL 配置错误挡住，空哈希已丢弃。</li>
+            <li><b>R</b> 缺失。没有登录任何组织，也未提交 prompt；带密钥 API 和真实成员数据均未接触。</li>
+          </ul>
+          <p>这能解释本页为何保持 `documented`。它不能否定机器其他路径存在 2.1.247，也不能验证 Dashboard 的实时字段。</p>
+          <p>真实核对需要测试组织、合成用户和可能产生费用的模型请求。本轮权限范围没有覆盖这些动作。</p>
+        </div>
+      </div>
+    </section>
+
+    <section data-xray-section="implementation" aria-labelledby="implementation-title">
+      <p class="kicker"><span class="section-no">06</span>Evidence boundary</p>
+      <h2 id="implementation-title">契约已经够用，运行证据还没到</h2>
+      <div class="evidence-band">
+        <article><strong>O</strong><h3>可确认</h3><p>估算口径、日聚合、角色门、账户保留期、训练选择与 ZDR 例外。</p></article>
+        <article><strong>L</strong><h3>只确认失败点</h3><p>本轮 shell 无 Claude Code 命令。任务给定版本和哈希没有冒充本轮复核。</p></article>
+        <article><strong>R</strong><h3>当前缺失</h3><p>没有真实 dashboard、CSV、Admin API、ZDR 组织或 collector 对照。</p></article>
+        <article><strong>I</strong><h3>保留边界</h3><p>三处是同一动作的派生视图。官方没有承诺一条共用物理 event。</p></article>
+      </div>
+      <div class="version-note">
+        <h3>版本边界</h3>
+        <p>本页固定 Claude Code 2.1.247。`/usage` 的 `/clear` 清零规则有官方版本线，2.1.211 起生效。Analytics 和 ZDR 主要由服务端与组织策略控制，单看客户端版本无法证明权限、延迟和保留期。</p>
+        <p>官方网页持续更新，没有 2.1.247 的冻结页面。本页记录 2026-08-30 读到的公开契约，并把无法锁到客户端发布日的字段留作版本限制。</p>
+      </div>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <p class="kicker"><span class="section-no">07</span>Unknowns</p>
+      <h2 id="unknowns-title">仍有五块不能写死</h2>
+      <details open><summary>三处有没有共同 event ID</summary><p>官方没有公开跨 OTel、Analytics 和账单系统的通用标识、去重键或事件总线。</p></details>
+      <details><summary>Analytics 历史数据何时删除</summary><p>Claude Code Analytics API 文档明确说历史数据可访问，同时没有给删除期限。</p></details>
+      <details><summary>迟到数据怎样回补</summary><p>官方给了最多一小时、每日刷新或一天延迟等 freshness 说明，没有公布完整修订窗口。</p></details>
+      <details><summary>客户 backend 怎样保留</summary><p>组织 OTel 导出后的字段过滤、保留、删除与访问审计由部署方决定，没有统一的 Anthropic 答案。</p></details>
+      <details><summary>ZDR Analytics 的逐字段期限</summary><p>官方确认邮箱和 usage statistics 仍会收集，没有给 2.1.247 冻结字段表或逐字段保留期。</p></details>
+    </section>
+
+    <section id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <p class="kicker"><span class="section-no">08</span>Sources and reproduction</p>
+      <h2 id="sources-title">证据从哪里来，怎样重做</h2>
+      <ul class="source-list">
+        <li><a href="https://code.claude.com/docs/en/monitoring-usage">Monitoring 文档，证明 OTel 成本估算、归因维度和客户 backend 边界</a></li>
+        <li><a href="https://code.claude.com/docs/en/costs">成本管理文档，证明 `/usage` 估算、价格表、清零版本与权威账单入口</a></li>
+        <li><a href="https://code.claude.com/docs/en/analytics">团队 Analytics 文档，证明指标、角色、GitHub 范围和刷新节奏</a></li>
+        <li><a href="https://platform.claude.com/docs/en/manage-claude/claude-code-analytics-api">Analytics API 文档，证明 UTC 日聚合、用户粒度、延迟和 provider 范围</a></li>
+        <li><a href="https://code.claude.com/docs/en/data-usage">Data usage 文档，证明训练选择、账户保留期与本地 transcript 边界</a></li>
+        <li><a href="https://code.claude.com/docs/en/zero-data-retention">ZDR 文档，证明组织路由、覆盖数据、Analytics 例外和服务端限制</a></li>
+      </ul>
+      <div class="repro">
+        <article><h3>最小对照</h3><p>固定 2.1.247，用两个合成身份和不含代码的 prompt。分别记录 `/usage`、最小 OTel、provider 账单与下一 UTC 日的 Analytics，只保存匿名摘要。</p></article>
+        <article><h3>ZDR 对照</h3><p>取得合格测试组织与 Anthropic 明确启用后再做。检查 usage metrics 是否保留、贡献面是否缺席、依赖留存的功能是否由服务端拒绝。</p></article>
+      </div>
+      <p>两组实验都需要登录，可能产生订阅或 API 用量，也会触及组织设置。本轮只记录复现方法，没有执行。</p>
+    </section>
+  </main>
+
+  <footer>
+    <span>COMP-ADM-USAGE-CONSUMERS · 当前状态 documented · Claude Code 2.1.247</span>
+    <span><a href="../20260827-adm-06-otel-usage-events/explainer.html">ADM-06</a> · <a href="../index.html">返回总索引</a></span>
+  </footer>
+</body>
+</html>

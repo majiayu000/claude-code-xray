@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="ADM-04">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>ADM-04 云会话的环境选择、Runner 执行与回收</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #080d12;
+      --panel: #0d151d;
+      --panel-2: #101c25;
+      --line: #2e4553;
+      --line-soft: rgba(117, 157, 177, .22);
+      --text: #e8edf0;
+      --muted: #9eb0ba;
+      --amber: #ffb74b;
+      --amber-soft: rgba(255, 183, 75, .15);
+      --cyan: #64d8d0;
+      --red: #ff7e6b;
+      --paper: #d8d2c4;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(100, 216, 208, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 216, 208, .035) 1px, transparent 1px),
+        radial-gradient(circle at 82% 4%, rgba(255, 183, 75, .09), transparent 26rem),
+        var(--ink);
+      background-size: 32px 32px, 32px 32px, auto, auto;
+      color: var(--text);
+      font-family: "PingFang SC", "Hiragino Sans GB", sans-serif;
+      line-height: 1.72;
+    }
+
+    a { color: var(--cyan); text-underline-offset: .2em; }
+    a:hover { color: #a4fff7; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    .wrap { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+    .masthead {
+      min-height: 92vh;
+      display: grid;
+      align-content: center;
+      padding: 44px 0 64px;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+    .masthead::after {
+      content: "45";
+      position: absolute;
+      right: max(20px, calc((100vw - 1180px) / 2));
+      bottom: -3rem;
+      color: rgba(255, 255, 255, .025);
+      font: 700 clamp(11rem, 27vw, 24rem)/1 Georgia, serif;
+      pointer-events: none;
+    }
+    .topline {
+      display: flex;
+      gap: 12px 24px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+      color: var(--muted);
+      font-size: .78rem;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    .feature-tag {
+      color: var(--ink);
+      background: var(--amber);
+      padding: 5px 10px;
+      font-weight: 800;
+      letter-spacing: .14em;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      background: var(--amber);
+      box-shadow: 0 0 0 5px rgba(255, 183, 75, .12);
+      margin-right: 7px;
+    }
+    h1, h2, h3 { text-wrap: balance; }
+    h1 {
+      max-width: 950px;
+      margin: 0;
+      font: 700 clamp(2.8rem, 7vw, 6.7rem)/.98 "Songti SC", "STSong", Georgia, serif;
+      letter-spacing: -.055em;
+    }
+    .hero-answer {
+      max-width: 870px;
+      margin: 36px 0 0;
+      color: var(--paper);
+      font-size: clamp(1.15rem, 2vw, 1.55rem);
+    }
+    .hero-answer strong { color: white; font-weight: 700; }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 40px;
+      position: relative;
+      z-index: 1;
+    }
+    .legend span {
+      border: 1px solid var(--line);
+      background: rgba(8, 13, 18, .74);
+      padding: 6px 10px;
+      font-size: .78rem;
+      color: var(--muted);
+    }
+    .legend b { color: var(--amber); margin-right: 5px; }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
+      background: rgba(8, 13, 18, .93);
+      backdrop-filter: blur(12px);
+    }
+    nav .wrap {
+      display: flex;
+      gap: 18px;
+      overflow-x: auto;
+      padding-top: 10px;
+      padding-bottom: 10px;
+      scrollbar-width: thin;
+    }
+    nav a { color: var(--muted); white-space: nowrap; font-size: .78rem; text-decoration: none; }
+    nav a:hover { color: var(--amber); }
+
+    main > section { padding: 88px 0; border-bottom: 1px solid var(--line); }
+    .section-head {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 28px;
+      margin-bottom: 42px;
+    }
+    .section-kicker {
+      color: var(--amber);
+      font: 700 .75rem/1.4 ui-monospace, monospace;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      padding-top: 8px;
+    }
+    h2 {
+      margin: 0;
+      font: 700 clamp(2rem, 4.2vw, 4.2rem)/1.05 "Songti SC", "STSong", Georgia, serif;
+      letter-spacing: -.035em;
+    }
+    h3 { margin: 0 0 10px; font-size: 1rem; color: white; }
+    p { margin: 0 0 1em; }
+    .lead { max-width: 800px; color: var(--paper); font-size: 1.12rem; }
+    .evidence {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      padding: 0 6px;
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      font: 800 .7rem/1 ui-monospace, monospace;
+      vertical-align: .12em;
+      margin-left: .28em;
+    }
+    .evidence.local { border-color: var(--cyan); color: var(--cyan); }
+    .evidence.infer { border-color: var(--muted); color: var(--muted); }
+
+    .term-grid, .limit-grid, .source-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+    .term, .limit-card, .source-card {
+      background: var(--panel);
+      padding: 24px;
+    }
+    .term p, .limit-card p, .source-card p { color: var(--muted); margin-bottom: 0; }
+    .term-code { color: var(--cyan); font: 700 .78rem/1.4 ui-monospace, monospace; }
+
+    .sequence {
+      counter-reset: step;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 0;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .step {
+      counter-increment: step;
+      min-height: 230px;
+      padding: 22px 18px;
+      border-right: 1px solid var(--line);
+      position: relative;
+    }
+    .step:last-child { border-right: 0; }
+    .step::before {
+      content: "0" counter(step);
+      display: block;
+      margin-bottom: 48px;
+      color: var(--amber);
+      font: 700 .72rem/1 ui-monospace, monospace;
+    }
+    .step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: 35px;
+      right: -4px;
+      width: 7px;
+      height: 7px;
+      background: var(--amber);
+      transform: rotate(45deg);
+      z-index: 2;
+    }
+    .step p { color: var(--muted); font-size: .88rem; margin: 0; }
+
+    .tracks { display: grid; gap: 22px; }
+    .track {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr);
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .track-label {
+      padding: 24px;
+      border-right: 1px solid var(--line);
+      color: var(--amber);
+      font-weight: 800;
+    }
+    .track-line {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      position: relative;
+      padding: 22px 10px;
+    }
+    .track-line::before {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 40px;
+      border-top: 1px dashed var(--line);
+    }
+    .node { padding: 0 10px; position: relative; text-align: center; }
+    .node::before {
+      content: "";
+      display: block;
+      width: 13px;
+      height: 13px;
+      margin: 11px auto 20px;
+      border: 3px solid var(--panel);
+      outline: 1px solid var(--amber);
+      background: var(--amber);
+      border-radius: 50%;
+      position: relative;
+      z-index: 1;
+    }
+    .node b { display: block; color: white; font-size: .86rem; }
+    .node small { color: var(--muted); font-size: .74rem; }
+    .track.self .track-label { color: var(--cyan); }
+    .track.self .node::before { background: var(--cyan); outline-color: var(--cyan); }
+    .track-note { margin-top: 18px; color: var(--muted); font-size: .85rem; }
+    .flow-detail {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 22px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+    .flow-detail article { padding: 24px; background: var(--panel); }
+    .flow-detail p { color: var(--muted); margin: 0; }
+
+    .gate-list { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .gate {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr);
+      gap: 22px;
+      padding: 21px 24px;
+      background: var(--panel);
+    }
+    .gate-label { color: var(--amber); font: 700 .76rem/1.5 ui-monospace, monospace; }
+    .gate p { color: var(--muted); margin: 0; }
+
+    .experiment-box {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+    .experiment-box > div { padding: 28px; background: var(--panel); }
+    .result-big { color: var(--red); font: 700 clamp(2rem, 4vw, 4rem)/1 Georgia, serif; margin-bottom: 20px; }
+    .checks { margin: 0; padding-left: 1.2em; color: var(--muted); }
+    .checks li + li { margin-top: .6em; }
+
+    .implementation-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+    .implementation-card {
+      border-top: 3px solid var(--amber);
+      background: var(--panel);
+      padding: 28px;
+    }
+    .implementation-card.self { border-color: var(--cyan); }
+    .implementation-card p { color: var(--muted); }
+    .implementation-card ul { margin: 0; padding-left: 1.2em; color: var(--paper); }
+    .implementation-card li + li { margin-top: .6em; }
+
+    details { border-top: 1px solid var(--line); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary {
+      cursor: pointer;
+      padding: 20px 44px 20px 0;
+      list-style: none;
+      color: var(--paper);
+      position: relative;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; position: absolute; right: 8px; color: var(--amber); font-size: 1.4rem; }
+    details[open] summary::after { content: "×"; }
+    details p { max-width: 850px; color: var(--muted); padding: 0 44px 22px 0; }
+
+    .source-card a { display: inline-block; margin-top: 12px; font-weight: 700; }
+    .footerline {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+      padding: 28px 0 42px;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    @media (max-width: 900px) {
+      .term-grid, .limit-grid, .source-grid, .flow-detail { grid-template-columns: 1fr 1fr; }
+      .sequence { grid-template-columns: repeat(3, 1fr); }
+      .step:nth-child(3) { border-right: 0; }
+      .step:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+      .track { grid-template-columns: 1fr; }
+      .track-label { border-right: 0; border-bottom: 1px solid var(--line); }
+    }
+
+    @media (max-width: 620px) {
+      .wrap { width: min(100% - 28px, 1180px); }
+      .masthead { min-height: 0; padding: 30px 0 48px; }
+      .topline { margin-bottom: 34px; }
+      h1 { font-size: clamp(2.55rem, 13vw, 4rem); }
+      .hero-answer { font-size: 1.02rem; }
+      main > section { padding: 62px 0; }
+      .section-head { grid-template-columns: 1fr; gap: 10px; }
+      .term-grid, .limit-grid, .source-grid, .flow-detail, .implementation-grid, .experiment-box { grid-template-columns: 1fr; }
+      .sequence { grid-template-columns: 1fr; }
+      .step { min-height: 0; border-right: 0; border-bottom: 1px solid var(--line); padding: 18px 20px; }
+      .step:last-child { border-bottom: 0; }
+      .step::before { margin-bottom: 16px; }
+      .step::after { display: none; }
+      .track-line { grid-template-columns: 1fr; padding: 8px 20px; }
+      .track-line::before { left: 26px; top: 12%; bottom: 12%; right: auto; height: auto; border-top: 0; border-left: 1px dashed var(--line); }
+      .node { text-align: left; padding: 10px 0 10px 34px; }
+      .node::before { position: absolute; left: 0; top: 10px; margin: 0; }
+      .gate { grid-template-columns: 1fr; gap: 8px; }
+      .footerline { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：云会话的环境选择、Runner 执行与回收。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-adm-04-cloud-session-runner/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="ADM-04 · 云会话的环境选择、Runner 执行与回收">
+  <meta property="og:description" content="Claude Code X-Ray：云会话的环境选择、Runner 执行与回收。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-adm-04-cloud-session-runner/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ADM-04 · 云会话的环境选择、Runner 执行与回收">
+  <meta name="twitter:description" content="Claude Code X-Ray：云会话的环境选择、Runner 执行与回收。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>ADM-04</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <main>
+  <header class="masthead" data-xray-section="answer">
+    <div class="wrap">
+      <div class="topline">
+        <span class="feature-tag">ADM-04</span>
+        <span><i class="status-dot"></i>状态 documented</span>
+        <span>Claude Code 2.1.247</span>
+        <a href="../index.html">返回总索引</a>
+      </div>
+      <h1>环境一选定，任务才会进入执行端</h1>
+      <p class="hero-answer">云任务先绑定一个已有环境。托管轨道会分配隔离 VM，自托管轨道会把任务送进环境队列，由空闲 Runner 领取。随后才发生代码获取、凭据接入和 Claude Code 子进程执行。<strong>官方公开的托管 VM 回收条件是会话空闲一段时间，任务或单轮完成不等于 VM 立即消失。自托管正常释放会进入 hook 与工作区拆除；Runner 失联后，控制面会把同一会话重新排队，异常终止时 hook 不保证执行。</strong> <span class="evidence">O</span></p>
+      <div class="legend" aria-label="证据图例">
+        <span><b>O</b>官方契约</span>
+        <span><b>L</b>本机静态证据</span>
+        <span><b>R</b>真实实验</span>
+        <span><b>I</b>研究者推断</span>
+      </div>
+    </div>
+  </header>
+
+  <nav aria-label="本页导航">
+    <div class="wrap">
+      <a href="#terms">角色</a>
+      <a href="#sequence">顺序</a>
+      <a href="#flow">双轨</a>
+      <a href="#limits">权限与停止</a>
+      <a href="#experiment">本机检查</a>
+      <a href="#implementation">实现与版本</a>
+      <a href="#unknowns">未知项</a>
+      <a href="#sources">来源</a>
+    </div>
+  </nav>
+
+    <section id="terms" data-xray-section="terms">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">01 / terms</div>
+          <h2>先认清参与执行的角色</h2>
+        </div>
+        <div class="term-grid">
+          <article class="term">
+            <div class="term-code">TASK</div>
+            <h3>云任务</h3>
+            <p>用户从网页、Desktop、移动端、CLI 或 routine 发起的一次 Claude Code 会话。它选择环境，不选择某一台 Runner。 <span class="evidence">O</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">ENVIRONMENT</div>
+            <h3>环境</h3>
+            <p>一份已保存的执行目的地。它决定网络边界和环境变量，也决定任务走 Anthropic VM 还是组织自己的 Runner。 <span class="evidence">O</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">CONTROL PLANE</div>
+            <h3>Anthropic 控制面</h3>
+            <p>负责会话编排、队列与界面。即便任务跑在自托管设施，控制面仍留在 Anthropic。 <span class="evidence">O</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">RUNNER</div>
+            <h3>自托管 Runner</h3>
+            <p>组织部署的长驻进程。它轮询队列、领取租约、准备 checkout，再启动每条会话的 Claude Code 子进程。 <span class="evidence">O</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">SESSION CHILD</div>
+            <h3>会话子进程</h3>
+            <p>读代码、调用工具并向 Anthropic 请求模型推理的 Claude Code 进程。Runner 负责启动和停止它。 <span class="evidence">O</span></p>
+          </article>
+          <article class="term">
+            <div class="term-code">CREDENTIAL PATH</div>
+            <h3>凭据通道</h3>
+            <p>托管环境用沙箱外代理代签请求。自托管环境可同时使用部署方的 Git 接入，以及按会话身份换取的内部服务凭据。 <span class="evidence">O</span></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="sequence" data-xray-section="sequence">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">02 / sequence</div>
+          <h2>一次任务按这个顺序执行</h2>
+        </div>
+        <div class="sequence" aria-label="云任务执行时序">
+          <article class="step"><h3>选择环境</h3><p>界面用选择器。CLI 采用保存的默认值，自托管环境也可用 ID 单次覆盖。 <span class="evidence">O</span></p></article>
+          <article class="step"><h3>取得算力</h3><p>托管侧分配隔离 VM。自托管侧先入队，再由有空位的 Runner 领取 lease。 <span class="evidence">O</span></p></article>
+          <article class="step"><h3>准备代码</h3><p>托管端从 GitHub 克隆；CLI 没有可用的 GitHub 连接时，也能上传本地仓库 bundle。自托管 Runner 准备 checkout。 <span class="evidence">O</span></p></article>
+          <article class="step"><h3>接入凭据</h3><p>凭据按用途接入。Git 可走代理，内部服务可由 wrapper 校验 session JWT 后换取短期凭据；这些机制可以并存。 <span class="evidence">O</span></p></article>
+          <article class="step"><h3>运行子进程</h3><p>Claude Code 执行工具并通过 HTTPS 传回事件，同时请求模型推理。 <span class="evidence">O</span></p></article>
+          <article class="step"><h3>分清结束路径</h3><p>托管 VM 在空闲过期后回收。自托管正常释放会运行 hook 并拆除工作区；停止轮询约 60 秒会触发重排，异常终止可能跳过 hook。 <span class="evidence">O</span></p></article>
+        </div>
+        <p class="track-note">这六步有严格的先后关系。环境先决定执行端与网络边界，执行端随后取得仓库内容。凭据只在需要访问 Git、内部服务或模型时接入。代码已经开始运行以后，网页上的环境编辑不会回头改变这次会话。 <span class="evidence">O</span></p>
+      </div>
+    </section>
+
+    <section id="flow" data-xray-section="flow">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">03 / flow</div>
+          <h2>同一任务，两类执行端</h2>
+        </div>
+        <div class="tracks">
+          <div class="track">
+            <div class="track-label">Anthropic 托管</div>
+            <div class="track-line">
+              <div class="node"><b>环境选择</b><small>已有 env</small></div>
+              <div class="node"><b>新 VM</b><small>隔离 Ubuntu</small></div>
+              <div class="node"><b>代码输入</b><small>GitHub clone / bundle</small></div>
+              <div class="node"><b>Claude Code</b><small>工具与推理</small></div>
+              <div class="node"><b>空闲过期</b><small>回收 VM</small></div>
+            </div>
+          </div>
+          <div class="track self">
+            <div class="track-label">组织自托管</div>
+            <div class="track-line">
+              <div class="node"><b>环境队列</b><small>控制面入队</small></div>
+              <div class="node"><b>Runner 领取</b><small>lease 与心跳</small></div>
+              <div class="node"><b>clone 与 wrapper</b><small>部署方供凭据</small></div>
+              <div class="node"><b>会话子进程</b><small>出站 HTTPS</small></div>
+              <div class="node"><b>结果分流</b><small>正常清理 / 失联重排</small></div>
+            </div>
+          </div>
+        </div>
+        <p class="track-note">自托管 Runner 的约 60 秒 lease 失联规则有官方契约。Anthropic 托管 VM 的内部队列与 lease 没有公开，图中没有把这条规则外推过去。 <span class="evidence infer">I</span></p>
+        <div class="flow-detail">
+          <article>
+            <h3>代码先落到执行端</h3>
+            <p>托管会话通常从已连接的 GitHub 仓库克隆代码。CLI 从未连接 GitHub 的本地仓库 dispatch 时，会自动打包并上传仓库；bundle 不含未跟踪文件，超过 100 MB 会逐级缩减，仍过大才失败，没有 GitHub 认证也不能回推。自托管 Runner 则先准备 checkout，再进入 session wrapper。 <span class="evidence">O</span></p>
+          </article>
+          <article>
+            <h3>凭据可以按用途组合</h3>
+            <p>托管 VM 里的 GitHub 与 API 密钥由沙箱外代理保管。自托管 Runner 可让宿主机或 checkout hook 提供 Git 凭据，也可选用 Anthropic Git proxy；wrapper 还能校验 session JWT，再按创建者换取内部服务的短期凭据。Git 接入与内部凭据交换不是二选一。 <span class="evidence">O</span></p>
+          </article>
+          <article>
+            <h3>自托管仍会连接 Anthropic</h3>
+            <p>checkout、构建产物和工作文件留在组织机器上。会话正文、工具结果和模型请求仍通过 HTTPS 进入 Anthropic 服务，队列与控制面也由 Anthropic 托管。自托管改变的是执行位置，并没有把整条会话链搬进组织网络。 <span class="evidence">O</span></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="limits" data-xray-section="limits">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">04 / limits</div>
+          <h2>任务会卡在哪一步</h2>
+        </div>
+        <div class="gate-list">
+          <div class="gate"><div class="gate-label">DISPATCH</div><h3>谁能把代码送进 Runner</h3><p>自托管 environment 没有逐环境派发访问控制。组织内任意成员都能向任意 environment 派发；<code>--lock-to-account</code> 只限定 Runner 接受哪个账户的会话，不能收窄派发者。Runner 主机只能放所有这些派发者都有权读取的数据与凭据。 <span class="evidence">O</span></p></div>
+          <div class="gate"><div class="gate-label">ELIGIBILITY</div><h3>账户、套餐与组织策略</h3><p>托管云会话面向 Pro、Max、Team，以及具有 premium seat 或 Chat + Claude Code seat 的 Enterprise 用户。CLI 还要用 <code>claude auth login</code> 登录 Anthropic 账户；配置为 Bedrock、Google Cloud Agent Platform 或其他第三方模型提供商时不可用。组织策略必须允许 remote sessions。自托管环境另处于 Team 与 Enterprise public beta，并由 Owner 开启。 <span class="evidence">O</span></p></div>
+          <div class="gate"><div class="gate-label">SOURCE</div><h3>代码从哪里进入</h3><p>有 GitHub 认证时，托管会话从远端 clone。CLI 没有可用连接时可自动上传本地仓库 bundle，但不带未跟踪文件，且没有 GitHub 认证就不能 push 回远端。自托管 Runner 必须取得 checkout 所需凭据。 <span class="evidence">O</span></p></div>
+          <div class="gate"><div class="gate-label">CREDENTIAL</div><h3>凭据给到哪一层</h3><p>托管 API credential 只在匹配请求离开 VM 后附加。自托管 JWT 能识别会话创建者，但进程内代码也能读取它，派生权限必须缩到单次编码任务。固定 fleet 还把 environment secret 放在运行会话代码的主机上，会话代码可读取 secret 文件。官方建议改用隔离主机和 on-demand Runner，让 secret 留在不运行会话代码的 orchestrator。 <span class="evidence">O</span></p></div>
+          <div class="gate"><div class="gate-label">NETWORK</div><h3>出站路径是否放行</h3><p>托管环境受所选网络级别与代理约束。自托管部署需要自己做默认拒绝，并允许控制面、Git 主机和确有需要的内部服务。 <span class="evidence">O</span></p></div>
+          <div class="gate"><div class="gate-label">STOP</div><h3>哪一条路径改变会话状态</h3><p>自托管 Runner 的空闲释放与最长寿命默认都是 0，也就是关闭；启动超时默认 15 分钟。运维方还可设置绝对退役时间。正常释放会给 post-session hook 留出窗口。停止轮询约 60 秒触发的是重排，突然断电或强杀还可能跳过 hook。 <span class="evidence">O</span></p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="experiment" data-xray-section="experiment">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">05 / experiment</div>
+          <h2>本轮没有创建云会话</h2>
+        </div>
+        <div class="experiment-box">
+          <div>
+            <div class="result-big">documented</div>
+            <p class="lead">创建云任务会消耗账户用量并留下远端状态。启动自托管 Runner 还需要组织权限与 environment secret。本轮停在官方契约和本机只读帮助，因此没有 R。 </p>
+          </div>
+          <div>
+            <h3>安全检查所得</h3>
+            <ul class="checks">
+              <li>当前 PATH 找不到 claude，显式安装位置可只读运行。 <span class="evidence local">L</span></li>
+              <li>可执行版本已是 2.1.250，和固定基线 2.1.247 不同。 <span class="evidence local">L</span></li>
+              <li>当前 help 有 cloud dispatch、environment 覆盖和 self-hosted-runner 参数。 <span class="evidence local">L</span></li>
+              <li>未登录、未读取 token、未发任务，也未碰私人会话文件。 </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="implementation" data-xray-section="implementation">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">06 / implementation</div>
+          <h2>回收发生在两个层次</h2>
+        </div>
+        <div class="implementation-grid">
+          <article class="implementation-card">
+            <h3>会话层</h3>
+            <p>Anthropic 托管会话空闲后，VM 会被回收。再次打开会配新 VM 并恢复对话历史。原先仍在运行的后台任务与 shell 命令不会跟回来。 <span class="evidence">O</span></p>
+            <ul>
+              <li>环境变量在会话启动时复制一次</li>
+              <li>运行中的会话不会重读环境编辑</li>
+              <li>准确空闲阈值没有公开</li>
+            </ul>
+          </article>
+          <article class="implementation-card self">
+            <h3>Runner 层</h3>
+            <p>Runner 的首条会话把它锁给一个 owner。默认 drain grace 为零，活动会话做完就退出。这个 owner 锁不限制谁能向 environment 派发。编排器可以随后启动干净实例，避免不同 owner 共用磁盘。 <span class="evidence">O</span></p>
+            <ul>
+              <li>启动超时默认 15 分钟</li>
+              <li>空闲释放默认 0，处于关闭状态</li>
+              <li>最长寿命默认 0，处于关闭状态</li>
+              <li>绝对退役时间默认未设置</li>
+            </ul>
+          </article>
+        </div>
+        <p class="track-note">自托管会话有几条互相独立的停止路径。正常结束时，子进程先退出，Runner 再运行 post-session hook 并拆除 workspace。子进程启动后 15 分钟仍未报告初始化，默认会释放 slot。运维方可另行开启空闲释放、最长寿命，或给 Runner 设置绝对退役时间；前两项默认关闭，退役时间默认未设置。Runner 停止轮询约 60 秒后，控制面会把仍被持有的会话重新排队。这条路径是重排，不能据此断定旧 Runner 已正常释放、运行 hook 或清理工作区。Runner 收到终止信号时先停止接新任务，再按 drain 预算结束子进程。基础设施若先强杀进程，hook 可能没有机会执行，未推送的修改也不能指望随重排到达下一台 Runner。 <span class="evidence">O</span></p>
+        <p class="track-note">托管会话走另一套回收条件。它在空闲一段时间后停止，原 VM 随后释放。用户再次打开会话时，对话历史可以恢复，执行环境会换成新 VM，旧 VM 里的后台任务不会继续运行。 <span class="evidence">O</span></p>
+        <p class="track-note">Self-hosted environments 在官方 Week 32 changelog 中标为 v2.1.224 引入。<code>--environment</code> 同样要求 v2.1.224。当前官网还记录了 v2.1.229、2.1.236、2.1.238 与 2.1.246 的局部修正，固定基线 2.1.247 已包含这些版本条件。 <span class="evidence">O</span></p>
+      </div>
+    </section>
+
+    <section id="unknowns" data-xray-section="unknowns">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">07 / unknowns</div>
+          <h2>这几处还不能写死</h2>
+        </div>
+        <details open>
+          <summary>托管 VM 多久算空闲</summary>
+          <p>官方只说一段空闲后停止并回收，没有给出固定时长。套餐、容量和会话状态会不会改变它，本轮没有证据。</p>
+        </details>
+        <details>
+          <summary>托管侧怎样排队与续租</summary>
+          <p>公开的约 60 秒 lease 规则属于自托管 Runner。Anthropic 托管 VM 的调度实现没有公开。</p>
+        </details>
+        <details>
+          <summary>2.1.247 本机帮助全文</summary>
+          <p>当前安装已经更新到 2.1.250，二进制摘要也变化了。本页保留 2.1.247 固定基线，没有拿新版本 help 代替旧实现证据。</p>
+        </details>
+        <details>
+          <summary>故障点上的 dirty working tree</summary>
+          <p>官方警告 Runner 释放以后，未 push 工作可能丢失。不同中断瞬间究竟还能保存多少，需要一次可销毁部署里的 R。</p>
+        </details>
+      </div>
+    </section>
+
+    <section id="sources" data-xray-section="sources">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">08 / sources</div>
+          <h2>沿着一手材料复核</h2>
+        </div>
+        <div class="source-grid">
+          <article class="source-card"><h3>环境怎样被选择</h3><p>选择器、CLI 默认、单次覆盖、环境变量与托管代理。</p><a href="https://code.claude.com/docs/en/cloud-environments">官方 Cloud environments</a></article>
+          <article class="source-card"><h3>云会话怎样开始与过期</h3><p>套餐与登录门槛、GitHub clone、本地 bundle、创建失败和空闲回收。</p><a href="https://code.claude.com/docs/en/claude-code-on-the-web">官方 Claude Code on the web</a></article>
+          <article class="source-card"><h3>Runner 怎样领取和续租</h3><p>环境队列、owner 锁、lease、子进程与重排。</p><a href="https://code.claude.com/docs/en/self-hosted-environments">官方 Self-hosted environments</a></article>
+          <article class="source-card"><h3>凭据与生命周期 hook</h3><p>wrapper、session JWT、checkout 和 post-session。</p><a href="https://code.claude.com/docs/en/self-hosted-environments-configuration">官方 Session customization</a></article>
+          <article class="source-card"><h3>派发权限与 secret 风险</h3><p>逐环境访问控制的缺口、固定 fleet 的 secret 暴露面与 on-demand Runner。</p><a href="https://code.claude.com/docs/en/self-hosted-environments-deploy">官方 Production deployment</a></article>
+          <article class="source-card"><h3>停止参数与默认值</h3><p>空闲释放、最长寿命、启动超时、绝对退役时间与 drain。</p><a href="https://code.claude.com/docs/en/self-hosted-environments-reference">官方 Runner reference</a></article>
+          <article class="source-card"><h3>会话身份能证明什么</h3><p>JWT 校验、受众范围与派生凭据边界。</p><a href="https://code.claude.com/docs/en/self-hosted-environments-identity">官方 Session identity</a></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap footerline">
+    <span>ADM-04 · 状态 documented · 固定基线 Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="UI-04">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>UI-04 · IDE 扩展的上下文、会话与 Diff 桥接</title>
+  <style>
+    :root {
+      --ink: #17211d;
+      --paper: #f1efe7;
+      --paper-2: #e5e1d4;
+      --line: #959b8e;
+      --muted: #586159;
+      --dark: #1c2723;
+      --dark-2: #26342e;
+      --green: #1f6f50;
+      --green-soft: #cfe3d5;
+      --red: #a13d32;
+      --red-soft: #efd2cc;
+      --amber: #bc7c27;
+      --focus: #7a2f27;
+      --focus-dark: #ffd166;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+      --serif: "Iowan Old Style", "Songti SC", "Noto Serif CJK SC", serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(23,33,29,.035) 1px, transparent 1px) 0 0 / 28px 28px,
+        linear-gradient(rgba(23,33,29,.035) 1px, transparent 1px) 0 0 / 28px 28px,
+        var(--paper);
+      font-family: var(--serif);
+      font-size: 17px;
+      line-height: 1.72;
+    }
+    a { color: inherit; text-underline-offset: .2em; }
+    a:hover { color: var(--green); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    .topbar a:focus-visible { outline-color: var(--focus-dark); }
+    .topbar {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px clamp(18px, 4vw, 64px);
+      color: #f6f3e9;
+      background: var(--dark);
+      border-bottom: 4px solid var(--amber);
+      font-family: var(--mono);
+      font-size: 13px;
+      letter-spacing: .04em;
+    }
+    .topbar .meta { display: flex; gap: 18px; flex-wrap: wrap; }
+    .status::before {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 7px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 0 3px rgba(188,124,39,.22);
+    }
+    main { overflow: hidden; }
+    section { scroll-margin-top: 20px; }
+    .hero {
+      min-height: calc(100vh - 52px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(340px, .8fr);
+      border-bottom: 1px solid var(--ink);
+    }
+    .hero-copy {
+      padding: clamp(48px, 8vw, 128px) clamp(24px, 7vw, 108px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .eyebrow {
+      margin: 0 0 22px;
+      font-family: var(--mono);
+      font-size: 13px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { line-height: 1.16; font-weight: 700; }
+    h1 {
+      max-width: 11em;
+      margin: 0;
+      font-size: clamp(42px, 7vw, 92px);
+      letter-spacing: -.055em;
+    }
+    .lede {
+      max-width: 35em;
+      margin: 30px 0 0;
+      font-size: clamp(20px, 2.2vw, 29px);
+      line-height: 1.5;
+    }
+    .proofline {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      margin-top: 36px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .proofline::before { content: "O+L"; padding: 3px 7px; color: var(--paper); background: var(--green); }
+    .bridge-plate {
+      position: relative;
+      min-height: 540px;
+      padding: clamp(32px, 5vw, 76px);
+      color: #f7f4eb;
+      background:
+        radial-gradient(circle at 20% 8%, rgba(207,227,213,.12), transparent 30%),
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(255,255,255,.035) 31px 32px),
+        var(--dark-2);
+      border-left: 1px solid var(--ink);
+      display: grid;
+      align-content: center;
+      gap: 16px;
+      font-family: var(--mono);
+    }
+    .bridge-plate::after {
+      content: "LOCAL IDE BRIDGE";
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      color: rgba(255,255,255,.18);
+      font-size: 11px;
+      letter-spacing: .22em;
+      writing-mode: vertical-rl;
+    }
+    .port {
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,.3);
+      background: rgba(0,0,0,.12);
+    }
+    .port-no { color: #f4d7a8; font-size: 12px; }
+    .port strong { font-size: 15px; font-weight: 600; }
+    .port small { color: #b9c6bd; }
+    .wire {
+      width: 2px;
+      height: 28px;
+      margin-left: 38px;
+      background: var(--amber);
+    }
+    .port.diff { border-left: 6px solid var(--green); }
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid var(--ink);
+      background: var(--paper-2);
+    }
+    .legend div { padding: 18px clamp(14px, 3vw, 42px); border-right: 1px solid var(--line); }
+    .legend div:last-child { border-right: 0; }
+    .legend b { font-family: var(--mono); font-size: 18px; }
+    .legend span { display: block; color: var(--muted); font-size: 13px; }
+    .page-grid {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    .rail {
+      padding: 42px 28px;
+      border-right: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .rail nav { position: sticky; top: 24px; display: grid; gap: 8px; }
+    .rail a { padding: 5px 8px; text-decoration: none; border-left: 2px solid transparent; }
+    .rail a:hover { border-left-color: var(--green); }
+    .content { min-width: 0; }
+    .block { padding: clamp(52px, 8vw, 112px) clamp(24px, 7vw, 106px); border-bottom: 1px solid var(--line); }
+    .kicker { margin: 0 0 10px; color: var(--green); font-family: var(--mono); font-size: 12px; letter-spacing: .12em; }
+    h2 { max-width: 15em; margin: 0 0 30px; font-size: clamp(32px, 5vw, 58px); letter-spacing: -.04em; }
+    h3 { margin-top: 0; font-size: 21px; }
+    p { max-width: 62em; }
+    .terms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border: 1px solid var(--ink); background: var(--ink); }
+    .term { min-height: 190px; padding: 24px; background: var(--paper); }
+    .term code, code { font-family: var(--mono); font-size: .88em; }
+    .term b { display: block; margin-bottom: 10px; font-family: var(--mono); font-size: 13px; }
+    .sequence { counter-reset: seq; display: grid; gap: 0; }
+    .step { counter-increment: seq; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 22px; padding: 24px 0; border-top: 1px solid var(--line); }
+    .step::before { content: "0" counter(seq); color: var(--green); font-family: var(--mono); font-size: 24px; }
+    .step h3 { margin-bottom: 8px; }
+    .step p { margin: 0; }
+    .tag { align-self: start; padding: 3px 8px; color: var(--paper); background: var(--green); font-family: var(--mono); font-size: 11px; }
+    .tag.i { background: var(--muted); }
+    .flowboard { display: grid; grid-template-columns: 1fr 80px 1.1fr 80px 1fr; align-items: stretch; }
+    .node { padding: 24px; border: 1px solid var(--ink); background: rgba(255,255,255,.18); }
+    .node.dark { color: var(--paper); background: var(--dark); }
+    .arrow { display: grid; place-items: center; font-family: var(--mono); font-size: 24px; }
+    .flow-note { margin-top: 22px; padding: 18px 20px; border-left: 6px solid var(--amber); background: #e9dfc8; }
+    .gates { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    .gate { position: relative; padding: 24px; border: 1px solid var(--ink); background: rgba(255,255,255,.2); }
+    .gate.red { border-top: 7px solid var(--red); }
+    .gate.green { border-top: 7px solid var(--green); }
+    .gate.amber { border-top: 7px solid var(--amber); }
+    .gate.access { grid-column: 1 / -1; }
+    .gate p:last-child { margin-bottom: 0; }
+    .compare { width: 100%; border-collapse: collapse; }
+    .compare th, .compare td { padding: 16px; text-align: left; vertical-align: top; border: 1px solid var(--line); }
+    .compare th { color: var(--paper); background: var(--dark); font-family: var(--mono); font-size: 13px; }
+    .compare td:first-child { width: 22%; font-family: var(--mono); font-size: 13px; }
+    .lab {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+    }
+    .lab > div { padding: 24px; background: var(--paper); }
+    .lab .result { background: var(--green-soft); }
+    .unknown-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--ink); }
+    .unknown-list li { display: grid; grid-template-columns: 70px 1fr; gap: 20px; padding: 19px 0; border-bottom: 1px solid var(--line); }
+    .unknown-list b { color: var(--red); font-family: var(--mono); }
+    details { border-top: 1px solid var(--line); }
+    summary { padding: 20px 0; cursor: pointer; font-family: var(--mono); font-size: 14px; }
+    details ol { padding-bottom: 20px; }
+    .source-list { display: grid; gap: 12px; padding: 0; list-style: none; }
+    .source-list a { display: block; padding: 18px 20px; border: 1px solid var(--ink); background: rgba(255,255,255,.2); text-decoration: none; }
+    .source-list a:hover { color: var(--paper); background: var(--green); }
+    .footerline { display: flex; justify-content: space-between; gap: 18px; margin-top: 42px; padding-top: 22px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12px; }
+    @media (max-width: 920px) {
+      .hero { grid-template-columns: 1fr; }
+      .bridge-plate { min-height: auto; border-left: 0; border-top: 1px solid var(--ink); }
+      .page-grid { grid-template-columns: 1fr; }
+      .rail { display: none; }
+      .flowboard { grid-template-columns: 1fr; gap: 0; }
+      .arrow { min-height: 56px; transform: rotate(90deg); }
+      .terms { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      body { font-size: 16px; }
+      .topbar { align-items: flex-start; }
+      .topbar .meta { display: grid; gap: 2px; }
+      .hero-copy { padding-top: 64px; padding-bottom: 64px; }
+      h1 { font-size: clamp(42px, 13vw, 64px); }
+      .legend { grid-template-columns: 1fr 1fr; }
+      .legend div:nth-child(2) { border-right: 0; }
+      .legend div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .step { grid-template-columns: 48px minmax(0,1fr); }
+      .step .tag { grid-column: 2; justify-self: start; }
+      .gates, .lab { grid-template-columns: 1fr; }
+      .compare, .compare tbody, .compare tr, .compare td, .compare th { display: block; }
+      .compare thead { display: none; }
+      .compare tr { margin-bottom: 14px; border: 1px solid var(--line); }
+      .compare td { border: 0; border-bottom: 1px solid var(--line); }
+      .compare td:first-child { width: auto; color: var(--paper); background: var(--dark); }
+      .unknown-list li { grid-template-columns: 48px 1fr; }
+      .footerline { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：IDE 扩展的上下文、会话与 Diff 桥接。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ui-04-ide-session-bridge/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="UI-04 · IDE 扩展的上下文、会话与 Diff 桥接">
+  <meta property="og:description" content="Claude Code X-Ray：IDE 扩展的上下文、会话与 Diff 桥接。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ui-04-ide-session-bridge/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="UI-04 · IDE 扩展的上下文、会话与 Diff 桥接">
+  <meta name="twitter:description" content="Claude Code X-Ray：IDE 扩展的上下文、会话与 Diff 桥接。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>UI-04</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="meta"><strong>UI-04</strong><span class="status">documented</span><span>Claude Code 2.1.247</span></div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+  <main>
+    <section class="hero" data-xray-section="answer" id="answer">
+      <div class="hero-copy">
+        <p class="eyebrow">IDE SESSION BRIDGE · 37</p>
+        <h1>选区进会话，改动回到 Diff</h1>
+        <p class="lede">IDE 扩展夹在编辑器和 Claude 会话之间。它把眼前的代码交给当前会话，再把 Claude 提出的文件变化送回 IDE。权限模式决定改动直接落盘，还是停在 diff 前等你。</p>
+        <p class="proofline">官方契约与本机帮助互相核过，真实编辑实验未运行</p>
+      </div>
+      <div class="bridge-plate" aria-label="IDE 桥接链路示意">
+        <div class="port"><span class="port-no">01</span><strong>EDITOR CONTEXT</strong><small>选区与活动文件</small></div>
+        <div class="wire"></div>
+        <div class="port"><span class="port-no">02</span><strong>CURRENT SESSION</strong><small>当前提示与历史</small></div>
+        <div class="wire"></div>
+        <div class="port diff"><span class="port-no">03</span><strong>NATIVE DIFF</strong><small>批准、拒绝或回退</small></div>
+      </div>
+    </section>
+
+    <aside class="legend" aria-label="证据图例">
+      <div><b>O</b><span>官方契约</span></div>
+      <div><b>L</b><span>本机静态与帮助</span></div>
+      <div><b>R</b><span>本轮真实实验</span></div>
+      <div><b>I</b><span>研究者推断</span></div>
+    </aside>
+
+    <div class="page-grid">
+      <aside class="rail" aria-label="页内导航">
+        <nav>
+          <a href="#terms">01 少量名词</a>
+          <a href="#sequence">02 时间顺序</a>
+          <a href="#flow">03 数据流</a>
+          <a href="#limits">04 权限与停止</a>
+          <a href="#experiment">05 本机观察</a>
+          <a href="#implementation">06 实现对照</a>
+          <a href="#unknowns">07 未知项</a>
+          <a href="#sources">08 来源与复现</a>
+        </nav>
+      </aside>
+      <div class="content">
+        <section class="block" data-xray-section="terms" id="terms">
+          <p class="kicker">01 / TERMS</p>
+          <h2>三个角色就够了</h2>
+          <div class="terms">
+            <article class="term"><b>编辑器</b><p>掌握当前选区、活动文件和原生 diff 视图。它还可以提供诊断，但诊断怎样产生属于 EXT-06。</p></article>
+            <article class="term"><b>Claude 会话</b><p>接住这次提示、既有历史和编辑器上下文。恢复、分叉与落盘由 CTX-02 解释。</p></article>
+            <article class="term"><b>本地 IDE 桥</b><p>扩展运行名为 <code>ide</code> 的本地 MCP 服务。CLI 用内部 RPC 读选区、开 diff；这些 RPC 不会冒充普通模型工具。</p></article>
+          </div>
+          <p>这三个角色没有合成一个程序。编辑器仍决定你眼前有什么。哪段文字被选中、哪个文件处于活动状态、该打开哪种原生视图，都由宿主 IDE 提供。Claude Code 则记录这轮工作进行到了哪里。提示、历史、文件编辑与权限判断都留在当前会话。中间的桥只负责交换这两侧需要的状态。因此，隐藏选区改变的是下一次送入会话的上下文，不会抹掉既有历史；拒绝一张 diff 改变的是这次文件应用，也不等于删除整段会话。</p>
+        </section>
+
+        <section class="block" data-xray-section="sequence" id="sequence">
+          <p class="kicker">02 / SEQUENCE</p>
+          <h2>一次改动怎样穿过编辑器</h2>
+          <div class="sequence">
+            <article class="step"><div><h3>用户选中代码并发送提示</h3><p>VS Code 自动让当前提示看见高亮文本，也允许隐藏选区；插入引用时还会带上文件路径与行号。JetBrains 在连接存在时，把选区和活动文件路径加入每次提示。两者都以发送当时的编辑器状态为入口，不表示整个工作区会自动塞进会话。</p></div><span class="tag">O</span></article>
+            <article class="step"><div><h3>扩展把编辑器状态交给当前会话</h3><p>本地 <code>ide</code> 服务负责桥接。它运行在临时端口，并用本次 IDE 启动生成的令牌鉴权。会话仍有自己的历史与上下文，多开会话不会把历史合成一份；同一个选区被送往哪个会话，取决于当时连接和操作的那一个会话。</p></div><span class="tag">O</span></article>
+            <article class="step"><div><h3>Claude 读取上下文并提出文件变化</h3><p>模型请求、工具权限和文件编辑仍由 Claude Code 引擎处理。IDE 扩展负责把编辑器信息接进来，却不替模型决定该改什么，也不绕过文件工具的权限边界。这里关于两侧职责的连接是根据官方公开接口作出的概括，所以保留 I。</p></div><span class="tag i">O + I</span></article>
+            <article class="step"><div><h3>改动回到 IDE diff</h3><p>VS Code Manual 模式先展示原稿与建议稿的并排差异，并等待接受、拒绝或补充指令；用户还可以先修改建议稿。JetBrains 可把 diff viewer 选为 IDE 或 terminal，但官方没有承诺它和 VS Code 使用同一组按钮。</p></div><span class="tag">O</span></article>
+            <article class="step"><div><h3>权限门给出停止位置</h3><p>Manual 停在 diff，Plan 更早停在改文件之前。Edit automatically 和可用时的 Auto 会减少确认，但仍可能受权限规则或其他安全控制约束。出现批准卡时，接受才让这次变化继续，拒绝则终止这次应用；它们都不是会话级删除。</p></div><span class="tag">O</span></article>
+          </div>
+        </section>
+
+        <section class="block" data-xray-section="flow" id="flow">
+          <p class="kicker">03 / FLOW</p>
+          <h2>桥传的是上下文和视图请求</h2>
+          <div class="flowboard" role="img" aria-label="编辑器、IDE 桥和 Claude 会话之间的数据流">
+            <div class="node"><h3>IDE</h3><p>选中文本<br>活动文件路径<br>原生 diff 视图</p></div>
+            <div class="arrow" aria-hidden="true">⇄</div>
+            <div class="node dark"><h3>本地 ide 服务</h3><p>临时端口<br>本机 WebSocket<br>每次启动的新令牌</p></div>
+            <div class="arrow" aria-hidden="true">⇄</div>
+            <div class="node"><h3>Claude Code</h3><p>当前提示<br>会话历史<br>文件编辑与权限</p></div>
+          </div>
+          <p class="flow-note">O　选区和打开 diff 的内部 RPC 会从模型工具列表中过滤。模型在 JetBrains 中可见的 IDE 工具是只读诊断接口。锁文件的公开结构只用于本地鉴权，本轮没有读取它。</p>
+          <p>这条双向线承载两种不同的消息。向右走时，选区和活动文件给会话补充“我此刻正在看的内容”。向左走时，桥请求 IDE 把这次文件变化放进熟悉的审阅界面。官方资料能证明这些用途和本地传输方式，却没有公开 2.1.247 的完整字段、逐条消息顺序或失败重试协议；页面因此不把示意图写成抓包结果。</p>
+        </section>
+
+        <section class="block" data-xray-section="limits" id="limits">
+          <p class="kicker">04 / LIMITS</p>
+          <h2>五个地方会暂停或失去桥接</h2>
+          <div class="gates">
+            <article class="gate amber access"><h3>账户与计费</h3><p>首次使用需要完成登录。直接使用 Anthropic 服务时，要有付费 Claude 订阅或 Claude Console 账户。VS Code 也能按官方指引接入 Amazon Bedrock、Google Cloud 的 Agent Platform 等第三方提供商，认证与计费随后服从对应提供商。装好扩展本身不等于已经取得产品准入。</p></article>
+            <article class="gate green"><h3>选区门</h3><p>VS Code 可以隐藏当前选区；隐藏后，下一次提示不再自动携带那段高亮内容。JetBrains 的匹配 <code>Read</code> deny 会挡住选中文本和活动文件提示。两种控制发生位置不同，结果都是让桥少送一部分编辑器上下文。</p></article>
+            <article class="gate amber"><h3>编辑批准门</h3><p>Manual 等用户处理 diff，Plan 等用户批准计划。自动编辑模式缩短了这段停顿，也扩大了配置文件风险。是否出现停顿取决于当前模式与适用规则，不能仅凭看见 IDE diff 就推断文件尚未落盘。</p></article>
+            <article class="gate red"><h3>连接失败</h3><p>插件没安装、没启用或 IDE 没被发现时，原生 diff 与选区桥不会出现。CLI 仍可退回终端工作，但此时提示不会自动获得 IDE 选区，变化也不保证回到原生 viewer；这是界面能力降级，不等于会话失效。</p></article>
+            <article class="gate red"><h3>宿主错位</h3><p>JetBrains Remote Development 要把插件装在远端 host。WSL2 的 NAT 或防火墙也可能挡住 IDE 检测。此类故障发生在桥的发现与连接阶段，所以先检查插件所在宿主和网络边界，比追查模型回答更接近故障点。</p></article>
+          </div>
+        </section>
+
+        <section class="block" data-xray-section="experiment" id="experiment">
+          <p class="kicker">05 / LOCAL CHECK</p>
+          <h2>这轮核了二进制，没有跑会话</h2>
+          <div class="lab">
+            <div><h3>只读命令</h3><p>直接调用保留的 2.1.247 二进制，检查版本、SHA-256 与 <code>--help</code>。随后只在标准扩展位置定点查找 IDE 插件。</p></div>
+            <div class="result"><h3>关键结果</h3><p>版本与给定二进制哈希一致。帮助里的 <code>--ide</code> 要求恰好发现一个有效 IDE；本机标准位置没有找到两类插件。</p></div>
+          </div>
+          <p>这只能算 L。它证明目标版本公开了 IDE 连接开关，也证明检查过的标准位置没有插件；它不能证明选区曾被传输、diff 曾被打开，更不能证明接受或拒绝后的磁盘结果。真实链路需要插件与一次 Claude 会话，本轮没有启动它，也没有产生费用。页面因此保持 documented，示意中的运行时顺序以 O 为主，不能升级成 R。</p>
+        </section>
+
+        <section class="block" data-xray-section="implementation" id="implementation">
+          <p class="kicker">06 / IMPLEMENTATION</p>
+          <h2>公共链相同，宿主方式不同</h2>
+          <table class="compare">
+            <thead><tr><th>对照点</th><th>VS Code</th><th>JetBrains</th></tr></thead>
+            <tbody>
+              <tr><td>会话宿主</td><td>图形面板自带一份 CLI。终端里另跑 <code>claude</code> 仍需独立安装。</td><td>插件不自带 CLI，在 IDE 终端运行已安装的 <code>claude</code>。</td></tr>
+              <tr><td>选区入口</td><td>高亮文本自动进入提示，可切换可见性，也可插入带行号引用。</td><td>连接时每次提示附带选区和活动文件路径，<code>Read</code> deny 可阻断。</td></tr>
+              <tr><td>Diff</td><td>Manual 明确提供并排 diff、接受、拒绝和补充指令。</td><td><code>diffTool</code> 决定在 IDE viewer 或 terminal 展示。官方没有承诺统一按钮细节。</td></tr>
+              <tr><td>会话接续</td><td>图形面板与 CLI 共用历史，可从列表或 <code>--resume</code> 接续。</td><td>本身就是 CLI 终端会话；外部终端用 <code>/ide</code> 接桥。</td></tr>
+            </tbody>
+          </table>
+          <p class="flow-note">版本边界　VS Code 从 2.1.246 起会恢复会话结束时的 Plan 模式，但显式初始模式和 process wrapper 会覆盖。目标版本 2.1.247 满足门槛。当前在线文档没有提供按 CLI 版本冻结的 IDE 插件快照。</p>
+          <p>这份对照只用来找出相同链路落在哪个宿主里。VS Code 把会话入口做进图形面板，并随扩展附带 CLI；JetBrains 从 IDE 终端里的外部 CLI 起步。入口不同以后，选区仍进入当前会话，建议变化仍交给 diff，权限仍决定是否等待。平台表只在宿主、入口和 viewer 上分叉，两列描述的仍是同一套桥接机制。</p>
+        </section>
+
+        <section class="block" data-xray-section="unknowns" id="unknowns">
+          <p class="kicker">07 / UNKNOWNS</p>
+          <h2>官方没有公开的几段</h2>
+          <ol class="unknown-list">
+            <li><b>U1</b><span>2.1.247 的选区、活动文件和 diff 内部 RPC 完整字段与消息顺序。</span></li>
+            <li><b>U2</b><span>VS Code 用户手改建议稿后，扩展告知 Claude 的具体差异格式。</span></li>
+            <li><b>U3</b><span>JetBrains 各 IDE 对部分接受、冲突和文件已变更的统一行为。</span></li>
+            <li><b>U4</b><span>IDE 断线发生在待批准 diff 阶段时，待定改动怎样回收或恢复。</span></li>
+            <li><b>U5</b><span>2.1.247 与当日两类插件的精确兼容矩阵。本机没有插件样本可核。</span></li>
+          </ol>
+        </section>
+
+        <section class="block" data-xray-section="sources" id="sources">
+          <p class="kicker">08 / SOURCES</p>
+          <h2>一手来源与安全复现</h2>
+          <ul class="source-list">
+            <li><a href="https://code.claude.com/docs/en/vs-code">VS Code 官方文档　证明账户准入、第三方提供商入口、选区、会话接续、Manual diff 与本地 IDE 桥</a></li>
+            <li><a href="https://code.claude.com/docs/en/jetbrains">JetBrains 官方文档　证明账户与首次登录、终端会话、每次提示的选区注入、diffTool 与桥接认证</a></li>
+            <li><a href="https://code.claude.com/docs/en/permission-modes">权限模式官方文档　证明 Manual、Plan 与自动编辑模式的批准边界</a></li>
+            <li><a href="https://code.claude.com/docs/en/platforms">平台官方对照　证明两类 IDE 都承接同一 Claude Code 引擎</a></li>
+            <li><a href="https://github.com/anthropics/claude-code/blob/v2.1.247/CHANGELOG.md">2.1.247 官方 changelog　限定本页版本快照</a></li>
+          </ul>
+          <details>
+            <summary>展开复现步骤</summary>
+            <ol>
+              <li>在一次性仓库固定 2.1.247，记录版本、二进制哈希和插件版本。</li>
+              <li>以 Manual 模式启动全新会话，选中无敏感信息的两行文本，确认 UI 显示选区。</li>
+              <li>先隐藏选区或加入 deny，再发下一次提示，检查选区是否消失。</li>
+              <li>请求改一个字面量，记录 diff 的打开位置与批准提示，再比较接受或拒绝后的文件哈希。</li>
+              <li>断开 IDE 桥后重复一次，确认终端回退。只保存匿名结果，不保存 prompt、session ID 或令牌。</li>
+            </ol>
+          </details>
+          <div class="footerline"><span>状态 documented · O + L · 无 R</span><a href="../index.html">返回总索引</a></div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

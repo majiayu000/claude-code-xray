@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="PAR-06">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>PAR-06 · /batch 大规模迁移编排</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f2ead7;
+      --soft: #bcb5a5;
+      --dim: #858277;
+      --night: #101717;
+      --deck: #182221;
+      --deck-2: #202c2a;
+      --rule: #43514d;
+      --signal: #ffb000;
+      --signal-2: #ff6b35;
+      --mint: #77d7b2;
+      --blue: #8bc8ff;
+      --red: #ff8b72;
+      --paper: #e9dfc8;
+      --paper-ink: #18201f;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background-color: var(--night);
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+      font-size: 17px;
+      line-height: 1.72;
+    }
+    a { color: var(--blue); text-underline-offset: .24em; }
+    a:hover { color: #c4e3ff; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--signal);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code, .mono, .badge, .ev, .step-no, .meta, nav {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+    code {
+      padding: .12em .38em;
+      border: 1px solid #4d5a56;
+      border-radius: 3px;
+      background: #111b1a;
+      color: #ffd166;
+      overflow-wrap: anywhere;
+    }
+    main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 24px 0 96px; }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0 18px;
+      border-bottom: 1px solid var(--rule);
+      color: var(--soft);
+      font-size: .8rem;
+      letter-spacing: .06em;
+    }
+    .topbar a { color: var(--ink); }
+    .hero {
+      min-height: min(760px, calc(100vh - 70px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(290px, .75fr);
+      align-items: center;
+      gap: clamp(32px, 7vw, 92px);
+      padding: 72px 0 58px;
+    }
+    .kicker {
+      margin: 0 0 16px;
+      color: var(--signal);
+      font: 700 .78rem/1.2 "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 12em;
+      margin-bottom: 24px;
+      font-size: clamp(2.6rem, 7vw, 6.3rem);
+      line-height: .98;
+      letter-spacing: -.065em;
+      font-weight: 800;
+    }
+    h2 {
+      margin-bottom: 12px;
+      font-size: clamp(1.65rem, 3.4vw, 2.85rem);
+      line-height: 1.16;
+      letter-spacing: -.035em;
+    }
+    h3 { margin-bottom: 7px; font-size: 1.02rem; line-height: 1.35; }
+    p { margin-bottom: 14px; }
+    .answer {
+      max-width: 38em;
+      font-size: clamp(1.08rem, 2vw, 1.32rem);
+      line-height: 1.7;
+    }
+    .answer strong { color: var(--signal); }
+    .stamp {
+      position: relative;
+      padding: 28px 24px 24px;
+      border: 1px solid var(--signal);
+      background: var(--deck);
+      box-shadow: 12px 12px 0 #080d0d;
+    }
+    .stamp::before {
+      content: "DISPATCH 19";
+      position: absolute;
+      top: -13px;
+      left: 20px;
+      padding: 2px 9px;
+      background: var(--signal);
+      color: #16130a;
+      font: 800 .72rem/1.6 "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .12em;
+    }
+    .route {
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      gap: 0 14px;
+    }
+    .route i {
+      position: relative;
+      display: block;
+      width: 14px;
+      height: 14px;
+      margin: 6px auto 0;
+      border: 3px solid var(--night);
+      border-radius: 50%;
+      background: var(--signal);
+      box-shadow: 0 0 0 1px var(--signal);
+    }
+    .route i:not(:nth-last-of-type(1))::after {
+      content: "";
+      position: absolute;
+      top: 13px;
+      left: 3px;
+      width: 2px;
+      height: 64px;
+      background: var(--rule);
+    }
+    .route div { min-height: 72px; }
+    .route b { display: block; color: var(--ink); }
+    .route span { color: var(--soft); font-size: .91rem; }
+    .meta-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 26px;
+    }
+    .badge {
+      padding: 4px 9px;
+      border: 1px solid var(--rule);
+      color: var(--soft);
+      font-size: .72rem;
+    }
+    .badge.status { border-color: var(--signal); color: var(--signal); }
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin: 0 0 68px;
+      border: 1px solid var(--rule);
+      border-right: 0;
+    }
+    .legend div {
+      min-width: 0;
+      padding: 15px 16px;
+      border-right: 1px solid var(--rule);
+      color: var(--soft);
+      font-size: .84rem;
+    }
+    .ev { display: inline-grid; place-items: center; min-width: 28px; margin-right: 8px; color: var(--night); font-weight: 900; }
+    .ev.o { background: var(--mint); }
+    .ev.l { background: var(--blue); }
+    .ev.r { background: var(--red); }
+    .ev.i { background: var(--signal); }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px 18px;
+      margin: 0 0 72px;
+      color: var(--dim);
+      font-size: .78rem;
+    }
+    nav a { color: var(--soft); }
+    section { scroll-margin-top: 24px; }
+    .section-head {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+      margin: 76px 0 24px;
+    }
+    .section-head .meta { padding-top: 8px; color: var(--signal); font-size: .75rem; letter-spacing: .1em; }
+    .section-head p { max-width: 46em; color: var(--soft); }
+    .term-grid, .limit-grid, .unknown-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--rule);
+      border: 1px solid var(--rule);
+    }
+    .term, .limit, .unknown { padding: 22px; background: var(--deck); }
+    .term p, .limit p, .unknown p { margin-bottom: 0; color: var(--soft); font-size: .94rem; }
+    .sequence-board {
+      border-top: 3px solid var(--signal);
+      background: var(--paper);
+      color: var(--paper-ink);
+    }
+    .seq-row {
+      display: grid;
+      grid-template-columns: 76px 1fr 1.2fr;
+      border-bottom: 1px solid #b9ad93;
+    }
+    .seq-row > * { padding: 18px 20px; }
+    .step-no { color: #765d26; font-weight: 800; }
+    .seq-row b { border-left: 1px solid #b9ad93; }
+    .seq-row p { margin: 0; border-left: 1px solid #b9ad93; color: #4a4b45; }
+    .seq-row.hold { background: #ffd166; }
+    .seq-row.hold p, .seq-row.hold b { color: #1e241f; }
+    .flow-shell {
+      padding: 24px;
+      border: 1px solid var(--rule);
+      background: #0a1010;
+      overflow: hidden;
+    }
+    .flow-line {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+    .flow-node {
+      position: relative;
+      min-height: 146px;
+      padding: 18px 16px;
+      border: 1px solid var(--rule);
+      background: var(--deck);
+    }
+    .flow-node:not(:last-child)::after {
+      content: "›";
+      position: absolute;
+      z-index: 2;
+      right: -12px;
+      top: 50%;
+      width: 22px;
+      height: 28px;
+      margin-top: -14px;
+      background: #0a1010;
+      color: var(--signal);
+      font: 800 1.5rem/28px Georgia, serif;
+      text-align: center;
+    }
+    .flow-node b { display: block; margin-bottom: 10px; color: var(--signal); }
+    .flow-node span { color: var(--soft); font-size: .9rem; }
+    .workers {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .worker {
+      padding: 18px;
+      border-top: 4px solid var(--mint);
+      background: var(--deck-2);
+    }
+    .worker small { display: block; margin-top: 6px; color: var(--soft); }
+    .data-strip {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 1px;
+      overflow-x: auto;
+      border: 1px solid var(--rule);
+      background: var(--rule);
+    }
+    .data-strip div { min-width: 130px; padding: 16px; background: var(--deck); }
+    .data-strip b { display: block; margin-bottom: 6px; color: var(--signal); font: 800 .78rem/1.3 "SFMono-Regular", Menlo, monospace; }
+    .data-strip span { color: var(--soft); font-size: .9rem; }
+    .notice {
+      margin-top: 16px;
+      padding: 18px 20px;
+      border-left: 5px solid var(--signal-2);
+      background: #251d17;
+      color: #e8cbb9;
+    }
+    .limit-grid { grid-template-columns: repeat(2, 1fr); }
+    .limit strong { color: var(--signal); }
+    .evidence-stack { display: grid; gap: 10px; }
+    details { border: 1px solid var(--rule); background: var(--deck); }
+    summary { cursor: pointer; padding: 17px 20px; font-weight: 800; }
+    details > div { padding: 0 20px 18px; color: var(--soft); }
+    details p:last-child { margin-bottom: 0; }
+    .version-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      border: 1px solid var(--rule);
+      background: var(--rule);
+    }
+    .version-split article { padding: 22px; background: var(--deck); }
+    .version-split strong { color: var(--mint); }
+    .unknown-grid { grid-template-columns: repeat(2, 1fr); }
+    .unknown b { color: var(--signal); }
+    .source-list { display: grid; gap: 10px; }
+    .source-list a {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 17px 18px;
+      border: 1px solid var(--rule);
+      background: var(--deck);
+      text-decoration: none;
+    }
+    .source-list a:hover { border-color: var(--blue); }
+    .source-list b { display: block; color: var(--ink); }
+    .source-list span:last-child { color: var(--soft); font-size: .91rem; }
+    footer {
+      margin-top: 72px;
+      padding-top: 22px;
+      border-top: 1px solid var(--rule);
+      color: var(--dim);
+      font-size: .82rem;
+    }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; padding-top: 54px; }
+      .stamp { max-width: 560px; }
+      .flow-line { grid-template-columns: 1fr 1fr; }
+      .flow-node:not(:last-child)::after { display: none; }
+      .workers, .term-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+      body { font-size: 16px; }
+      main { width: min(100% - 24px, 480px); padding-top: 10px; }
+      .topbar { font-size: .72rem; }
+      .hero { padding: 46px 0 38px; gap: 46px; }
+      h1 { max-width: none; }
+      .legend { grid-template-columns: 1fr 1fr; }
+      .section-head { grid-template-columns: 1fr; gap: 5px; margin-top: 60px; }
+      .section-head .meta { padding-top: 0; }
+      .term-grid, .limit-grid, .unknown-grid, .workers, .version-split, .flow-line { grid-template-columns: 1fr; }
+      .seq-row { grid-template-columns: 58px 1fr; }
+      .seq-row > * { padding: 15px 13px; }
+      .seq-row p { grid-column: 1 / -1; border-left: 0; border-top: 1px solid #b9ad93; }
+      .flow-shell { padding: 12px; }
+      .source-list a { grid-template-columns: 34px 1fr; padding: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：/batch 大规模迁移编排。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-par-06-batch-current/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="PAR-06 · /batch 大规模迁移编排">
+  <meta property="og:description" content="Claude Code X-Ray：/batch 大规模迁移编排。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-par-06-batch-current/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="PAR-06 · /batch 大规模迁移编排">
+  <meta name="twitter:description" content="Claude Code X-Ray：/batch 大规模迁移编排。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>PAR-06</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+<main>
+  <div class="topbar">
+    <span>CLAUDE CODE XRY · PAR-06 · UNIT 19</span>
+    <a href="../index.html">返回总索引</a>
+  </div>
+
+  <section class="hero" data-xray-section="answer" aria-labelledby="page-title">
+    <div>
+      <p class="kicker">Large migration dispatch</p>
+      <h1 id="page-title"><code>/batch</code> 把一次大改动拆成一排独立 PR</h1>
+      <p class="answer"><strong>它先停在计划和验收。</strong>用户批准以后，主 Claude 才把 5 到 30 个能单独合入的工作单元一次发给后台 worker。每个 worker 在自己的 git worktree 里改、查、测，随后各开一份 PR。主会话收回网址和失败原因，最后停在汇总表。<span class="ev o">O</span><span class="ev l">L</span></p>
+      <div class="meta-line" aria-label="页面元数据">
+        <span class="badge">PAR-06</span>
+        <span class="badge status">当前状态 documented</span>
+        <span class="badge">Claude Code 2.1.247</span>
+        <span class="badge">研究日期 2026-08-28</span>
+      </div>
+    </div>
+    <aside class="stamp" aria-label="主路径摘要">
+      <div class="route">
+        <i aria-hidden="true"></i><div><b>计划</b><span>先查影响面，拆成独立单元</span></div>
+        <i aria-hidden="true"></i><div><b>验收</b><span>写清 e2e 办法，等用户批准</span></div>
+        <i aria-hidden="true"></i><div><b>派工</b><span>一单元一 worker，一 worker 一 worktree</span></div>
+        <i aria-hidden="true"></i><div><b>交付</b><span>逐个 PR，最后汇总，不自动合并</span></div>
+      </div>
+    </aside>
+  </section>
+
+  <div class="legend" aria-label="证据图例">
+    <div><span class="ev o">O</span>官方契约</div>
+    <div><span class="ev l">L</span>本机静态证据</div>
+    <div><span class="ev r">R</span>真实实验，本页缺席</div>
+    <div><span class="ev i">I</span>研究者推断</div>
+  </div>
+
+  <nav aria-label="页内导航">
+    <a href="#terms">名词</a><a href="#sequence">时序</a><a href="#flow">文件流</a><a href="#limits">权限与停止</a><a href="#experiment">本机核对</a><a href="#implementation">实现与版本</a><a href="#unknowns">未知项</a><a href="#sources">来源</a>
+  </nav>
+
+  <section id="terms" data-xray-section="terms" aria-labelledby="terms-title">
+    <div class="section-head">
+      <div class="meta">01 · TERMS</div>
+      <div><h2 id="terms-title">读懂这页只要三个词</h2><p>三者各有自己的边界。<code>/batch</code> 负责把它们接成一套编排流程，底层机制仍由 Claude Code 的 skill、subagent 和 git worktree 提供。<span class="ev o">O</span><span class="ev l">L</span></p></div>
+    </div>
+    <div class="term-grid">
+      <article class="term"><h3>Bundled skill</h3><p>随 Claude Code 一起提供的提示说明。它把详细步骤交给主 Claude 执行，没有另起一套固定脚本状态机。<span class="ev o">O</span><span class="ev l">L</span></p></article>
+      <article class="term"><h3>Background subagent</h3><p>主会话派出的独立上下文。worker 自己使用工具，结束时只把最终文本交回父会话。<span class="ev o">O</span></p></article>
+      <article class="term"><h3>Git worktree</h3><p>同一仓库的独立工作目录和分支。并行 worker 的文件改动互不落进对方目录。<span class="ev o">O</span></p></article>
+    </div>
+  </section>
+
+  <section id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+  <div class="section-head"><div class="meta">02 · SEQUENCE</div><div><h2 id="sequence-title">公开契约里的五步</h2><p>以下只保留官方 Commands 页面承诺的产品流程。<span class="ev o">O</span></p></div></div>
+  <div class="sequence-board">
+    <div class="seq-row"><span class="step-no">01</span><b>用户输入</b><p>在 Git 仓库里输入 <code>/batch</code> 和大改动说明。</p></div>
+    <div class="seq-row"><span class="step-no">02</span><b>调研与拆分</b><p>Claude 调研代码库，把工作拆成 5 到 30 个可独立实现的单元。</p></div>
+    <div class="seq-row hold"><span class="step-no">HOLD</span><b>展示计划</b><p>计划先交给用户审阅；批准以前不启动实现 worker。</p></div>
+    <div class="seq-row"><span class="step-no">03</span><b>隔离执行</b><p>批准后，每个单元由一个后台 subagent 在独立 worktree 中实现和测试。</p></div>
+    <div class="seq-row"><span class="step-no">04</span><b>分别交付</b><p>各单元分别创建 Pull Request，主会话汇总每个单元的结果。</p></div>
+  </div>
+</section>
+
+  <section id="flow" data-xray-section="flow" aria-labelledby="flow-title">
+  <div class="section-head"><div class="meta">03 · FLOW</div><div><h2 id="flow-title">一个计划，多个隔离结果</h2><p>主会话负责计划和汇总；worker 有独立上下文与独立 worktree。公开文档没有把内部任务信封或输出令牌定义为稳定接口。<span class="ev o">O</span></p></div></div>
+  <div class="flow-shell"><div class="flow-line"><div class="flow-node"><b>用户说明</b><span>目标和范围</span></div><div class="flow-node"><b>主会话计划</b><span>5–30 个独立单元</span></div><div class="flow-node"><b>隔离 worktree</b><span>各自实现和测试</span></div><div class="flow-node"><b>独立 PR</b><span>分别供审查与合入</span></div><div class="flow-node"><b>结果汇总</b><span>成功或失败状态</span></div></div></div>
+</section>
+
+  <section id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+  <div class="section-head"><div class="meta">04 · LIMITS</div><div><h2 id="limits-title">计划批准不等于权限放行</h2><p>模型连接、GitHub 交付、Claude Code 权限和仓库规则仍分别生效。<span class="ev o">O</span></p></div></div>
+  <div class="limit-grid">
+    <article class="limit"><h3><strong>输入与仓库</strong></h3><p>命令需要任务说明，并要求当前目录属于 Git 仓库。</p></article>
+    <article class="limit"><h3><strong>批准门</strong></h3><p>用户没有批准计划时，不进入后台实现阶段。</p></article>
+    <article class="limit"><h3><strong>执行权限</strong></h3><p>worker 的文件、Shell、网络与 Git 操作仍按权限规则逐次判断。</p></article>
+    <article class="limit"><h3><strong>账户与费用</strong></h3><p>并行模型调用消耗当前订阅额度或 API、云平台 token 用量。</p></article>
+    <article class="limit"><h3><strong>GitHub 交付</strong></h3><p>创建 PR 需要有效身份、可推送分支和仓库允许的 PR 路径。</p></article>
+  </div>
+</section>
+
+  <section id="experiment" data-xray-section="experiment" aria-labelledby="experiment-title">
+  <div class="section-head"><div class="meta">05 · PUBLIC EVIDENCE</div><div><h2 id="experiment-title">公开版不披露内置提示</h2><p>本页没有真实运行 <code>/batch</code>。公开结论来自官方 Commands、Agents、Skills、Worktrees 与 Permissions 文档；安装物中的任务信封、命令清单和结果格式不作为公开内容。</p></div></div>
+</section>
+
+  <section id="implementation" data-xray-section="implementation" aria-labelledby="implementation-title">
+  <div class="section-head"><div class="meta">06 · VERSION</div><div><h2 id="implementation-title">版本化阅读，不把内部格式当 API</h2><p>官方 2.1.247 changelog 没有宣布 <code>/batch</code> 主流程变化。可以依赖的是调研、5–30 个单元、计划批准、后台 subagent、worktree 隔离和分别创建 PR；内部提示措辞与输出格式不属于稳定公开契约。<span class="ev o">O</span></p></div></div>
+</section>
+
+  <section id="unknowns" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+    <div class="section-head">
+      <div class="meta">07 · UNKNOWNS</div>
+      <div><h2 id="unknowns-title">说明写得很细，运行时仍有四件事未知</h2><p>它们会改变读者对规模、失败和可恢复性的判断，所以保留在页面上。</p></div>
+    </div>
+    <div class="unknown-grid">
+      <article class="unknown"><h3><b>拆分服从度</b></h3><p>真实仓库里是否总会得到 5 到 30 个互不重叠、能单独合入的单元。</p></article>
+      <article class="unknown"><h3><b>运行时并发</b></h3><p>同一消息放出 30 个 worker 后，底层怎样排队、限流和退避。</p></article>
+      <article class="unknown"><h3><b>部分失败</b></h3><p>某个 worker 卡在权限、网络或 branch protection 时，其他 worker 和最终表怎样收敛。</p></article>
+      <article class="unknown"><h3><b>恢复与清理</b></h3><p>计划文件的确切保存期，以及已推送 worker 的 worktree 在 2.1.247 何时清理。</p></article>
+    </div>
+  </section>
+
+  <section id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+    <div class="section-head">
+      <div class="meta">08 · SOURCES</div>
+      <div><h2 id="sources-title">一手资料和复现入口</h2><p>下面全部直达 Anthropic 官方页面。完整命令摘要、版本边界和复现步骤见本目录的 evidence.md。</p></div>
+    </div>
+    <div class="source-list">
+      <a href="https://code.claude.com/docs/en/commands"><span class="ev o">O</span><span><b>Commands 证明 <code>/batch</code> 的完整公开流程</b>5 到 30、计划批准、后台 subagent、worktree、测试和逐 PR。</span></a>
+      <a href="https://code.claude.com/docs/en/agents"><span class="ev o">O</span><span><b>Run agents in parallel 证明机制边界</b><code>/batch</code> 是 subagent 加 worktree 的预包装用法。</span></a>
+      <a href="https://code.claude.com/docs/en/skills"><span class="ev o">O</span><span><b>Skills 证明命令身份</b>bundled skills 通过详细提示让 Claude 使用工具编排。</span></a>
+      <a href="https://code.claude.com/docs/en/sub-agents"><span class="ev o">O</span><span><b>Subagents 证明上下文和权限</b>worker 有独立上下文，工具调用仍经过权限检查。</span></a>
+      <a href="https://code.claude.com/docs/en/worktrees"><span class="ev o">O</span><span><b>Worktrees 证明隔离条件</b>git 仓库前置条件、独立目录和隔离语义。</span></a>
+      <a href="https://code.claude.com/docs/en/permissions"><span class="ev o">O</span><span><b>Permissions 证明批准边界</b>提示不能覆盖执行层的 deny、ask 和 allow。</span></a>
+      <a href="https://code.claude.com/docs/en/authentication"><span class="ev o">O</span><span><b>Authentication 证明模型登录入口</b>Claude.ai、Claude Console 和受支持云提供商分别需要对应账户或凭据。</span></a>
+      <a href="https://code.claude.com/docs/en/costs"><span class="ev o">O</span><span><b>Costs 证明用量怎样计入账单</b>订阅用户消耗套餐额度，API 与云平台按各自的 token 计费方式结算。</span></a>
+      <a href="https://cli.github.com/manual/gh_auth_login"><span class="ev o">O</span><span><b>GitHub CLI 证明认证前置条件</b><code>gh</code> 通过网页登录、token 或环境变量取得 GitHub 身份。</span></a>
+      <a href="https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/creating-a-pull-request"><span class="ev o">O</span><span><b>GitHub Docs 证明分支与 PR 权限</b>源分支需要可写位置，不能直推时可先用 fork，仓库规则仍然生效。</span></a>
+      <a href="https://code.claude.com/docs/en/changelog"><span class="ev o">O</span><span><b>Changelog 证明版本差异</b>2.1.247 的 subagent 404 fallback 修复和未列 <code>/batch</code> 改写。</span></a>
+    </div>
+  </section>
+
+  <footer>PAR-06 · 页面状态 documented · Claude Code 2.1.247 · 无 R · <a href="../index.html">返回总索引</a></footer>
+</main>
+</body>
+</html>

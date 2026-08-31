@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="EXT-02">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>EXT-02 自定义斜杠命令与内置 Commands</title>
+  <style>
+    :root {
+      --paper: #f2eadb;
+      --paper-2: #e8dcc6;
+      --ink: #17201e;
+      --ink-soft: #52605b;
+      --line: #9b8e77;
+      --orange: #e5522d;
+      --orange-dark: #a82f18;
+      --cyan: #087e87;
+      --lime: #b8d438;
+      --black: #101715;
+      --white: #fffaf0;
+      --shadow: 8px 8px 0 rgba(23, 32, 30, .13);
+      --mono: "IBM Plex Mono", "SFMono-Regular", "Cascadia Code", Menlo, monospace;
+      --serif: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", Georgia, serif;
+      --sans: "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(rgba(23,32,30,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23,32,30,.045) 1px, transparent 1px);
+      background-size: 24px 24px;
+      font-family: var(--sans);
+      line-height: 1.72;
+    }
+
+    a { color: inherit; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+    a:hover { color: var(--orange-dark); }
+    a:focus-visible, summary:focus-visible {
+      outline: 4px solid var(--lime);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    .masthead {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 18px;
+      min-height: 58px;
+      padding: 8px max(18px, calc((100vw - 1240px) / 2));
+      color: var(--white);
+      background: var(--black);
+      border-bottom: 4px solid var(--orange);
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .04em;
+    }
+
+    .masthead strong { color: var(--lime); }
+    .masthead nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; }
+    .masthead nav a { color: #e8e5dc; text-decoration: none; }
+    .masthead .back { white-space: nowrap; }
+
+    main { overflow: hidden; }
+    section { scroll-margin-top: 86px; }
+
+    .hero {
+      min-height: min(830px, calc(100vh - 58px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(400px, .92fr);
+      gap: clamp(34px, 6vw, 92px);
+      align-items: center;
+      width: min(1240px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 76px 0 64px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: .8rem;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 42px; height: 9px; background: var(--orange); }
+
+    h1, h2, h3 { margin-top: 0; line-height: 1.16; }
+    h1 {
+      max-width: 760px;
+      margin-bottom: 30px;
+      font-family: var(--serif);
+      font-size: clamp(3.1rem, 6.4vw, 6.5rem);
+      font-weight: 900;
+      letter-spacing: -.06em;
+    }
+    h1 .slash { color: var(--orange); font-family: var(--mono); }
+    h1 small {
+      display: block;
+      margin-top: 16px;
+      color: var(--ink-soft);
+      font-family: var(--mono);
+      font-size: clamp(.82rem, 1.2vw, 1.08rem);
+      font-weight: 600;
+      letter-spacing: .04em;
+    }
+
+    .hero-answer {
+      max-width: 720px;
+      margin: 0;
+      font-size: clamp(1.1rem, 1.65vw, 1.42rem);
+      line-height: 1.85;
+    }
+
+    .ev {
+      display: inline-grid;
+      place-items: center;
+      min-width: 1.55rem;
+      height: 1.55rem;
+      margin: 0 .22rem;
+      padding: 0 .28rem;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      font-family: var(--mono);
+      font-size: .68rem;
+      font-style: normal;
+      font-weight: 900;
+      line-height: 1;
+      vertical-align: .18em;
+    }
+    .ev.o { color: var(--orange-dark); background: #ffd8c8; }
+    .ev.l { color: #086067; background: #c8f0ea; }
+    .ev.r { color: #506509; background: #e5f29b; }
+    .ev.i { color: #514b42; background: #dfd7ca; }
+
+    .status-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 34px;
+    }
+    .stamp {
+      padding: 6px 10px;
+      border: 2px solid var(--ink);
+      background: var(--paper-2);
+      font-family: var(--mono);
+      font-size: .76rem;
+      font-weight: 700;
+      box-shadow: 3px 3px 0 var(--ink);
+    }
+    .stamp.hot { color: var(--white); background: var(--orange-dark); }
+
+    .console {
+      position: relative;
+      padding: 18px;
+      color: #d9e5dd;
+      background: var(--black);
+      border: 3px solid var(--ink);
+      box-shadow: var(--shadow);
+      font-family: var(--mono);
+    }
+    .console::after {
+      content: "23";
+      position: absolute;
+      right: -20px;
+      top: -34px;
+      color: var(--orange);
+      font-size: 7rem;
+      font-weight: 900;
+      line-height: 1;
+      opacity: .22;
+      pointer-events: none;
+    }
+    .console-bar {
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #44514c;
+      color: #98a69f;
+      font-size: .72rem;
+    }
+    .prompt-line { margin: 24px 0 18px; font-size: clamp(.96rem, 1.35vw, 1.18rem); }
+    .prompt-line b { color: var(--lime); }
+    .cursor { display: inline-block; width: .62em; height: 1.1em; margin-left: 4px; background: var(--orange); vertical-align: -.2em; }
+    .dispatch-board { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .dispatch-cell { min-height: 146px; padding: 15px; border: 1px solid #53615c; background: #18231f; }
+    .dispatch-cell strong { display: block; margin-bottom: 8px; color: var(--white); font-size: .84rem; }
+    .dispatch-cell p { margin: 0; color: #a9b8b0; font-size: .74rem; line-height: 1.65; }
+    .dispatch-cell.file { border-color: #278f92; }
+    .dispatch-cell.builtin { border-color: #dc6347; }
+    .arrow-down { padding: 12px 0; color: var(--lime); text-align: center; letter-spacing: .55em; }
+    .console-result { padding: 13px; color: var(--white); background: #26332e; border-left: 5px solid var(--lime); font-size: .78rem; }
+
+    .legend-strip {
+      color: var(--white);
+      background: var(--cyan);
+      border-top: 4px solid var(--ink);
+      border-bottom: 4px solid var(--ink);
+    }
+    .legend-inner {
+      display: grid;
+      grid-template-columns: auto repeat(4, 1fr);
+      gap: 18px;
+      align-items: center;
+      width: min(1240px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 22px 0;
+    }
+    .legend-inner h2 { margin: 0; font-family: var(--mono); font-size: .82rem; letter-spacing: .08em; }
+    .legend-item { display: flex; gap: 8px; align-items: center; font-size: .86rem; }
+    .legend-item .ev { flex: 0 0 auto; }
+
+    .section-shell {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 96px 0;
+    }
+    .section-kicker { margin: 0 0 12px; color: var(--orange-dark); font-family: var(--mono); font-size: .78rem; font-weight: 800; letter-spacing: .12em; }
+    h2 { margin-bottom: 20px; font-family: var(--serif); font-size: clamp(2.2rem, 4vw, 4rem); letter-spacing: -.045em; }
+    .lead { max-width: 760px; margin: 0 0 42px; color: var(--ink-soft); font-size: 1.08rem; }
+
+    .term-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .term-card {
+      min-height: 250px;
+      padding: 22px;
+      border: 2px solid var(--ink);
+      background: rgba(255,250,240,.72);
+      box-shadow: 5px 5px 0 rgba(23,32,30,.18);
+    }
+    .term-card:nth-child(even) { transform: translateY(24px); }
+    .term-card .num { display: block; color: var(--orange); font-family: var(--mono); font-size: 2rem; font-weight: 900; }
+    .term-card h3 { margin: 28px 0 10px; font-family: var(--mono); font-size: 1rem; }
+    .term-card p { margin: 0; color: var(--ink-soft); font-size: .9rem; }
+
+    .sequence-section { color: var(--white); background: var(--black); border-top: 7px solid var(--orange); }
+    .sequence-section .section-kicker { color: var(--lime); }
+    .sequence-section .lead { color: #aebbb5; }
+    .timeline { position: relative; display: grid; gap: 22px; margin-top: 42px; }
+    .timeline::before { content: ""; position: absolute; left: 33px; top: 36px; bottom: 36px; width: 2px; background: #52635b; }
+    .time-row { position: relative; display: grid; grid-template-columns: 68px minmax(0, 1fr) auto; gap: 24px; align-items: start; }
+    .time-no { z-index: 1; display: grid; place-items: center; width: 68px; height: 68px; color: var(--black); background: var(--lime); border-radius: 50%; font-family: var(--mono); font-weight: 900; }
+    .time-copy { padding: 17px 0 20px; border-bottom: 1px solid #435049; }
+    .time-copy h3 { margin-bottom: 8px; font-family: var(--mono); font-size: 1rem; }
+    .time-copy p { max-width: 740px; margin: 0; color: #b9c3be; }
+    .time-tag { margin-top: 18px; padding: 4px 8px; color: #cbd5cf; border: 1px solid #58675f; font-family: var(--mono); font-size: .7rem; }
+
+    .flow-map {
+      display: grid;
+      grid-template-columns: minmax(170px, .65fr) 54px minmax(0, 1fr) 54px minmax(0, 1fr);
+      align-items: stretch;
+      margin-top: 46px;
+    }
+    .flow-node { padding: 22px; border: 2px solid var(--ink); background: var(--white); }
+    .flow-node h3 { margin-bottom: 12px; font-family: var(--mono); font-size: .95rem; }
+    .flow-node p, .flow-node li { color: var(--ink-soft); font-size: .88rem; }
+    .flow-node ul { margin: 0; padding-left: 1.2em; }
+    .flow-arrow { display: grid; place-items: center; font-family: var(--mono); font-size: 1.5rem; font-weight: 900; }
+    .branch-stack { display: grid; gap: 12px; }
+    .branch { padding: 20px; border: 2px solid var(--ink); }
+    .branch:first-child { background: #ffd8c8; }
+    .branch:last-child { background: #c8f0ea; }
+    .branch h3 { margin-bottom: 7px; font-family: var(--mono); font-size: .9rem; }
+    .branch p { margin: 0; font-size: .86rem; }
+    .message-node { color: var(--white); background: var(--cyan); }
+    .message-node p, .message-node li { color: #e2f1ef; }
+
+    .parameter-ledger { margin-top: 38px; border: 2px solid var(--ink); background: var(--white); box-shadow: var(--shadow); }
+    .ledger-row { display: grid; grid-template-columns: 1fr 1.1fr 1.4fr; }
+    .ledger-row > div { padding: 15px 18px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .ledger-row > div:last-child { border-right: 0; }
+    .ledger-row:last-child > div { border-bottom: 0; }
+    .ledger-head { color: var(--white); background: var(--ink); font-family: var(--mono); font-size: .78rem; font-weight: 800; }
+    .ledger-row:not(.ledger-head) { font-size: .88rem; }
+
+    .limits-section { background: var(--paper-2); border-top: 2px solid var(--line); border-bottom: 2px solid var(--line); }
+    .gate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .gate { position: relative; padding: 26px 26px 26px 78px; border: 2px solid var(--ink); background: var(--white); }
+    .gate::before { position: absolute; left: 22px; top: 24px; font-family: var(--mono); font-size: 1.45rem; font-weight: 900; }
+    .gate.pass::before { content: "GO"; color: var(--cyan); }
+    .gate.stop::before { content: "XX"; color: var(--orange-dark); }
+    .gate h3 { margin-bottom: 8px; font-family: var(--mono); font-size: .95rem; }
+    .gate p { margin: 0; color: var(--ink-soft); font-size: .89rem; }
+
+    .callout {
+      margin-top: 28px;
+      padding: 26px;
+      color: var(--white);
+      background: var(--orange-dark);
+      border: 3px solid var(--ink);
+      box-shadow: var(--shadow);
+    }
+    .callout strong { display: block; margin-bottom: 8px; font-family: var(--mono); }
+    .callout p { margin: 0; }
+
+    .experiment-box { display: grid; grid-template-columns: .7fr 1.3fr; border: 3px solid var(--ink); box-shadow: var(--shadow); }
+    .experiment-state { display: grid; place-items: center; min-height: 270px; padding: 34px; color: var(--white); background: var(--cyan); text-align: center; }
+    .experiment-state b { display: block; font-family: var(--mono); font-size: 4.2rem; line-height: 1; }
+    .experiment-state span { display: block; margin-top: 12px; font-family: var(--mono); font-weight: 800; letter-spacing: .08em; }
+    .experiment-copy { padding: 34px; background: var(--white); }
+    .experiment-copy h3 { font-family: var(--serif); font-size: 1.7rem; }
+    .experiment-copy p { color: var(--ink-soft); }
+    .experiment-copy p:last-child { margin-bottom: 0; }
+
+    .implementation-section { color: var(--white); background: #20302b; }
+    .implementation-section .section-kicker { color: var(--lime); }
+    .implementation-section .lead { color: #b9c5bf; }
+    .version-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; background: #627069; border: 2px solid #627069; }
+    .version { min-height: 210px; padding: 24px; background: #17211e; }
+    .version b { display: block; margin-bottom: 28px; color: var(--lime); font-family: var(--mono); font-size: 1.2rem; }
+    .version p { margin: 0; color: #b8c4be; font-size: .87rem; }
+    .version.current { background: var(--cyan); }
+    .version.current b, .version.current p { color: var(--white); }
+
+    .mode-table { margin-top: 34px; border: 1px solid #617068; }
+    .mode-row { display: grid; grid-template-columns: 1fr 1.4fr 1.4fr; }
+    .mode-row > div { padding: 14px 18px; border-right: 1px solid #617068; border-bottom: 1px solid #617068; }
+    .mode-row > div:last-child { border-right: 0; }
+    .mode-row:last-child > div { border-bottom: 0; }
+    .mode-head { color: var(--lime); font-family: var(--mono); font-weight: 800; }
+
+    .unknown-list { display: grid; gap: 14px; counter-reset: unknown; }
+    .unknown-item { counter-increment: unknown; display: grid; grid-template-columns: 56px 1fr; gap: 18px; align-items: start; padding: 22px; border-bottom: 2px solid var(--ink); }
+    .unknown-item::before { content: "?" counter(unknown); display: grid; place-items: center; width: 56px; height: 56px; color: var(--white); background: var(--orange-dark); font-family: var(--mono); font-weight: 900; }
+    .unknown-item h3 { margin: 4px 0 8px; font-family: var(--mono); font-size: .95rem; }
+    .unknown-item p { margin: 0; color: var(--ink-soft); }
+
+    .sources-section { background: var(--white); border-top: 7px solid var(--ink); }
+    .source-list { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .source-link { display: block; min-height: 128px; padding: 22px; border: 2px solid var(--ink); text-decoration: none; box-shadow: 4px 4px 0 rgba(23,32,30,.16); }
+    .source-link:hover { color: var(--ink); background: #f7e2a2; transform: translate(-2px, -2px); box-shadow: 7px 7px 0 rgba(23,32,30,.18); }
+    .source-link b { display: block; margin-bottom: 8px; font-family: var(--mono); }
+    .source-link span { color: var(--ink-soft); font-size: .88rem; }
+
+    details { margin-top: 30px; border: 2px solid var(--ink); background: var(--paper); }
+    summary { padding: 16px 20px; cursor: pointer; font-family: var(--mono); font-weight: 800; }
+    details .detail-body { padding: 0 20px 20px; color: var(--ink-soft); }
+
+    footer { padding: 30px 20px 46px; color: #a8b4ae; background: var(--black); text-align: center; font-family: var(--mono); font-size: .76rem; }
+    footer a { color: var(--white); }
+
+    @media (max-width: 900px) {
+      .masthead { grid-template-columns: auto 1fr; }
+      .masthead nav { display: none; }
+      .masthead .back { text-align: right; }
+      .hero { grid-template-columns: 1fr; padding-top: 56px; }
+      .hero h1 { max-width: 800px; }
+      .console { width: calc(100% - 10px); }
+      .legend-inner { grid-template-columns: repeat(2, 1fr); }
+      .legend-inner h2 { grid-column: 1 / -1; }
+      .term-grid, .version-grid { grid-template-columns: 1fr 1fr; }
+      .term-card:nth-child(even) { transform: none; }
+      .flow-map { grid-template-columns: 1fr; gap: 10px; }
+      .flow-arrow { transform: rotate(90deg); min-height: 42px; }
+      .gate-grid, .source-list { grid-template-columns: 1fr; }
+      .experiment-box { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .masthead { padding-inline: 14px; font-size: .7rem; }
+      .masthead .version-label { display: none; }
+      .hero, .section-shell, .legend-inner { width: min(100% - 28px, 1120px); }
+      .hero { min-height: auto; padding: 46px 0 48px; gap: 42px; }
+      h1 { font-size: clamp(2.8rem, 15vw, 4.2rem); }
+      .hero-answer { font-size: 1.04rem; }
+      .dispatch-board { grid-template-columns: 1fr; }
+      .console::after { right: -8px; top: -24px; font-size: 5rem; }
+      .legend-inner { grid-template-columns: 1fr; gap: 12px; }
+      .legend-inner h2 { grid-column: auto; }
+      .section-shell { padding: 70px 0; }
+      h2 { font-size: 2.35rem; }
+      .term-grid, .version-grid { grid-template-columns: 1fr; }
+      .term-card { min-height: 0; }
+      .time-row { grid-template-columns: 52px 1fr; gap: 14px; }
+      .time-no { width: 52px; height: 52px; }
+      .timeline::before { left: 25px; }
+      .time-tag { grid-column: 2; margin-top: -10px; width: max-content; }
+      .ledger-row, .mode-row { grid-template-columns: 1fr; padding: 12px 0; border-bottom: 1px solid var(--line); }
+      .ledger-row > div, .mode-row > div { padding: 7px 14px; border: 0; }
+      .ledger-head, .mode-head { display: none; }
+      .gate { padding-left: 24px; padding-top: 74px; }
+      .unknown-item { grid-template-columns: 46px 1fr; gap: 12px; padding-inline: 0; }
+      .unknown-item::before { width: 46px; height: 46px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { transition: none !important; }
+    }
+
+    @media print {
+      .masthead { position: static; }
+      body { background: white; }
+      .hero { min-height: auto; }
+      a { color: black; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：自定义斜杠命令与内置 Commands。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ext-02-commands/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="EXT-02 · 自定义斜杠命令与内置 Commands">
+  <meta property="og:description" content="Claude Code X-Ray：自定义斜杠命令与内置 Commands。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ext-02-commands/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="EXT-02 · 自定义斜杠命令与内置 Commands">
+  <meta name="twitter:description" content="Claude Code X-Ray：自定义斜杠命令与内置 Commands。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>EXT-02</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="masthead">
+    <strong>EXT-02</strong>
+    <nav aria-label="页内导航">
+      <a href="#sequence">顺序</a>
+      <a href="#flow">流向</a>
+      <a href="#limits">停止点</a>
+      <a href="#unknowns">未知项</a>
+      <a href="#sources">来源</a>
+    </nav>
+    <a class="back" href="../index.html">返回总索引</a>
+  </header>
+
+  <main>
+    <section class="hero" id="answer" data-xray-section="answer">
+      <div>
+        <div class="eyebrow">Input dispatch / 23</div>
+        <h1><span class="slash">/</span> 输入以后<br>走哪条路<small>自定义斜杠命令与内置 Commands</small></h1>
+        <p class="hero-answer">
+          Claude Code 只在消息开头认斜杠命令。菜单会随输入过滤候选，CLI 随后按提交的名字选择当前可用命令。内置命令进入固定处理逻辑。旧式文件命令会读取 Markdown，替换参数及获准的动态片段。默认分支把渲染结果放进当前会话；写了 <code>context: fork</code> 的文件命令会把它交给一个子 Agent。名字未命中时，CLI 报告未知命令；动态注入失败时，正文不会交给 Claude。<sup class="ev o">O</sup><sup class="ev l">L</sup>
+        </p>
+        <div class="status-line" aria-label="页面状态">
+          <span class="stamp hot">状态 documented</span>
+          <span class="stamp">Claude Code 2.1.247</span>
+          <span class="stamp">基线 2026-08-27</span>
+          <span class="stamp">无会话实验</span>
+        </div>
+      </div>
+
+      <div class="console" aria-label="斜杠命令分派示意">
+        <div class="console-bar"><span>COMMAND INTAKE</span><span>2.1.247</span></div>
+        <div class="prompt-line"><b>›</b> <code>/deploy staging</code><span class="cursor" aria-hidden="true"></span></div>
+        <div class="dispatch-board">
+          <div class="dispatch-cell builtin">
+            <strong>BUILT-IN</strong>
+            <p>CLI 固定逻辑<br>改模型、权限、上下文或界面状态</p>
+          </div>
+          <div class="dispatch-cell file">
+            <strong>FILE COMMAND</strong>
+            <p>读取 Markdown<br>参数替换、动态注入、组成会话消息</p>
+          </div>
+        </div>
+        <div class="arrow-down" aria-hidden="true">↓ ↓ ↓</div>
+        <div class="console-result">一个名字，两类处理器，文件分支还有内联与 fork 两个落点</div>
+      </div>
+    </section>
+
+    <section class="legend-strip" aria-labelledby="legend-title">
+      <div class="legend-inner">
+        <h2 id="legend-title">证据图例</h2>
+        <div class="legend-item"><span class="ev o">O</span><span>官方契约</span></div>
+        <div class="legend-item"><span class="ev l">L</span><span>本机静态证据</span></div>
+        <div class="legend-item"><span class="ev r">R</span><span>真实实验，本页缺失</span></div>
+        <div class="legend-item"><span class="ev i">I</span><span>有限推断</span></div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="terms" data-xray-section="terms">
+      <p class="section-kicker">01 / TERMS</p>
+      <h2>四个角色就够读懂这页</h2>
+      <p class="lead">命令菜单把多种来源放在一起，运行时仍要分清谁认名字、谁展开文件，以及谁真的改变会话。</p>
+      <div class="term-grid">
+        <article class="term-card">
+          <span class="num">01</span>
+          <h3>用户输入</h3>
+          <p>消息必须以斜杠命令开头。名字后的文字是参数。斜杠出现在消息中部时，公开契约不把它当命令入口。<sup class="ev o">O</sup></p>
+        </article>
+        <article class="term-card">
+          <span class="num">02</span>
+          <h3>命令匹配器</h3>
+          <p>菜单随输入过滤候选。顶部候选只有在名称或别名按官方规则匹配时才高亮；拼错时相近候选仍可留在列表，直接提交会报未知命令。<sup class="ev o">O</sup><sup class="ev l">L</sup></p>
+        </article>
+        <article class="term-card">
+          <span class="num">03</span>
+          <h3>两类处理器</h3>
+          <p>大多数内置命令执行 CLI 固定逻辑。文件命令沿用 Skill 的提示渲染机制。<sup class="ev o">O</sup></p>
+        </article>
+        <article class="term-card">
+          <span class="num">04</span>
+          <h3>当前会话</h3>
+          <p>内置处理器按各自契约改状态。默认文件命令把渲染内容留在当前会话；<code>context: fork</code> 改为启动子 Agent，并把结果送回当前会话。<sup class="ev o">O</sup></p>
+        </article>
+      </div>
+    </section>
+
+    <section class="sequence-section" id="sequence" data-xray-section="sequence">
+      <div class="section-shell">
+        <p class="section-kicker">02 / SEQUENCE</p>
+        <h2>一次提交里的先后顺序</h2>
+        <p class="lead">下面只写官方能够约束的顺序。CLI 内部函数名和注册表结构没有公开，留在未知项。</p>
+        <div class="timeline">
+          <article class="time-row">
+            <div class="time-no">01</div>
+            <div class="time-copy"><h3>识别消息开头</h3><p>提交内容以 <code>/name</code> 开头才进入命令路径。后面的原始文字先作为参数保留。</p></div>
+            <span class="time-tag">O</span>
+          </article>
+          <article class="time-row">
+            <div class="time-no">02</div>
+            <div class="time-copy"><h3>过滤候选，再决定是否高亮</h3><p>菜单会随输入过滤。顶部候选只有在名称或别名从开头或词段命中时才高亮，分隔符可以忽略。拼错时相近候选仍可留在列表；平台、套餐或环境不允许的命令通常不出现，隐藏命令要输入完整名字。</p></div>
+            <span class="time-tag">O</span>
+          </article>
+          <article class="time-row">
+            <div class="time-no">03</div>
+            <div class="time-copy"><h3>选择处理分支</h3><p>内置名字进入 CLI 处理器。文件名产生的命令进入兼容的 Skill 渲染路径。Skill 和旧 command 文件同名时，Skill 优先。</p></div>
+            <span class="time-tag">O</span>
+          </article>
+          <article class="time-row">
+            <div class="time-no">04</div>
+            <div class="time-copy"><h3>文件分支先完成预处理</h3><p>Claude Code 替换整段参数、位置参数和命名参数。动态命令获准后先运行，输出只注入一次。任何失败都会在模型看到正文之前中止。</p></div>
+            <span class="time-tag">O + L</span>
+          </article>
+          <article class="time-row">
+            <div class="time-no">05</div>
+            <div class="time-copy"><h3>按前置字段选择文件落点</h3><p>内置命令按自己的契约改模型、权限、上下文或界面。默认文件分支把渲染内容作为一条消息放进当前会话。若前置字段写了 <code>context: fork</code>，同一内容会成为子 Agent 的提示；它默认在后台运行，完成后把结果送回当前会话。</p></div>
+            <span class="time-tag">O</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="flow" data-xray-section="flow">
+      <p class="section-kicker">03 / FLOW</p>
+      <h2>名字相同，数据流不同</h2>
+      <p class="lead">命令菜单是共同入口。内置分支处理状态，文件分支先渲染文本，再由前置字段决定进入当前会话，还是交给子 Agent。</p>
+
+      <div class="flow-map" aria-label="命令数据流">
+        <div class="flow-node">
+          <h3>输入缓冲区</h3>
+          <p><code>/name args</code></p>
+          <ul><li>位置在消息开头</li><li>保留命令后的文字</li></ul>
+        </div>
+        <div class="flow-arrow" aria-hidden="true">→</div>
+        <div class="branch-stack">
+          <div class="branch">
+            <h3>内置分支</h3>
+            <p>调用 CLI 固定处理器，结果可能是切模型、开菜单、压缩上下文或开始新任务。</p>
+          </div>
+          <div class="branch">
+            <h3>文件分支</h3>
+            <p>读取 command Markdown，套用参数及环境替换，按政策处理动态注入，再读取 <code>context</code> 与 <code>background</code> 等前置字段。</p>
+          </div>
+        </div>
+        <div class="flow-arrow" aria-hidden="true">→</div>
+        <div class="flow-node message-node">
+          <h3>状态落点</h3>
+          <ul><li>CLI 状态按内置契约变化</li><li>默认文件内容进入当前会话</li><li><code>context: fork</code> 启动子 Agent</li><li>注入失败则正文不交给 Claude</li></ul>
+        </div>
+      </div>
+
+      <div class="parameter-ledger" aria-label="参数替换表">
+        <div class="ledger-row ledger-head"><div>写法</div><div>取值</div><div>没有匹配参数时</div></div>
+        <div class="ledger-row"><div><code>$ARGUMENTS</code></div><div>命令名后的完整文字</div><div>正文没有占位符接收时，末尾追加参数行</div></div>
+        <div class="ledger-row"><div><code>$ARGUMENTS[0]</code> 或 <code>$0</code></div><div>第一个按 shell 引号切分的参数</div><div>位置不存在时保留占位符原文</div></div>
+        <div class="ledger-row"><div><code>$name</code></div><div>前置字段声明的同位置命名参数</div><div>位置不存在时替换为空字符串</div></div>
+        <div class="ledger-row"><div><code>!`command`</code></div><div>获准运行后的输出</div><div>失败或权限不是 allow 时整次调用中止</div></div>
+      </div>
+    </section>
+
+    <section class="limits-section" id="limits" data-xray-section="limits">
+      <div class="section-shell">
+        <p class="section-kicker">04 / LIMITS</p>
+        <h2>权限门、登录和费用</h2>
+        <p class="lead">文件展开并不保证会走到模型。名字、可见性、政策、认证和注入命令都可能让这次调用提前结束。触发模型请求以后，用量才按当前认证路径归账。</p>
+        <div class="gate-grid">
+          <article class="gate pass">
+            <h3>名字命中</h3>
+            <p>匹配当前可用命令以后才选择处理器。少量隐藏命令只有完整名字能够触发。<sup class="ev o">O</sup></p>
+          </article>
+          <article class="gate stop">
+            <h3>名字拼错</h3>
+            <p><code>2.1.236</code> 起，拼错时不会高亮顶部候选，相近项仍可留在列表。按 Enter 提交原文后，CLI 报告未知命令。官方没有公开这条错误路径是否发起模型请求。<sup class="ev o">O</sup><sup class="ev l">L</sup><sup class="ev i">I</sup></p>
+          </article>
+          <article class="gate pass">
+            <h3>临时工具授权</h3>
+            <p><code>allowed-tools</code> 可以给调用当轮的工具免去逐次确认。该授权到下一条用户消息就清除。<sup class="ev o">O</sup></p>
+          </article>
+          <article class="gate stop">
+            <h3>动态注入被拒</h3>
+            <p>注入命令不会现场询问。权限结果只要不是 allow，整次展开中止，正文不会交给 Claude。<sup class="ev o">O</sup><sup class="ev l">L</sup></p>
+          </article>
+          <article class="gate stop">
+            <h3>注入命令失败</h3>
+            <p>默认 Bash 下，普通非零退出码会中止整次调用。部分搜索与比较命令的退出码 1 有明确例外。<sup class="ev o">O</sup></p>
+          </article>
+          <article class="gate stop">
+            <h3>启动模式关闭来源</h3>
+            <p>safe mode 关掉自定义项。bare mode 仍认 Skills，却跳过旧 command 文件。<sup class="ev o">O</sup><sup class="ev l">L</sup></p>
+          </article>
+          <article class="gate stop">
+            <h3>先有可用认证</h3>
+            <p>文件式命令要交给 Claude 处理，当前会话必须有可用凭据。个人账号可通过 Claude.ai 的 Pro 或 Max 登录。团队还能使用 Team、Enterprise 或 Console；组织可把请求交给 Amazon Bedrock、Google Cloud’s Agent Platform 或 Microsoft Foundry。认证失效时，模型请求停下。<sup class="ev o">O</sup></p>
+          </article>
+          <article class="gate pass">
+            <h3>费用跟着认证路径走</h3>
+            <p>文件内容渲染后，触发模型请求才计入用量。Pro、Max、Team 与 Enterprise 使用相应计划额度，Console 和云提供商按 token 计费。本地匹配和没有触发模型请求的内置命令不新增模型 token 用量。<sup class="ev o">O</sup></p>
+          </article>
+        </div>
+        <div class="callout">
+          <strong>关键停止点</strong>
+          <p>动态注入的权限拒绝和执行失败都发生在内容进入会话以前。页面因此没有把文件命令画成必然送达模型的直线。<sup class="ev o">O</sup></p>
+        </div>
+        <div class="callout">
+          <strong>文件命令还有一个落点</strong>
+          <p>command 文件支持除 <code>name</code> 与 <code>paths</code> 外的 Skill 前置字段。写入 <code>context: fork</code> 后，渲染正文会成为子 Agent 的提示；默认后台运行，完成后把结果送回当前会话。<sup class="ev o">O</sup></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="experiment" data-xray-section="experiment">
+      <p class="section-kicker">05 / EXPERIMENT</p>
+      <h2>这次只做到静态核对</h2>
+      <p class="lead">本轮没有启动新的 Claude 会话，也没有读取私人命令或会话记录。页面状态保持 documented。</p>
+      <div class="experiment-box">
+        <div class="experiment-state"><div><b>R 0</b><span>NO LIVE SESSION</span></div></div>
+        <div class="experiment-copy">
+          <h3>本机能够确认什么</h3>
+          <p>固定版本文件仍在，版本输出为 <code>2.1.247</code>，二进制摘要与基线一致。帮助里能看到 safe mode、bare mode 和关闭 Skills 的开关。静态字符串还能找到未知命令、参数替换及两类动态注入失败提示。<sup class="ev l">L</sup></p>
+          <p>这些材料只能证明版本带着相应入口与错误文案。它们不能证明菜单实际怎样排序，也不能证明渲染消息的内部字段。要升为 verified，仍需在获准的隔离会话里提交无副作用命令，并对照前后状态。该实验一旦让文件内容进入模型，就会按当时的认证路径占用计划额度或产生按 token 计费。<sup class="ev i">I</sup><sup class="ev o">O</sup></p>
+        </div>
+      </div>
+      <details>
+        <summary>安全复现的最小范围</summary>
+        <div class="detail-body">
+          <p>另行获准后，在无私人配置的临时项目创建一个只回显参数的 command 文件。依次测正常名字、拼错名字、无占位符、位置参数、同名 Skill 和失败的动态注入。只保留匿名化事件类型、退出码和消息计数，不保存 prompt、回复、cwd、会话 ID 或 transcript。</p>
+        </div>
+      </details>
+    </section>
+
+    <section class="implementation-section" id="implementation" data-xray-section="implementation">
+      <div class="section-shell">
+        <p class="section-kicker">06 / IMPLEMENTATION</p>
+        <h2>兼容入口和版本分界</h2>
+        <p class="lead">官方已经把 custom commands 合并进 Skills 的使用方式。旧文件没有消失，它保留相同的斜杠入口、渲染行为和大部分前置字段，推荐的新写法放进 Skill 目录。<sup class="ev o">O</sup></p>
+        <div class="version-grid">
+          <article class="version"><b>2.1.199</b><p>消息开头可以堆叠多个内联 Skill。最多展开六个，尾部文字同时传给它们。</p></article>
+          <article class="version"><b>2.1.234</b><p>全屏模式里的部分对话框命令可以在回复期间立即打开，不再统一排队。</p></article>
+          <article class="version"><b>2.1.236</b><p>候选高亮规则改变。拼错名字后按 Enter 只会报告未知命令。</p></article>
+          <article class="version current"><b>2.1.247</b><p>本页固定基线。本机文件摘要匹配，研究时默认命令已经升级，故没有混用默认版本。</p></article>
+        </div>
+
+        <div class="mode-table" aria-label="启动模式边界">
+          <div class="mode-row mode-head"><div>启动方式</div><div>Skills</div><div>旧 command 文件</div></div>
+          <div class="mode-row"><div>正常模式</div><div>按来源与可见性加载</div><div>作为兼容入口加载</div></div>
+          <div class="mode-row"><div>bare mode</div><div>仍可用 <code>/skill-name</code></div><div>跳过</div></div>
+          <div class="mode-row"><div>safe mode</div><div>关闭</div><div>关闭</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-shell" id="unknowns" data-xray-section="unknowns">
+      <p class="section-kicker">07 / UNKNOWNS</p>
+      <h2>仍然没有证据的地方</h2>
+      <p class="lead">这些缺口不会影响公开用法，却会影响对内部实现的精确描述，所以继续保留问号。</p>
+      <div class="unknown-list">
+        <article class="unknown-item"><div><h3>未知命令的模型请求边界</h3><p>官方只承诺提交原文并报告未知命令，没有说明这条错误路径是否发起模型请求。本页没有 R，故不把“模型一定看不见”写成运行事实。<sup class="ev i">I</sup></p></div></article>
+        <article class="unknown-item"><div><h3>内部注册表</h3><p>官方没有公开 CLI 如何合并内置命令、文件命令、Skills、插件与 MCP prompts 的数据结构。<sup class="ev i">I</sup></p></div></article>
+        <article class="unknown-item"><div><h3>硬编码内置项的同名冲突</h3><p>文档说明了 Skill 与旧 command 文件、bundled skill 的优先关系，没有给出一条覆盖普通内置命令的完整规则。</p></div></article>
+        <article class="unknown-item"><div><h3>旧 command 文件的热更新</h3><p>官方明确保证 <code>SKILL.md</code> 的 live change detection，没有同样明确地承诺旧 command 文件的监听时机。</p></div></article>
+        <article class="unknown-item"><div><h3>内部消息字段</h3><p>公开契约说渲染内容作为一条消息进入会话，没有公开它在 CLI 内部使用的 role、subtype 与序列化字段。</p></div></article>
+        <article class="unknown-item"><div><h3>终端实际画面</h3><p>本轮没有 R，故没有把 <code>2.1.247</code> 的菜单排序、候选动画和错误提示布局写成已验证事实。</p></div></article>
+      </div>
+    </section>
+
+    <section class="sources-section" id="sources" data-xray-section="sources">
+      <div class="section-shell">
+        <p class="section-kicker">08 / SOURCES</p>
+        <h2>一手资料与复现入口</h2>
+        <p class="lead">页面事实只取 Anthropic 官方文档、官方 SDK 文档、官方仓库和固定版本本机帮助。</p>
+        <div class="source-list">
+          <a class="source-link" href="https://code.claude.com/docs/en/commands"><b>Commands reference</b><span>证明菜单匹配、内置分支、参数和运行时机</span></a>
+          <a class="source-link" href="https://code.claude.com/docs/en/slash-commands"><b>Extend Claude with skills</b><span>证明旧 command 文件兼容、参数替换、动态注入和权限门</span></a>
+          <a class="source-link" href="https://code.claude.com/docs/en/interactive-mode"><b>Interactive mode</b><span>证明忙碌会话里的排队命令与立即命令</span></a>
+          <a class="source-link" href="https://code.claude.com/docs/en/agent-sdk/slash-commands"><b>Agent SDK commands</b><span>证明内置、bundled 和自定义文件在命令面里的身份</span></a>
+          <a class="source-link" href="https://code.claude.com/docs/en/authentication"><b>Authentication</b><span>证明模型请求所需凭据与支持的认证入口</span></a>
+          <a class="source-link" href="https://code.claude.com/docs/en/costs"><b>Costs</b><span>证明计划额度、API 与云提供商的计费边界</span></a>
+          <a class="source-link" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><b>Official changelog</b><span>证明多个版本的用户可见变化</span></a>
+          <a class="source-link" href="https://code.claude.com/docs/llms.txt"><b>Official docs index</b><span>固定官方入口集合，基线记录 202 个入口</span></a>
+        </div>
+        <details>
+          <summary>证据账本在哪里</summary>
+          <div class="detail-body"><p>逐条事实、命令摘要、实验限制和复现步骤见同目录 <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>。本页缺少 R，状态不会写成 verified。</p></div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    EXT-02 · documented · Claude Code 2.1.247 · <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="AUTO-05">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>AUTO-05 Deep Links 与从链接启动会话</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071116;
+      --panel: #0d1c22;
+      --panel-2: #11272d;
+      --ink: #f2eedf;
+      --muted: #9eb1ae;
+      --line: #294147;
+      --acid: #b9f227;
+      --amber: #ffb454;
+      --cyan: #64d6cf;
+      --rose: #f18989;
+      --violet: #ceb5f5;
+      --mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+      --display: "Rockwell", "Avenir Next Condensed", "PingFang SC", sans-serif;
+      --body: "Avenir Next", "Hiragino Sans GB", "PingFang SC", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--bg); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--body);
+      line-height: 1.72;
+      background:
+        repeating-linear-gradient(90deg, transparent 0 63px, rgb(100 214 207 / 3%) 64px),
+        repeating-linear-gradient(0deg, transparent 0 63px, rgb(100 214 207 / 3%) 64px),
+        var(--bg);
+    }
+    a { color: inherit; }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--acid); outline-offset: 4px; }
+    .skip { position: fixed; left: 1rem; top: 1rem; z-index: 30; padding: .6rem 1rem; color: #071116; background: var(--acid); transform: translateY(-180%); }
+    .skip:focus { transform: translateY(0); }
+    .ev { display: inline-grid; width: 1.55rem; height: 1.55rem; margin-left: .25rem; place-items: center; border: 1px solid currentColor; border-radius: 50%; font: 800 .68rem/1 var(--mono); vertical-align: .15rem; }
+    .o { color: #061412; background: var(--cyan); }
+    .l { color: #1a1004; background: var(--amber); }
+    .r { color: #2b0808; background: var(--rose); }
+    .i { color: #190b28; background: var(--violet); }
+    .topbar { display: flex; justify-content: space-between; gap: 1rem; padding: .8rem clamp(1rem, 4vw, 4rem); border-bottom: 1px solid var(--line); background: #071116; font: 700 .72rem/1.4 var(--mono); letter-spacing: .08em; }
+    .topbar a { color: var(--acid); text-decoration-thickness: 1px; text-underline-offset: .25rem; }
+    main { overflow: hidden; }
+    .hero { min-height: min(880px, calc(100svh - 43px)); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(340px, .85fr); gap: clamp(2rem, 7vw, 8rem); align-items: center; padding: clamp(2rem, 6vw, 6rem) clamp(1rem, 6vw, 6rem); border-bottom: 1px solid var(--line); position: relative; }
+    .hero::after { content: "URI"; position: absolute; right: -2vw; top: -1rem; z-index: -1; color: rgb(185 242 39 / 4%); font: 900 clamp(10rem, 30vw, 28rem)/1 var(--display); letter-spacing: -.1em; }
+    .eyebrow { display: flex; flex-wrap: wrap; gap: .55rem; margin: 0 0 1.5rem; font: 800 .72rem/1.2 var(--mono); }
+    .eyebrow span { padding: .45rem .65rem; border: 1px solid var(--line); }
+    .eyebrow .live { color: #071116; background: var(--acid); border-color: var(--acid); }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 11ch; margin-bottom: 1.4rem; font: 850 clamp(3rem, 7.6vw, 7.4rem)/.94 var(--display); letter-spacing: -.065em; }
+    .lead { max-width: 38em; margin-bottom: 1rem; color: #e0e9e4; font-size: clamp(1.08rem, 1.65vw, 1.42rem); }
+    .sublead { max-width: 45em; color: var(--muted); font-size: .93rem; }
+    .uri-board { position: relative; align-self: center; padding: 1rem; background: #071116; border: 1px solid var(--line); box-shadow: 18px 18px 0 #10252a; font-family: var(--mono); }
+    .uri-board::before { content: "DISPATCH MAP"; position: absolute; top: -1.9rem; left: 0; color: var(--acid); font-size: .72rem; letter-spacing: .13em; }
+    .wire { display: grid; grid-template-columns: auto 1fr; gap: .45rem 1rem; padding: 1rem .8rem; border-bottom: 1px dashed var(--line); }
+    .wire:last-child { border-bottom: 0; }
+    .wire b { color: var(--acid); }
+    .wire span { color: #c8d5d0; overflow-wrap: anywhere; }
+    .wire .muted { color: var(--muted); }
+    .consent { margin-top: 1rem; padding: .85rem; color: #081114; background: var(--amber); font-weight: 800; text-align: center; }
+    nav { position: sticky; top: 0; z-index: 20; display: flex; gap: .35rem; padding: .65rem clamp(1rem, 4vw, 4rem); overflow-x: auto; background: rgb(7 17 22 / 96%); border-bottom: 1px solid var(--line); backdrop-filter: blur(10px); }
+    nav a { flex: 0 0 auto; padding: .35rem .62rem; color: var(--muted); text-decoration: none; font: 700 .72rem/1.2 var(--mono); border: 1px solid transparent; }
+    nav a:hover { color: var(--acid); border-color: var(--line); }
+    .section { padding: clamp(4rem, 8vw, 8rem) clamp(1rem, 6vw, 6rem); border-bottom: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: minmax(100px, .25fr) minmax(0, 1fr); gap: 2rem; margin-bottom: 3rem; }
+    .section-no { color: var(--acid); font: 800 .75rem/1.4 var(--mono); letter-spacing: .1em; }
+    .section h2 { max-width: 17ch; margin-bottom: .7rem; font: 800 clamp(2rem, 4.2vw, 4.4rem)/1.02 var(--display); letter-spacing: -.045em; }
+    .section-head p { max-width: 48rem; color: var(--muted); }
+    .legend-grid, .role-grid, .limit-grid, .unknown-grid, .source-grid { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .legend-grid { grid-template-columns: repeat(4, 1fr); }
+    .legend, .role, .limit, .unknown, .source { padding: 1.3rem; background: var(--panel); }
+    .legend b, .role b, .limit b, .unknown b, .source b { display: block; margin-bottom: .55rem; }
+    .legend p, .role p, .limit p, .unknown p, .source span { margin-bottom: 0; color: var(--muted); font-size: .9rem; }
+    .role-grid { grid-template-columns: repeat(3, 1fr); margin-top: 1px; }
+    .timeline { position: relative; display: grid; gap: 1rem; max-width: 1050px; margin-left: auto; }
+    .timeline::before { content: ""; position: absolute; left: 5.8rem; top: 1rem; bottom: 1rem; width: 2px; background: var(--acid); }
+    .step { display: grid; grid-template-columns: 5rem 1fr; gap: 2rem; position: relative; }
+    .step::before { content: ""; position: absolute; left: 5.45rem; top: 1.35rem; width: .75rem; height: .75rem; border-radius: 50%; background: var(--acid); box-shadow: 0 0 0 6px var(--bg); }
+    .step .time { padding-top: .8rem; color: var(--acid); font: 800 .75rem/1.2 var(--mono); text-align: right; }
+    .step .body { padding: 1rem 1.2rem; background: var(--panel); border: 1px solid var(--line); }
+    .step h3 { margin-bottom: .35rem; font-size: 1.05rem; }
+    .step p { margin-bottom: 0; color: #bdcbc7; }
+    .flowmap { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: .8rem; }
+    .node { min-height: 15rem; padding: 1.3rem; background: var(--panel); border: 1px solid var(--line); }
+    .node small { color: var(--acid); font: 800 .7rem/1.2 var(--mono); }
+    .node h3 { margin: .8rem 0 1rem; font: 800 1.5rem/1.1 var(--display); }
+    .node ul { margin: 0; padding-left: 1.1rem; color: var(--muted); }
+    .arrow { display: grid; place-items: center; color: var(--acid); font: 900 1.7rem/1 var(--mono); }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 1px; background: var(--line); border: 1px solid var(--line); }
+    .branch { padding: 1.2rem; background: var(--panel-2); }
+    .branch b { color: var(--amber); }
+    .branch p { margin: .4rem 0 0; color: var(--muted); }
+    .limit-grid { grid-template-columns: repeat(2, 1fr); }
+    .limit { position: relative; padding-left: 4.2rem; }
+    .limit::before { content: attr(data-mark); position: absolute; left: 1rem; top: 1.1rem; color: var(--acid); font: 900 2rem/1 var(--display); }
+    .stopbar { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 1px; border: 1px solid var(--line); }
+    .stop { padding: 1rem; border-right: 1px solid var(--line); }
+    .stop:last-child { border-right: 0; }
+    .stop b { color: var(--rose); }
+    .stop p { margin: .3rem 0 0; color: var(--muted); font-size: .88rem; }
+    .lab { display: grid; grid-template-columns: 1.15fr .85fr; border: 1px solid var(--line); }
+    .lab > div { padding: clamp(1.2rem, 3vw, 2.5rem); }
+    .lab > div + div { background: var(--panel-2); border-left: 1px solid var(--line); }
+    code { color: var(--amber); font-family: var(--mono); overflow-wrap: anywhere; }
+    .no-r { display: grid; min-height: 10rem; margin-top: 1.2rem; place-items: center; padding: 1rem; border: 1px dashed var(--rose); color: #ffd3d3; text-align: center; }
+    .ledger { display: grid; grid-template-columns: 8rem 1fr; border: 1px solid var(--line); }
+    .ledger > div { padding: 1rem; border-bottom: 1px solid var(--line); }
+    .ledger > div:nth-last-child(-n+2) { border-bottom: 0; }
+    .version { color: var(--acid); background: var(--panel-2); font: 800 .78rem/1.4 var(--mono); }
+    .version-text { color: #c5d2cf; }
+    details { margin-top: 1.4rem; border: 1px solid var(--line); background: var(--panel); }
+    summary { padding: 1rem 1.2rem; color: var(--acid); cursor: pointer; font-weight: 800; }
+    .details-body { padding: 0 1.2rem 1.2rem; color: var(--muted); }
+    .unknown-grid { grid-template-columns: repeat(2, 1fr); }
+    .unknown { min-height: 10rem; }
+    .unknown em { display: block; margin-bottom: .6rem; color: var(--acid); font: 800 .72rem/1 var(--mono); }
+    .source-grid { grid-template-columns: repeat(2, 1fr); }
+    .source { display: block; text-decoration: none; }
+    .source:hover b { color: var(--acid); }
+    .source small { display: block; margin-top: .7rem; color: var(--acid); font: 700 .68rem/1.2 var(--mono); }
+    .repro { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 1px; background: var(--line); border: 1px solid var(--line); counter-reset: repro; }
+    .repro div { padding: 1rem; background: var(--panel-2); counter-increment: repro; }
+    .repro div::before { content: "0" counter(repro); display: block; margin-bottom: .7rem; color: var(--acid); font: 800 .75rem/1 var(--mono); }
+    .repro b { display: block; margin-bottom: .4rem; }
+    .repro p { margin: 0; color: var(--muted); font-size: .87rem; }
+    footer { display: flex; justify-content: space-between; gap: 1rem; padding: 1.3rem clamp(1rem, 6vw, 6rem); color: var(--muted); font: 700 .73rem/1.4 var(--mono); }
+    footer a { color: var(--acid); }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; padding-top: 4rem; }
+      .uri-board { width: 100%; box-shadow: 10px 10px 0 #10252a; }
+      .legend-grid, .role-grid, .flowmap, .limit-grid, .lab, .unknown-grid, .source-grid, .repro { grid-template-columns: 1fr; }
+      .flowmap .arrow { min-height: 2.5rem; transform: rotate(90deg); }
+      .lab > div + div { border-left: 0; border-top: 1px solid var(--line); }
+      .stopbar { grid-template-columns: 1fr; }
+      .stop { border-right: 0; border-bottom: 1px solid var(--line); }
+      .stop:last-child { border-bottom: 0; }
+    }
+    @media (max-width: 560px) {
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .hero { min-height: auto; }
+      h1 { font-size: clamp(2.7rem, 14vw, 4.3rem); }
+      .section-head { grid-template-columns: 1fr; gap: .5rem; }
+      .section { padding-block: 4rem; }
+      .wire { grid-template-columns: 1fr; }
+      .timeline { margin-left: 1.4rem; }
+      .timeline::before { left: -.8rem; }
+      .step { grid-template-columns: 1fr; gap: .25rem; }
+      .step::before { left: -1.13rem; top: .9rem; }
+      .step .time { padding: 0; text-align: left; }
+      .split, .ledger { grid-template-columns: 1fr; }
+      .ledger > div { border-bottom: 1px solid var(--line) !important; }
+      .ledger > div:last-child { border-bottom: 0 !important; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Deep Links 与从链接启动会话。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-auto-05-deep-links/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="AUTO-05 · Deep Links 与从链接启动会话">
+  <meta property="og:description" content="Claude Code X-Ray：Deep Links 与从链接启动会话。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-auto-05-deep-links/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="AUTO-05 · Deep Links 与从链接启动会话">
+  <meta name="twitter:description" content="Claude Code X-Ray：Deep Links 与从链接启动会话。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>AUTO-05</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <a class="skip" href="#answer">跳到正文</a>
+  <div class="topbar"><span>CLAUDE CODE XRY / 伴页</span><a href="../index.html">返回总索引</a></div>
+  <main>
+    <section class="hero" data-xray-section="answer" id="answer">
+      <div>
+        <p class="eyebrow"><span class="live">AUTO-05</span><span>当前状态 documented</span><span>Claude Code 2.1.247</span></p>
+        <h1>点击以后，任务仍停在输入框</h1>
+        <p class="lead"><code>claude-cli://open</code> 选择本地终端，目录与初始任务放进查询参数。客户端先把任务填进输入框，等人看过再按 Enter。直到这一刻，模型没有收到消息。<span class="ev o" aria-label="官方契约">O</span></p>
+        <p class="sublead">无效 URI 会在新会话就绪前停下。链接也不能替自己加权限，工作区信任、项目说明与工具权限会在正常会话里继续把关。</p>
+      </div>
+      <aside class="uri-board" aria-label="Deep link 字段图">
+        <div class="wire"><b>surface</b><code>claude-cli://open</code></div>
+        <div class="wire"><b>directory</b><span>repo=owner/name <span class="muted">或 cwd=绝对本地路径</span></span></div>
+        <div class="wire"><b>task</b><span>q=URL 编码文本</span></div>
+        <div class="wire"><b>result</b><span>新终端 + 已填好但未发送的输入</span></div>
+        <div class="consent">发送还要由用户按 Enter</div>
+      </aside>
+    </section>
+
+    <nav aria-label="页面章节">
+      <a href="#terms">证据与角色</a><a href="#sequence">时间顺序</a><a href="#flow">数据流</a><a href="#limits">限制与停止</a><a href="#experiment">本机观察</a><a href="#implementation">版本与边界</a><a href="#unknowns">未知项</a><a href="#sources">来源与复现</a>
+    </nav>
+
+    <section class="section" data-xray-section="terms" id="terms">
+      <div class="section-head"><span class="section-no">01 / TERMS</span><div><h2>四种证据，四个角色</h2><p>这页有完整官方契约，也有本机失败观察。没有让协议处理程序实际启动产品，所以状态停在 documented。</p></div></div>
+      <div class="legend-grid" aria-label="O L R I 证据图例">
+        <article class="legend"><b><span class="ev o">O</span> 官方契约</b><p>Anthropic 文档与 changelog，负责公开行为和版本边界。</p></article>
+        <article class="legend"><b><span class="ev l">L</span> 本机观察</b><p>当前 shell 找不到 claude，官方列出的用户级 handler 与安装目录也不存在。</p></article>
+        <article class="legend"><b><span class="ev r">R</span> 真实实验</b><p>本轮没有。没有打开 handler，也没有发送付费 prompt。</p></article>
+        <article class="legend"><b><span class="ev i">I</span> 研究推断</b><p>只连接已知停止点，不补内部调用顺序。</p></article>
+      </div>
+      <div class="role-grid">
+        <article class="role"><b>链接发布者</b><p>把 surface、目录线索和预填任务编码进 URI。链接可放在支持自定义 scheme 的页面或工具里。<span class="ev o">O</span></p></article>
+        <article class="role"><b>系统与 handler</b><p>浏览器把 URI 交给操作系统，系统再启动已注册的 Claude Code 处理程序与终端。<span class="ev o">O</span></p></article>
+        <article class="role"><b>点击链接的人</b><p>核对外部 prompt，必要时修改或清空。只有他按 Enter，任务才进入会话。<span class="ev o">O</span></p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sequence" id="sequence">
+      <div class="section-head"><span class="section-no">02 / SEQUENCE</span><div><h2>一次点击怎样变成会话</h2><p>顺序里有两个独立的门。URI 先过格式与目录校验，用户随后决定要不要发送预填任务。</p></div></div>
+      <div class="timeline">
+        <article class="step"><div class="time">T0 编码</div><div class="body"><h3>发布者组好 URI</h3><p><code>claude-cli://open</code> 指向终端面。<code>q</code> 放 URL 编码任务，<code>cwd</code> 或 <code>repo</code> 选择起始目录。两者同时出现时，<code>cwd</code> 优先，哪怕路径不存在，<code>repo</code> 也会被忽略。<span class="ev o">O</span></p></div></article>
+        <article class="step"><div class="time">T1 分派</div><div class="body"><h3>浏览器交给操作系统</h3><p>系统只有在 handler 已注册、渲染平台又保留自定义 scheme 时才有东西可启动。GitHub Markdown 会先把这类链接剥掉。<span class="ev o">O</span></p></div></article>
+        <article class="step"><div class="time">T2 校验</div><div class="body"><h3>处理程序检查 path 与参数</h3><p>只接受 <code>open</code>。网络或 UNC 的 <code>cwd</code>、含不可见或双向控制字符的路径会被拒，<code>q</code> 上限为 5,000 字符。<span class="ev o">O</span></p></div></article>
+        <article class="step"><div class="time">T3 打开</div><div class="body"><h3>新终端拿到目录和预填任务</h3><p><code>repo</code> 会落到最近用过的匹配 clone 或 worktree。没有匹配项就回到 home，已有分支保持不动。<span class="ev o">O</span></p></div></article>
+        <article class="step"><div class="time">T4 确认</div><div class="body"><h3>外部来源提示一直留着</h3><p>用户可以检查、修改或清空输入。长于 1,000 字符时界面还会显示字符数并提醒滚动阅读。<span class="ev o">O</span></p></div></article>
+        <article class="step"><div class="time">T5 发送</div><div class="body"><h3>按 Enter 后才进入正常权限链</h3><p>目标目录的 trust、<code>CLAUDE.md</code> 和权限规则照常生效。链接没有获得额外通行证。<span class="ev o">O</span></p></div></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" id="flow">
+      <div class="section-head"><span class="section-no">03 / FLOW</span><div><h2>URI 只带目录和任务</h2><p>surface 由 scheme 决定，目录与任务留在 query。链接走到输入框就暂停，后面的工具调用仍属于普通会话。</p></div></div>
+      <div class="flowmap" aria-label="Deep link 数据流">
+        <article class="node"><small>EXTERNAL</small><h3>网页、告警或脚本</h3><ul><li>自定义 URL scheme</li><li>编码后的任务文本</li><li>绝对路径或 repo slug</li></ul></article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="node"><small>LOCAL DISPATCH</small><h3>操作系统与 handler</h3><ul><li>依赖已注册的 handler</li><li>只接受 open path</li><li>校验路径与长度</li></ul></article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="node"><small>INERT INPUT</small><h3>终端里的新会话</h3><ul><li>目录已经选定</li><li>prompt 仍未发送</li><li>外部来源提示可见</li></ul></article>
+      </div>
+      <div class="split">
+        <div class="branch"><b>按 Enter</b><p>消息进入模型，随后每次工具动作继续服从普通 trust 与 permission 规则。<span class="ev o">O</span></p></div>
+        <div class="branch"><b>清空或关闭</b><p>预填任务没有送出，这条启动链在本地输入框结束。<span class="ev o">O</span></p></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="limits" id="limits">
+      <div class="section-head"><span class="section-no">04 / LIMITS</span><div><h2>失败点分布在打开前后</h2><p>格式错误与目录风险由 handler 处理。账号、计费和工具授权沿用当前 Claude Code 会话的规则，要等用户发送任务以后才会发生模型用量。</p></div></div>
+      <div class="limit-grid">
+        <article class="limit" data-mark="P"><b>Path 门</b><p>只有 <code>open</code> 被接受。网络、UNC、不可见字符与双向控制字符会让 <code>cwd</code> 被拒。<span class="ev o">O</span></p></article>
+        <article class="limit" data-mark="Q"><b>Query 门</b><p><code>q</code> 必须 URL 编码，最多 5,000 字符。超过上限的精确错误文案没有公开稳定契约。<span class="ev o">O</span><span class="ev i">I</span></p></article>
+        <article class="limit" data-mark="U"><b>User 门</b><p>prompt 保持未发送。用户看过外部来源提示以后，可以修改、清空或按 Enter。<span class="ev o">O</span></p></article>
+        <article class="limit" data-mark="A"><b>Authority 门</b><p>链接只能选目录并填文字。workspace trust、项目规则与工具权限仍按目标目录正常判断。<span class="ev o">O</span></p></article>
+        <article class="limit" data-mark="ID"><b>账号门</b><p>链接不携带登录资格。可用入口包括 Pro、Max、Team、Enterprise、受邀的 Console 账号，以及组织配置的 Bedrock、Google Cloud Agent Platform 或 Microsoft Foundry。未完成认证时，客户端仍要走正常登录或组织认证。<span class="ev o">O</span></p></article>
+        <article class="limit" data-mark="＄"><b>费用门</b><p>点击和预填不会产生模型请求。按 Enter 后才开始按当前登录方式计量。订阅用户按计划额度使用，其中 Pro 与 Max 使用个人额度，Team 与 Enterprise 使用成员席位额度。Console 与云提供商按 token 向组织计费。<span class="ev o">O</span></p></article>
+      </div>
+      <div class="stopbar">
+        <article class="stop"><b>没有 handler</b><p>点击可能没有反应。官方要求先在交互会话里发送首个 prompt 来完成注册。</p></article>
+        <article class="stop"><b>找不到 repo</b><p>会话回到 home，不会替用户 clone，也不会切换当前分支。</p></article>
+        <article class="stop"><b>渲染器剥离 scheme</b><p>GitHub 页面只留下链接文字，URI 本身不会传给操作系统。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" id="experiment">
+      <div class="section-head"><span class="section-no">05 / EXPERIMENT</span><div><h2>本机没有跑到产品路径</h2><p>当前研究 shell 没暴露 Claude CLI，官方列出的用户级 handler 与安装目录也不存在。结果只能算本机负证据。</p></div></div>
+      <div class="lab">
+        <div><h3>执行过的只读检查</h3><p><code>claude --version</code> 与 <code>claude --help</code> 都返回 command not found。官方列出的用户级 handler 与固定安装目录均不存在。<span class="ev l">L</span></p><p>它证明当前研究环境不能直接核对 2.1.247，不足以判断其他安装位置或系统注册数据库里的状态。</p></div>
+        <div><h3>为什么停下来</h3><p>调用系统 URL opener 会启动 GUI、终端或登录流程，还可能影响正在使用的桌面状态。任务不允许启动付费会话或碰真实会话，本轮没有触发。</p><div class="no-r"><span><span class="ev r">R</span><br>没有真实 handler 运行证据<br>页面保持 documented</span></div></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" id="implementation">
+      <div class="section-head"><span class="section-no">06 / IMPLEMENTATION</span><div><h2>surface 写在 scheme 里</h2><p>终端和 VS Code 有两套入口。它们都能预填 prompt，参数名和恢复能力不同，不能互换。</p></div></div>
+      <div class="ledger">
+        <div class="version">终端</div><div class="version-text"><code>claude-cli://open</code> 使用 <code>q</code>、<code>cwd</code>、<code>repo</code>，打开新的本地终端会话。<span class="ev o">O</span></div>
+        <div class="version">VS Code</div><div class="version-text"><code>vscode://anthropic.claude-code/open</code> 使用 <code>prompt</code> 和可选 <code>session</code>，打开编辑器 tab。<span class="ev o">O</span></div>
+        <div class="version">2.1.83</div><div class="version-text">官方 changelog 加入 <code>disableDeepLinkRegistration</code>，组织可在 managed settings 强制禁用。<span class="ev o">O</span></div>
+        <div class="version">2.1.84</div><div class="version-text">deep link 改为优先打开用户常用终端。<span class="ev o">O</span></div>
+        <div class="version">2.1.85</div><div class="version-text"><code>q</code> 上限提高到 5,000 字符，并加入长文本滚动检查提醒。<span class="ev o">O</span></div>
+        <div class="version">2.1.89</div><div class="version-text">官方 changelog 修复 macOS 打不开 deep link。<span class="ev o">O</span></div>
+        <div class="version">2.1.91</div><div class="version-text">官方 changelog 在这一版加入 <code>%0A</code> 多行 prompt 支持。本页只把它作为多行预填的版本界线。<span class="ev o">O</span></div>
+        <div class="version">2.1.247</div><div class="version-text">本页固定研究基线。当前 shell 无法对二进制和 help 重新取证，因此不标 verified。<span class="ev l">L</span></div>
+      </div>
+      <details open><summary>与 CLOUD-01 的分工</summary><div class="details-body"><p>本页停在本地输入框与用户发送。Web 会话、Cloud、Teleport 的账号门、Git 分支接力和会话副本分叉，全部留给 <a href="../20260827-cloud-01-session-handoff-teleport/explainer.html">CLOUD-01 Web 与 Teleport 的会话接力</a>。本页是非计数 companion。</p></div></details>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" id="unknowns">
+      <div class="section-head"><span class="section-no">07 / UNKNOWNS</span><div><h2>还不能写死的地方</h2><p>这些缺口会影响错误恢复或安全判断。官方没承诺，本轮也没有运行，所以页面到这里收住。</p></div></div>
+      <div class="unknown-grid">
+        <article class="unknown"><em>UNKNOWN 01</em><b>不存在的 cwd</b><p>它会不会先打开终端，最终显示什么错误，官方主契约没有说清。</p></article>
+        <article class="unknown"><em>UNKNOWN 02</em><b>重复 query 参数</b><p>多个 <code>q</code>、<code>cwd</code> 或未知参数怎样取舍，公开文档没有规定。</p></article>
+        <article class="unknown"><em>UNKNOWN 03</em><b>本地路径竞态</b><p>符号链接、alias、大小写差异与点击后路径被替换怎样处理，官方没有公开。</p></article>
+        <article class="unknown"><em>UNKNOWN 04</em><b>跨平台错误界面</b><p>系统确认框、终端选择失败和 URL 解码错误的精确文案没有形成统一契约。</p></article>
+        <article class="unknown"><em>UNKNOWN 05</em><b>系统确认差异</b><p>Linux 各桌面与 Windows 各 shell 怎样提示自定义 scheme，本轮没有覆盖。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sources" id="sources">
+      <div class="section-head"><span class="section-no">08 / SOURCES</span><div><h2>一手来源与复现入口</h2><p>技术事实只落在 Anthropic 官方页面。长日志和私人会话内容没有进入页面。</p></div></div>
+      <div class="source-grid">
+        <a class="source" href="https://code.claude.com/docs/en/deep-links"><b>Deep Links 主契约</b><span>证明 URI 结构、目录解析、用户确认、注册、禁用与失败条件</span><small>ANTHROPIC OFFICIAL ↗</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/ide-integrations#launch-a-vs-code-tab-from-other-tools"><b>VS Code URI handler</b><span>证明编辑器 surface 的 scheme、prompt 与 session 参数</span><small>ANTHROPIC OFFICIAL ↗</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/permissions"><b>工具权限规则</b><span>证明正常会话里的工具动作仍有自己的确认门</span><small>ANTHROPIC OFFICIAL ↗</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/authentication"><b>Claude Code 认证</b><span>证明个人、团队、Console 与云提供商的登录入口</span><small>ANTHROPIC OFFICIAL ↗</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/costs"><b>Claude Code 费用</b><span>证明订阅额度、席位额度与按 token 计费的边界</span><small>ANTHROPIC OFFICIAL ↗</small></a>
+        <a class="source" href="https://code.claude.com/docs/en/changelog"><b>Claude Code changelog</b><span>证明 2.1.83 到 2.1.91 的 deep link 版本变化</span><small>ANTHROPIC OFFICIAL ↗</small></a>
+        <a class="source" href="https://code.claude.com/docs/llms.txt"><b>Claude Code 官方文档索引</b><span>核对 2026-08-27 固定基线里的官方入口</span><small>ANTHROPIC OFFICIAL ↗</small></a>
+      </div>
+      <div class="repro">
+        <div><b>隔离准备</b><p>用一次性 repo 与测试配置，不放凭据和私人文件。</p></div>
+        <div><b>核对版本</b><p>记录版本与二进制摘要，只保留匿名化结果。</p></div>
+        <div><b>测试两道门</b><p>先确认 prompt 未发送，再验证 trust 与普通权限仍生效。</p></div>
+        <div><b>覆盖失败样本</b><p>测试网络路径、控制字符、长文本与不存在的绝对路径。</p></div>
+      </div>
+    </section>
+  </main>
+  <footer><span>AUTO-05 · documented · Claude Code 2.1.247</span><span><a href="../20260827-cloud-01-session-handoff-teleport/explainer.html">回到 CLOUD-01 主页面</a> · <a href="../index.html">返回总索引</a></span></footer>
+</body>
+</html>

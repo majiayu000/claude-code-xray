@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CORE-01 解释 Claude Code 怎样让模型、harness、工具结果和停止原因组成一次 Agent 循环。">
+  <meta name="xray:feature-id" content="CORE-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>一项任务怎样转成一轮行动 | CORE-01</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #eee9dd;
+      --paper-deep: #e2dccd;
+      --ink: #18201d;
+      --muted: #5d665f;
+      --panel: #f8f5ec;
+      --night: #17221e;
+      --night-2: #223029;
+      --line: #aaa99f;
+      --signal: #e5552f;
+      --signal-dark: #ad351b;
+      --lime: #c8e455;
+      --cyan: #65c4c9;
+      --gold: #efb94e;
+      --blue: #537fbe;
+      --purple: #7e6ea8;
+      --danger: #b13d31;
+      --shadow: 0 16px 42px rgba(24, 32, 29, .12);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        repeating-linear-gradient(90deg, transparent 0 31px, rgba(24, 32, 29, .035) 32px),
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(24, 32, 29, .035) 32px),
+        var(--paper);
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+      font-size: 17px;
+      line-height: 1.68;
+    }
+    a { color: #1e6570; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+    a:hover { color: #103f46; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--signal);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      padding: .08em .34em;
+      border: 1px solid #cdc7b8;
+      border-radius: 4px;
+      background: #e8e2d5;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .84em;
+      overflow-wrap: anywhere;
+    }
+    main { width: min(1160px, calc(100% - 38px)); margin: 0 auto; padding: 22px 0 76px; }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      padding: 4px 0 26px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .76rem;
+      letter-spacing: .04em;
+    }
+    .topbar a { font-weight: 800; text-decoration: none; }
+    .statusline { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 29px;
+      padding: 4px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(248, 245, 236, .78);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .72rem;
+      font-weight: 800;
+    }
+    .chip::before { content: ""; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--signal); }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(290px, .9fr);
+      min-height: 570px;
+      overflow: hidden;
+      border: 1px solid #0c1310;
+      border-radius: 4px 4px 30px 4px;
+      background: var(--night);
+      color: #f4f0e5;
+      box-shadow: var(--shadow);
+    }
+    .hero-copy { padding: clamp(28px, 5vw, 68px); }
+    .kicker {
+      color: var(--lime);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { font-family: "FZHei-B01", "Heiti SC", "Microsoft YaHei", sans-serif; }
+    h1 {
+      max-width: 9em;
+      margin: 18px 0 24px;
+      font-size: clamp(2.65rem, 6.2vw, 5.8rem);
+      line-height: .98;
+      letter-spacing: -.07em;
+    }
+    .hero-answer {
+      max-width: 37em;
+      margin: 0;
+      color: #e3e6de;
+      font-size: clamp(1.05rem, 1.7vw, 1.28rem);
+      line-height: 1.7;
+    }
+    .hero-answer strong { color: #fff; }
+    .hero-note {
+      max-width: 44em;
+      margin: 24px 0 0;
+      padding-top: 16px;
+      border-top: 1px solid #43534b;
+      color: #abb8b0;
+      font-size: .87rem;
+    }
+    .loop-dial {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 410px;
+      padding: 48px 28px;
+      background:
+        linear-gradient(130deg, rgba(101, 196, 201, .10), transparent 55%),
+        repeating-linear-gradient(0deg, transparent 0 23px, rgba(255,255,255,.035) 24px),
+        var(--night-2);
+      border-left: 1px solid #43534b;
+    }
+    .orbit {
+      position: relative;
+      width: min(330px, 82vw);
+      aspect-ratio: 1;
+      border: 2px dashed #718078;
+      border-radius: 50%;
+    }
+    .orbit::before {
+      content: "结果回流";
+      position: absolute;
+      inset: 25%;
+      display: grid;
+      place-items: center;
+      border: 1px solid #52645b;
+      border-radius: 50%;
+      background: #18251f;
+      color: #f0b548;
+      font: 800 .82rem/1.3 "SFMono-Regular", Consolas, monospace;
+      text-align: center;
+    }
+    .dial-node {
+      position: absolute;
+      width: 7.3em;
+      padding: 9px 8px;
+      border: 1px solid #829188;
+      border-radius: 3px;
+      background: #f5f0e3;
+      color: #17201c;
+      font-family: "Heiti SC", sans-serif;
+      font-size: .76rem;
+      font-weight: 800;
+      line-height: 1.35;
+      text-align: center;
+      box-shadow: 5px 5px 0 rgba(0,0,0,.24);
+    }
+    .dial-node:nth-child(1) { left: 50%; top: -18px; transform: translateX(-50%); }
+    .dial-node:nth-child(2) { right: -24px; top: 50%; transform: translateY(-50%); border-color: var(--signal); }
+    .dial-node:nth-child(3) { left: 50%; bottom: -18px; transform: translateX(-50%); }
+    .dial-node:nth-child(4) { left: -24px; top: 50%; transform: translateY(-50%); border-color: var(--cyan); }
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 18px 0 0;
+    }
+    .legend-item {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: rgba(248,245,236,.76);
+      font-size: .82rem;
+      line-height: 1.45;
+    }
+    .mark {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      border-radius: 2px;
+      background: var(--ink);
+      color: #fff;
+      font: 900 .8rem/1 "SFMono-Regular", Consolas, monospace;
+    }
+    .mark.l { background: var(--blue); }
+    .mark.r { background: var(--signal-dark); }
+    .mark.i { background: var(--purple); }
+    .legend-item b { display: block; font-family: "Heiti SC", sans-serif; }
+    section { scroll-margin-top: 16px; }
+    .section-head { display: grid; grid-template-columns: 8.5rem 1fr; gap: 18px; margin: 76px 0 22px; align-items: baseline; }
+    .section-no { color: var(--signal-dark); font: 800 .75rem/1.4 "SFMono-Regular", Consolas, monospace; letter-spacing: .13em; }
+    h2 { margin: 0; font-size: clamp(1.75rem, 3.6vw, 3.05rem); line-height: 1.08; letter-spacing: -.045em; }
+    h3 { margin: 0 0 8px; font-size: 1.02rem; line-height: 1.35; }
+    p { max-width: 48em; margin: 0 0 14px; }
+    .muted { color: var(--muted); }
+    .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .role {
+      position: relative;
+      min-height: 205px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .role::after { content: attr(data-role); position: absolute; right: 14px; bottom: 8px; color: #d0cabb; font: 900 2.5rem/1 "SFMono-Regular", Consolas, monospace; }
+    .role p { position: relative; z-index: 1; color: #4f5a54; font-size: .93rem; }
+    .evidence { display: inline-flex; gap: 5px; margin-bottom: 13px; }
+    .evidence .mark { width: 24px; height: 24px; font-size: .67rem; }
+    .sequence-board {
+      overflow: hidden;
+      border: 1px solid #0f1713;
+      border-radius: 4px 4px 24px 4px;
+      background: var(--night);
+      color: #f3f0e6;
+      box-shadow: var(--shadow);
+    }
+    .board-head { display: flex; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #3a4a42; font: 800 .74rem/1.4 "SFMono-Regular", Consolas, monospace; color: #aebcb4; }
+    .steps { display: grid; grid-template-columns: repeat(7, 1fr); }
+    .step { position: relative; min-height: 226px; padding: 24px 15px 18px; border-right: 1px solid #3a4a42; }
+    .step:last-child { border-right: 0; }
+    .step b { display: block; margin-bottom: 18px; color: var(--lime); font: 800 .71rem/1.3 "SFMono-Regular", Consolas, monospace; }
+    .step strong { display: block; min-height: 3.1em; margin-bottom: 9px; font-family: "Heiti SC", sans-serif; line-height: 1.35; }
+    .step small { display: block; color: #b8c3bd; line-height: 1.5; }
+    .step::after { content: "›"; position: absolute; right: -8px; top: 43%; z-index: 2; color: var(--signal); font: 900 1.5rem/1 sans-serif; }
+    .step:last-child::after { content: "↺"; right: 10px; top: auto; bottom: 12px; color: var(--cyan); }
+    .exit-lane { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #3a4a42; }
+    .exit-lane div { padding: 13px 18px; color: #ced7d1; font-size: .87rem; }
+    .exit-lane div + div { border-left: 1px solid #3a4a42; }
+    .exit-lane b { color: var(--gold); }
+    .flow-grid { display: grid; grid-template-columns: 1fr 88px 1fr; gap: 0; align-items: stretch; }
+    .flow-column { padding: 24px; border: 1px solid var(--line); background: var(--panel); }
+    .flow-column ul { margin: 13px 0 0; padding-left: 1.25em; }
+    .flow-column li + li { margin-top: 7px; }
+    .flow-bridge { display: grid; place-items: center; background: var(--signal); color: #fff; font: 900 1.8rem/1 "SFMono-Regular", Consolas, monospace; writing-mode: vertical-rl; letter-spacing: .15em; }
+    .flow-note { margin-top: 14px; padding: 14px 16px; border-left: 4px solid var(--blue); background: rgba(248,245,236,.7); color: #4f5953; font-size: .91rem; }
+    .gate-grid { display: grid; grid-template-columns: 1fr 56px 1fr 56px 1fr; gap: 0; margin-bottom: 14px; }
+    .gate { padding: 20px; border: 1px solid #c3b58d; background: #fbf2d4; }
+    .gate-arrow { display: grid; place-items: center; color: var(--signal-dark); font: 900 1.7rem/1 sans-serif; }
+    .gate small { display: block; color: #635d4b; line-height: 1.48; }
+    .stop-table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); background: var(--panel); }
+    .stop-table th, .stop-table td { padding: 13px 14px; border-bottom: 1px solid #d4cec0; text-align: left; vertical-align: top; }
+    .stop-table th { background: #dad5c7; font: 800 .76rem/1.4 "SFMono-Regular", Consolas, monospace; letter-spacing: .05em; }
+    .stop-table td:first-child { width: 22%; font-weight: 800; }
+    .stop-table td:nth-child(2) { width: 33%; }
+    .branch { display: inline-block; padding: 2px 7px; border: 1px solid currentColor; border-radius: 999px; color: #2c6d5f; font: 800 .7rem/1.5 "SFMono-Regular", Consolas, monospace; }
+    .branch.stop { color: var(--danger); }
+    .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .gate-cards { margin-top: 14px; }
+    .card { padding: 21px; border: 1px solid var(--line); background: rgba(248,245,236,.82); }
+    .card p:last-child { margin-bottom: 0; }
+    .readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+    .readout div { padding: 15px; border: 1px solid #3a4a42; background: var(--night-2); color: #e8ece6; }
+    .readout b { display: block; color: var(--lime); font: 800 .72rem/1.4 "SFMono-Regular", Consolas, monospace; }
+    .readout strong { display: block; margin-top: 4px; font-family: "Heiti SC", sans-serif; }
+    .boundary-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px; }
+    .boundary-list a { display: block; padding: 14px; border: 1px solid var(--line); background: var(--panel); text-decoration: none; }
+    .boundary-list b { display: block; color: var(--ink); font-family: "SFMono-Regular", Consolas, monospace; font-size: .76rem; }
+    .boundary-list span { color: var(--muted); font-size: .88rem; }
+    details { margin-top: 12px; border: 1px solid var(--line); background: rgba(248,245,236,.78); }
+    summary { cursor: pointer; padding: 15px 17px; font-family: "Heiti SC", sans-serif; font-weight: 800; }
+    .details-body { padding: 0 17px 17px; color: #4f5953; }
+    .unknown-list { counter-reset: unknown; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0; list-style: none; }
+    .unknown-list li { position: relative; min-height: 120px; padding: 18px 18px 18px 56px; border-top: 4px solid var(--signal); background: var(--panel); }
+    .unknown-list li::before { counter-increment: unknown; content: counter(unknown, decimal-leading-zero); position: absolute; left: 16px; top: 17px; color: var(--signal-dark); font: 900 .82rem/1 "SFMono-Regular", Consolas, monospace; }
+    .source-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0; list-style: none; }
+    .source-list a { display: block; min-height: 100%; padding: 17px; border: 1px solid var(--line); background: var(--panel); text-decoration: none; }
+    .source-list a:hover { border-color: var(--signal); transform: translateY(-1px); }
+    .source-list b { display: block; margin-bottom: 5px; color: var(--ink); font-family: "Heiti SC", sans-serif; }
+    .source-list span { color: var(--muted); font-size: .88rem; }
+    footer { margin-top: 52px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .84rem; }
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+      .loop-dial { border-left: 0; border-top: 1px solid #43534b; }
+      .steps { grid-template-columns: repeat(2, 1fr); }
+      .step { min-height: 180px; border-bottom: 1px solid #3a4a42; }
+      .step::after { display: none; }
+      .legend { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
+      body { font-size: 16px; }
+      main { width: min(100% - 22px, 560px); padding-top: 12px; }
+      .topbar { align-items: flex-start; }
+      .statusline { max-width: 190px; }
+      .hero { min-height: 0; border-radius: 3px 3px 20px 3px; }
+      .hero-copy { padding: 30px 22px 34px; }
+      h1 { font-size: clamp(2.55rem, 14vw, 4.5rem); }
+      .loop-dial { min-height: 380px; padding: 46px 20px; }
+      .orbit { width: min(275px, 75vw); }
+      .dial-node { width: 6.6em; font-size: .69rem; }
+      .section-head { grid-template-columns: 1fr; gap: 7px; margin-top: 58px; }
+      .roles, .cards, .unknown-list, .source-list, .boundary-list { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .step { min-height: auto; }
+      .exit-lane { grid-template-columns: 1fr; }
+      .exit-lane div + div { border-left: 0; border-top: 1px solid #3a4a42; }
+      .flow-grid { grid-template-columns: 1fr; }
+      .flow-bridge { min-height: 54px; writing-mode: horizontal-tb; }
+      .gate-grid { grid-template-columns: 1fr; }
+      .gate-arrow { min-height: 40px; transform: rotate(90deg); }
+      .readout { grid-template-columns: 1fr; }
+      .stop-table { display: block; overflow-x: auto; white-space: normal; }
+      .stop-table th, .stop-table td { min-width: 145px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .source-list a { transform: none !important; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：核心 Agent 循环。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-223500-claude-code-agent-loop/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CORE-01 · 核心 Agent 循环">
+  <meta property="og:description" content="Claude Code X-Ray：核心 Agent 循环。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-223500-claude-code-agent-loop/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CORE-01 · 核心 Agent 循环">
+  <meta name="twitter:description" content="Claude Code X-Ray：核心 Agent 循环。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CORE-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <main>
+    <div class="topbar">
+      <a href="../index.html">← 返回总索引</a>
+      <div class="statusline" aria-label="页面元数据">
+        <span class="chip">CORE-01</span>
+        <span class="chip">documented</span>
+        <span class="chip">Claude Code 2.1.247</span>
+      </div>
+    </div>
+
+    <section data-xray-section="answer" aria-labelledby="answer-title">
+      <div class="hero">
+        <div class="hero-copy">
+          <div class="kicker">Agent loop signal map</div>
+          <h1 id="answer-title">一句任务，怎样变成一轮行动</h1>
+          <p class="hero-answer"><strong>模型负责选择下一步，Claude Code 的 harness 负责把选择变成可控的动作。</strong>模型若请求工具，harness 先过权限门，再执行工具，把结果送回模型。模型拿到新信息后继续选择。它给出自然回复时，Stop hook 仍可把原因送回去，要求继续；其余出口还包括截断、拒绝、用户中断和运行错误。</p>
+          <p class="hero-note">工具执行层在本页只露出接口。命令怎样起进程、输出怎样裁剪、失败怎样细分，都留给 CORE-02。当前页没有安全的真实模型实验，因此状态是 documented。</p>
+        </div>
+        <div class="loop-dial" aria-label="模型与 harness 的四段循环">
+          <div class="orbit">
+            <div class="dial-node">上下文进入模型</div>
+            <div class="dial-node">模型请求工具</div>
+            <div class="dial-node">harness 执行动作</div>
+            <div class="dial-node">结果返回模型</div>
+          </div>
+        </div>
+      </div>
+      <div class="legend" aria-label="证据图例">
+        <div class="legend-item"><span class="mark">O</span><span><b>官方契约</b>Anthropic 文档、SDK 文档与 changelog</span></div>
+        <div class="legend-item"><span class="mark l">L</span><span><b>本机静态证据</b>2.1.247 安装文件与只读帮助</span></div>
+        <div class="legend-item"><span class="mark r">R</span><span><b>真实实验</b>本轮没有，页面不冒充 verified</span></div>
+        <div class="legend-item"><span class="mark i">I</span><span><b>研究者推断</b>只补公开契约没有写出的接缝</span></div>
+      </div>
+    </section>
+
+    <section data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head"><span class="section-no">01 / ROLES</span><h2 id="terms-title">先认清三个角色</h2></div>
+      <div class="roles">
+        <article class="role" data-role="01">
+          <div class="evidence"><span class="mark">O</span></div>
+          <h3>用户给目标，也握着中断权</h3>
+          <p>用户提交任务，可以在权限提示中批准或拒绝，也能按 Esc 终止当前轮次。排队消息与即时中断属于 UI-01，本页只记录它们怎样进入或切断循环。</p>
+        </article>
+        <article class="role" data-role="02">
+          <div class="evidence"><span class="mark">O</span></div>
+          <h3>模型看上下文并选择</h3>
+          <p>模型读到当前对话、已加载的指令、文件内容和工具结果。它可以回复文字，也可以发出结构化工具请求。官方文档中的“Claude 决定”指这一层。</p>
+        </article>
+        <article class="role" data-role="03">
+          <div class="evidence"><span class="mark">O</span><span class="mark l">L</span></div>
+          <h3>harness 管理现实世界</h3>
+          <p>Claude Code 准备上下文和可用工具，检查权限，执行本地或远端动作，再把结果放回下一次模型请求。2.1.247 的帮助允许收窄工具集并选择权限模式。</p>
+        </article>
+      </div>
+    </section>
+
+    <section data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head"><span class="section-no">02 / SEQUENCE</span><h2 id="sequence-title">一轮按什么顺序走</h2></div>
+      <div class="sequence-board">
+        <div class="board-head"><span>公开契约拼出的最短时序</span><span>O 为主，私有序列化保持未知</span></div>
+        <div class="steps">
+          <div class="step"><b>STEP 01 · O</b><strong>用户提交任务</strong><small>目标和当前会话上下文成为这一轮的输入。</small></div>
+          <div class="step"><b>STEP 02 · O</b><strong>harness 准备上下文</strong><small>工具定义、指令和前序结果占用同一个上下文窗口。</small></div>
+          <div class="step"><b>STEP 03 · O</b><strong>模型给出响应</strong><small>响应可以含文字，也可以含一个或多个工具调用块。</small></div>
+          <div class="step"><b>STEP 04 · O</b><strong>检查停止原因</strong><small>工具调用表示要把控制权交给执行方，尚未形成最终回复。</small></div>
+          <div class="step"><b>STEP 05 · O</b><strong>权限门裁决</strong><small>deny、ask、allow 与 PreToolUse hook 决定调用能否开始。</small></div>
+          <div class="step"><b>STEP 06 · O</b><strong>工具运行并产出结果</strong><small>成功与错误都能形成结果，调用 ID 把结果接回原请求。</small></div>
+          <div class="step"><b>STEP 07 · O</b><strong>结果送回模型</strong><small>模型用新信息再选一步，循环回到响应阶段。</small></div>
+        </div>
+        <div class="exit-lane">
+          <div><b>继续通道</b>　<code>tool_use</code> 加对应的 <code>tool_result</code>，随后再次请求模型。</div>
+          <div><b>停止通道</b>　自然回复还要经过 Stop hook；截断、拒绝、用户中断和 API 错误各走自己的分支。</div>
+        </div>
+      </div>
+      <p class="flow-note">“收集、行动、验证”会互相穿插。一次修复可能读文件、改代码、跑测试，再根据失败结果重新读取。页面里的七格是通信顺序，不能读成模型固定采用七步思考法。</p>
+    </section>
+
+    <section data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head"><span class="section-no">03 / FLOW</span><h2 id="flow-title">信息在哪两边来回</h2></div>
+      <div class="flow-grid">
+        <div class="flow-column">
+          <div class="evidence"><span class="mark">O</span></div>
+          <h3>模型这一边</h3>
+          <ul>
+            <li>收到系统指令、会话内容和 harness 暴露的工具说明</li>
+            <li>输出文字或带 ID、名称和参数的工具调用</li>
+            <li>收到结果后继续原任务，失败结果也能参与下一步判断</li>
+          </ul>
+        </div>
+        <div class="flow-bridge" aria-label="双向传递">⇄</div>
+        <div class="flow-column">
+          <div class="evidence"><span class="mark">O</span></div>
+          <h3>harness 这一边</h3>
+          <ul>
+            <li>登记可用工具并套用权限、hook 和执行环境</li>
+            <li>把结构化调用交给对应工具</li>
+            <li>整形结果并按调用 ID 回填，随后检查新的停止原因</li>
+          </ul>
+        </div>
+      </div>
+      <p class="flow-note">Claude Code 官方说明会把消息、工具调用和结果写入本地明文 JSONL，以便恢复和分叉。本轮没有读取这些文件。它们的持久化细节属于 CTX-02，工具结果怎样裁剪属于 CORE-02。</p>
+    </section>
+
+    <section data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head"><span class="section-no">04 / GATES</span><h2 id="limits-title">权限门和停止门各管一件事</h2></div>
+      <div class="gate-grid" aria-label="工具执行前的三段门">
+        <div class="gate"><h3>模型提出调用</h3><small>调用仍是意图，还没有触碰文件、进程或外部服务。</small></div>
+        <div class="gate-arrow">→</div>
+        <div class="gate"><h3>harness 作裁决</h3><small>阻断 hook 可先截住调用。规则按 deny、ask、allow 生效。</small></div>
+        <div class="gate-arrow">→</div>
+        <div class="gate"><h3>工具得到执行机会</h3><small>允许以后才进入工具层。拒绝也会成为停止或反馈分支。</small></div>
+      </div>
+      <table class="stop-table">
+        <thead><tr><th>信号</th><th>公开含义</th><th>循环怎样处理</th></tr></thead>
+        <tbody>
+          <tr><td><code>tool_use</code></td><td>模型请求客户端工具。</td><td><span class="branch">继续</span> harness 执行并返回结果。</td></tr>
+          <tr><td><code>end_turn</code></td><td>模型自然结束当前响应。</td><td><span class="branch">停前检查</span> Stop hook 可以阻止停止，把原因或补充上下文交给模型，循环随即继续。连续阻止 8 次后，Claude Code 会越过 hook 并结束本轮；hook 放行时才退出。</td></tr>
+          <tr><td><code>max_tokens</code><br><code>model_context_window_exceeded</code></td><td>生成长度或上下文窗口造成截断。</td><td><span class="branch stop">另行处理</span> 结果可能不完整。Claude Code 的全部自动恢复策略没有公开。</td></tr>
+          <tr><td><code>stop_sequence</code><br><code>refusal</code></td><td>命中停止串，或安全分类器返回拒绝。</td><td><span class="branch stop">另行处理</span> 这两者都不等同于工具成功。</td></tr>
+          <tr><td><code>pause_turn</code></td><td>服务端工具循环达到单次迭代上限。</td><td><span class="branch">续传</span> 把暂停响应原样送回，继续服务端循环。</td></tr>
+          <tr><td>Esc 与权限拒绝</td><td>Claude Code 的产品控制信号。API stop reason 列表不含它。</td><td><span class="branch stop">中断或反馈</span> Esc 取消当前轮次。无评论拒绝主对话权限会停轮，带理由时模型可调整。</td></tr>
+          <tr><td>API 错误</td><td>请求处理失败，区别于成功响应里的 stop reason。</td><td><span class="branch stop">失败</span> StopFailure 可记录它，Stop hook 不会代替它触发。</td></tr>
+        </tbody>
+      </table>
+      <div class="cards gate-cards">
+        <article class="card">
+          <div class="evidence"><span class="mark">O</span></div>
+          <h3>循环开始前要先通过认证</h3>
+          <p>个人用户可以用 Claude.ai 的 Pro 或 Max 账号登录。团队还可以使用 Team、Enterprise、Claude Console、云提供商或组织自建 gateway。设置了 <code>ANTHROPIC_API_KEY</code> 时，Claude Code 会跳过浏览器登录并要求确认这把 key。</p>
+        </article>
+        <article class="card">
+          <div class="evidence"><span class="mark">O</span></div>
+          <h3>采用哪种认证，也决定用量记在哪里</h3>
+          <p>Pro 和 Max 的常规用量计入订阅额度，超出后可另开 usage credits。Team 与 Enterprise 使用成员席位额度。Claude Console 和云提供商按 token 向组织计费。一次循环可能多次请求模型，工具结果回流和上下文都会继续占用 token。</p>
+        </article>
+      </div>
+    </section>
+
+    <section data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head"><span class="section-no">05 / LOCAL</span><h2 id="experiment-title">本轮只做静态核对</h2></div>
+      <div class="readout">
+        <div><b>VERSION · L</b><strong>2.1.247</strong><span>来自本机只读版本输出</span></div>
+        <div><b>BINARY · L</b><strong>哈希与基线一致</strong><span>指定安装文件共 233,073,008 bytes</span></div>
+        <div><b>RUNTIME · R</b><strong>没有运行样本</strong><span>未启动交互或 print 会话</span></div>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <h3>实际执行过的安全命令</h3>
+          <p><code>claude --version</code>、<code>claude --help</code> 与指定安装文件的 SHA-256 核对。帮助里能看到工具集、权限模式、安全模式、最小模式和流式输入输出开关。</p>
+        </article>
+        <article class="card">
+          <h3>这些命令没有证明运行路径</h3>
+          <p>帮助输出不能证明某次工具调用怎样排队，也不能证明权限弹窗、截断和错误重试的真实表现。本轮没有读取私人会话记录，旧页引用过的会话结构观察已经撤下。</p>
+        </article>
+      </div>
+      <details>
+        <summary>怎样复现同一组只读核对</summary>
+        <div class="details-body"><p>运行版本和帮助命令，再对指定 2.1.247 安装文件执行 SHA-256。随后逐页核对核心循环、工具调用、停止原因、权限和 hooks。不要启动模型会话，也不要读取本地会话 JSONL。</p></div>
+      </details>
+    </section>
+
+    <section data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head"><span class="section-no">06 / VERSION</span><h2 id="implementation-title">2.1.247 改了哪条循环边界</h2></div>
+      <div class="cards">
+        <article class="card">
+          <div class="evidence"><span class="mark">O</span><span class="mark l">L</span></div>
+          <h3>错误输出不会再轻易挤死会话</h3>
+          <p>官方 changelog 记载，这一版修复了 hook 或后台 Agent 打印数 MB 错误输出后，可能把对话挤到提示过长并卡住的故障。本机版本与二进制哈希都和基线一致。</p>
+        </article>
+        <article class="card">
+          <div class="evidence"><span class="mark i">I</span></div>
+          <h3>私有调度仍然看不见</h3>
+          <p>公开资料足以证明角色和工具往返契约，仍不足以还原 Claude Code 内部请求的逐字段形状、缓存分块、并行工具队列和重试退避。本页不会用 API 教程替这些未知项作保证。</p>
+        </article>
+      </div>
+      <div class="boundary-list" aria-label="相邻页面边界">
+        <a href="../index.html"><b>CORE-02</b><span>工具启动、结果整形与失败分类</span></a>
+        <a href="../index.html"><b>CTX-01 / CTX-02</b><span>上下文压缩与会话持久化</span></a>
+        <a href="../index.html"><b>SAFE-01 / SAFE-02</b><span>权限规则、审批和沙箱</span></a>
+        <a href="../index.html"><b>UI-01 / EXT-03</b><span>输入调度、中断与 hooks</span></a>
+      </div>
+    </section>
+
+    <section data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head"><span class="section-no">07 / UNKNOWNS</span><h2 id="unknowns-title">公开证据还留着五个洞</h2></div>
+      <ol class="unknown-list">
+        <li>2.1.247 发给模型的私有系统块、工具定义和 prompt cache 边界怎样精确序列化。</li>
+        <li>Claude Code 对每一种 API stop reason 采用怎样的自动续跑、重试、降级和界面提示。</li>
+        <li>一个响应含有多个工具调用时，本地执行队列与结果回填采用什么精确顺序。</li>
+        <li>普通工具错误按类别重试多少次，是否退避，以及模型和 harness 各负责哪一段。</li>
+        <li>本地 CLI、Cloud、Remote Control、Desktop 与 IDE 在中断传播和持久化时序上有哪些差异。</li>
+      </ol>
+    </section>
+
+    <section data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head"><span class="section-no">08 / SOURCES</span><h2 id="sources-title">从这些一手资料重做核对</h2></div>
+      <ul class="source-list">
+        <li><a href="https://code.claude.com/docs/en/how-claude-code-works"><b>Claude Code 怎样工作</b><span>证明三阶段循环、模型与 harness 的角色、结果回流和 Esc 中断</span></a></li>
+        <li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works"><b>工具使用契约</b><span>证明模型提出调用、执行方回填结果的五步客户端循环</span></a></li>
+        <li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls"><b>工具调用与结果格式</b><span>证明调用 ID、结果配对、顺序要求和错误标记</span></a></li>
+        <li><a href="https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons"><b>停止原因与后续动作</b><span>证明自然结束、工具调用、暂停、截断与拒绝的差别</span></a></li>
+        <li><a href="https://code.claude.com/docs/en/permissions"><b>Claude Code 权限</b><span>证明 deny、ask、allow 的优先级和权限拒绝后的分支</span></a></li>
+        <li><a href="https://code.claude.com/docs/en/hooks"><b>Claude Code hooks</b><span>证明工具失败、响应结束和 API 错误触发不同事件</span></a></li>
+        <li><a href="https://code.claude.com/docs/en/tools-reference"><b>内置工具参考</b><span>证明工具可用面和工具执行层与循环相接的位置</span></a></li>
+        <li><a href="https://code.claude.com/docs/en/authentication"><b>Claude Code 认证方式</b><span>证明订阅账号、Console、API key、云提供商与 gateway 的登录入口</span></a></li>
+        <li><a href="https://code.claude.com/docs/en/costs"><b>Claude Code 用量与费用</b><span>证明订阅额度、usage credits 与按 token 计费的边界</span></a></li>
+        <li><a href="https://code.claude.com/docs/en/changelog"><b>Claude Code 2.1.247 版本记录</b><span>证明本版与超大错误输出相关的修复</span></a></li>
+      </ul>
+    </section>
+
+    <footer>CORE-01　研究基线 2026-08-27　状态 documented　Claude Code 2.1.247　<a href="../index.html">返回总索引</a></footer>
+  </main>
+</body>
+</html>

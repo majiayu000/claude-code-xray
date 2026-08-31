@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="CTX-06">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>CTX-06 Fast Mode 的路由、计费与回退</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #ecf5ee;
+      --muted: #9aacaa;
+      --night: #09110f;
+      --panel: #101b18;
+      --panel-2: #15231f;
+      --line: #30443d;
+      --green: #a9f4c6;
+      --amber: #ffcb70;
+      --red: #ff8c7d;
+      --blue: #76d8ef;
+      --paper: #dce8df;
+      --black: #0a100e;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(rgba(118,216,239,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(118,216,239,.035) 1px, transparent 1px),
+        var(--night);
+      background-size: 34px 34px;
+      color: var(--ink);
+      font-family: "Avenir Next", "Noto Sans SC", "PingFang SC", sans-serif;
+      line-height: 1.68;
+    }
+    a { color: var(--blue); text-underline-offset: .22em; }
+    a:hover { color: var(--green); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    .skip {
+      position: absolute;
+      left: 1rem;
+      top: -5rem;
+      padding: .65rem 1rem;
+      background: var(--amber);
+      color: var(--black);
+      z-index: 10;
+    }
+    .skip:focus { top: 1rem; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .8rem clamp(1rem, 4vw, 4rem);
+      border-bottom: 1px solid var(--line);
+      background: rgba(9,17,15,.94);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      backdrop-filter: blur(12px);
+    }
+    .tag, .status, .evidence-mark {
+      font-family: "SFMono-Regular", "Cascadia Mono", monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .tag { color: var(--green); font-weight: 800; }
+    .status { color: var(--amber); font-size: .78rem; }
+    .topbar a { font-size: .86rem; }
+    main { overflow: hidden; }
+    section {
+      width: min(1180px, calc(100% - 2rem));
+      margin-inline: auto;
+      padding: clamp(3.5rem, 8vw, 7rem) 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .hero {
+      min-height: 82vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(310px, .88fr);
+      gap: clamp(2rem, 6vw, 6rem);
+      align-items: center;
+    }
+    .eyebrow {
+      margin: 0 0 1.2rem;
+      color: var(--amber);
+      font: 700 .78rem/1.4 "SFMono-Regular", "Cascadia Mono", monospace;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { line-height: 1.14; margin-top: 0; }
+    h1 {
+      max-width: 12ch;
+      margin-bottom: 1.4rem;
+      font-family: "Songti SC", "STSong", serif;
+      font-size: clamp(3rem, 7.8vw, 7rem);
+      font-weight: 700;
+      letter-spacing: -.065em;
+    }
+    h2 {
+      font-family: "Songti SC", "STSong", serif;
+      font-size: clamp(2rem, 4.5vw, 4rem);
+      letter-spacing: -.035em;
+      max-width: 16ch;
+    }
+    h3 { font-size: 1.08rem; color: var(--green); }
+    .lead {
+      max-width: 65ch;
+      margin: 0;
+      font-size: clamp(1.1rem, 2vw, 1.38rem);
+      color: var(--paper);
+    }
+    .signal-board {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 14px 14px 0 #030705;
+      padding: clamp(1.2rem, 4vw, 2.4rem);
+      position: relative;
+    }
+    .signal-board::before {
+      content: "ROUTE 06";
+      position: absolute;
+      top: -1.1rem;
+      right: 1rem;
+      color: var(--night);
+      background: var(--amber);
+      padding: .25rem .55rem;
+      font: 800 .68rem/1 "SFMono-Regular", monospace;
+      letter-spacing: .12em;
+    }
+    .rail { display: grid; grid-template-columns: 1fr auto; gap: .4rem 1rem; margin: 1.2rem 0; }
+    .rail strong { font-size: 1.05rem; }
+    .rail small { color: var(--muted); grid-column: 1; }
+    .lamp {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 22px currentColor;
+      align-self: center;
+    }
+    .lamp.fast { color: var(--green); }
+    .lamp.cool { color: #778985; box-shadow: none; }
+    .rail-line { height: 2px; background: var(--line); position: relative; margin: 1.5rem 0; }
+    .rail-line::after { content: ""; width: 42%; height: 2px; background: var(--green); position: absolute; inset: 0 auto auto 0; }
+    .price-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .price-pair div { background: var(--panel-2); padding: 1rem; }
+    .price-pair b { display: block; font-size: 1.5rem; color: var(--amber); }
+    .section-head { display: grid; grid-template-columns: .34fr 1fr; gap: 2rem; align-items: end; margin-bottom: 2.5rem; }
+    .section-no { color: var(--muted); font: 700 .76rem/1 "SFMono-Regular", monospace; letter-spacing: .15em; }
+    .grid-2, .grid-3 { display: grid; gap: 1rem; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .tile {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 1.35rem;
+    }
+    .tile p:last-child { margin-bottom: 0; }
+    .evidence-mark {
+      display: inline-grid;
+      place-items: center;
+      min-width: 1.7rem;
+      height: 1.7rem;
+      margin-right: .45rem;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      font-size: .69rem;
+      font-weight: 800;
+    }
+    .o { color: var(--green); }
+    .l { color: var(--blue); }
+    .r { color: var(--red); }
+    .i { color: var(--amber); }
+    .timeline { counter-reset: route; display: grid; gap: 0; }
+    .step {
+      counter-increment: route;
+      display: grid;
+      grid-template-columns: 4rem 1fr;
+      gap: 1.2rem;
+      padding: 1.35rem 0;
+      border-top: 1px solid var(--line);
+    }
+    .step::before {
+      content: "0" counter(route);
+      color: var(--amber);
+      font: 800 1rem/1.5 "SFMono-Regular", monospace;
+    }
+    .step p { margin: .35rem 0 0; color: var(--muted); }
+    .switchyard {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr 1fr;
+      gap: 1rem;
+      align-items: stretch;
+    }
+    .node { border: 1px solid var(--line); padding: 1.2rem; background: var(--panel); }
+    .node.main { border-color: var(--amber); background: #211b10; }
+    .node.fast { border-color: #4b8361; }
+    .node.standard { border-color: #4b6870; }
+    .node p { color: var(--muted); margin-bottom: 0; }
+    .arrow { color: var(--amber); font-family: "SFMono-Regular", monospace; }
+    .matrix { width: 100%; border-collapse: collapse; background: var(--panel); }
+    .matrix th, .matrix td { padding: 1rem; text-align: left; vertical-align: top; border: 1px solid var(--line); }
+    .matrix th { color: var(--amber); font-size: .78rem; letter-spacing: .05em; }
+    .matrix td:first-child { color: var(--paper); font-weight: 700; }
+    code {
+      padding: .12em .35em;
+      color: var(--green);
+      background: #07100c;
+      border: 1px solid #2c4b3a;
+      border-radius: 3px;
+      font: .88em/1.5 "SFMono-Regular", "Cascadia Mono", monospace;
+    }
+    .note { border-left: 3px solid var(--amber); padding: .2rem 0 .2rem 1rem; color: var(--paper); }
+    .warning { border-color: var(--red); }
+    .factline { display: flex; gap: .65rem; align-items: flex-start; margin: .9rem 0; }
+    .factline .evidence-mark { flex: 0 0 auto; }
+    .factline p { margin: 0; }
+    details { border-top: 1px solid var(--line); padding: 1rem 0; }
+    summary { cursor: pointer; color: var(--paper); font-weight: 700; }
+    details p { color: var(--muted); max-width: 76ch; }
+    .source-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .source-list a { display: block; min-height: 6rem; padding: 1.2rem; background: var(--panel); text-decoration: none; }
+    .source-list a:hover { background: var(--panel-2); }
+    .footer-note { color: var(--muted); font-size: .86rem; }
+    @media (prefers-reduced-motion: no-preference) {
+      .lamp.fast { animation: pulse 2.2s ease-in-out infinite; }
+      @keyframes pulse { 50% { opacity: .45; box-shadow: 0 0 8px currentColor; } }
+    }
+    @media (max-width: 760px) {
+      .topbar { position: static; flex-wrap: wrap; }
+      .hero { min-height: auto; grid-template-columns: 1fr; padding-top: 4rem; }
+      h1 { font-size: clamp(3rem, 16vw, 5.3rem); }
+      .section-head { grid-template-columns: 1fr; gap: .8rem; }
+      .grid-2, .grid-3, .switchyard, .source-list { grid-template-columns: 1fr; }
+      .price-pair { grid-template-columns: 1fr; }
+      .matrix { display: block; overflow-x: auto; }
+      .step { grid-template-columns: 2.6rem 1fr; }
+      section { width: min(100% - 1.2rem, 1180px); }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Fast Mode 的路由、计费与回退。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ctx-06-fast-mode/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="CTX-06 · Fast Mode 的路由、计费与回退">
+  <meta property="og:description" content="Claude Code X-Ray：Fast Mode 的路由、计费与回退。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ctx-06-fast-mode/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CTX-06 · Fast Mode 的路由、计费与回退">
+  <meta name="twitter:description" content="Claude Code X-Ray：Fast Mode 的路由、计费与回退。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CTX-06</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <a class="skip" href="#main">跳到正文</a>
+  <header class="topbar">
+    <span class="tag">CTX-06 · ROUTE CONTROL</span>
+    <span class="status">documented · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </header>
+  <main id="main">
+    <section class="hero" data-xray-section="answer">
+      <div>
+        <p class="eyebrow">Fast Mode 的路由、计费与回退</p>
+        <h1>同一台 Opus，换一条快线</h1>
+        <p class="lead">打开 Fast 后，Claude Code 把受支持的 Opus 请求送进高速推理配置，成功的 token 按 Fast 费率计。Fast 限流或 usage credits 耗尽时，请求会改走标准速度。组织禁用、模型白名单和网络预检失败会挡在入口处，高速线路根本不会启动。<span class="evidence-mark o">O</span></p>
+      </div>
+      <aside class="signal-board" aria-label="Fast Mode 状态板">
+        <div class="rail"><strong>FAST · Opus 5 或 4.8</strong><span class="lamp fast"></span><small>最高约 2.5 倍输出速度</small></div>
+        <div class="rail-line"></div>
+        <div class="rail"><strong>STANDARD · 同一模型</strong><span class="lamp cool"></span><small>限流冷却与额度耗尽时承接请求</small></div>
+        <div class="price-pair">
+          <div><small>FAST INPUT</small><b>$10</b><span>每百万 token</span></div>
+          <div><small>FAST OUTPUT</small><b>$50</b><span>每百万 token</span></div>
+        </div>
+      </aside>
+    </section>
+
+    <section data-xray-section="terms">
+      <div class="section-head"><span class="section-no">01 / TERMS</span><h2>先分清四个容易混在一起的量</h2></div>
+      <div class="grid-2">
+        <article class="tile"><h3>模型</h3><p>Fast 沿用同一组模型权重与能力。在 2.1.247 里，支持对象是 Opus 5 和 Opus 4.8。<span class="evidence-mark o">O</span></p></article>
+        <article class="tile"><h3>速度配置</h3><p>官方 API 用高速 speed 选项与 beta header 选择这条线路。成功响应的 usage.speed 为 fast。<span class="evidence-mark o">O</span></p></article>
+        <article class="tile"><h3>偏好与会话状态</h3><p>保存的 fastMode 偏好通常跨会话保留。逐会话 opt-in 能让新会话从关闭开始，同时保留那份偏好。<span class="evidence-mark o">O</span><span class="evidence-mark l">L</span></p></article>
+        <article class="tile"><h3>effort</h3><p>effort 调整思考量，Fast 调整推理服务速度。两者可以同时使用，状态机留在 CTX-05。<span class="evidence-mark o">O</span></p></article>
+      </div>
+      <p class="note">Advisor 有独立的工具开关、调用条件与缓存位置。本页不把它并入 Fast。</p>
+    </section>
+
+    <section data-xray-section="sequence">
+      <div class="section-head"><span class="section-no">02 / SEQUENCE</span><h2>一次开关动作，按这个顺序走</h2></div>
+      <div class="timeline">
+        <article class="step"><div><h3>用户要求打开</h3><p>交互终端运行 <code>/fast</code>，或在用户设置里写入 <code>fastMode</code>。非交互模式有更窄的启动条件。</p></div></article>
+        <article class="step"><div><h3>Claude Code 先过资格门</h3><p>它核对第一方线路、usage credits、组织开关、模型 allowlist 与 Fast 可用性检查。任何一扇门关闭，界面解释原因，请求留在标准速度。</p></div></article>
+        <article class="step"><div><h3>必要时切到 Opus</h3><p>当前模型不支持 Fast 时，打开动作会切到 Opus。2.1.247 的默认 Fast 目标是 Opus 5。界面显示 Fast mode ON，提示符旁出现 ↯。</p></div></article>
+        <article class="step"><div><h3>下一次请求走高速配置</h3><p>第一次在这段对话里打开 Fast 会重建缓存线路，整段上下文按 Fast 未缓存输入价重读。随后成功的 input 与 output token 分别按每百万 10 美元和 50 美元计。</p></div></article>
+        <article class="step"><div><h3>回包确认实际速度</h3><p>API 的 usage.speed 能区分 fast 与 standard。Claude Code 用 ↯ 和开关提示给用户看状态，不会把标准回退伪装成仍在高速运行。</p></div></article>
+      </div>
+      <div class="grid-3">
+        <article class="tile"><h3>账单从第一枚 Fast token 开始</h3><p>订阅账户一旦发出 Fast 请求，就从第一枚 token 起扣 usage credits，即使套餐内普通用量尚未用完。Console 付费组织把这部分与其他 API 请求一起按 token 结算。Fast 的输入和输出单价分别是标准 Opus 的两倍，缓存与数据驻留倍率仍会另算。<span class="evidence-mark o">O</span></p></article>
+        <article class="tile"><h3>关闭只改变后续速度</h3><p>手动关闭 Fast 会把后续请求送回标准速度，模型仍停在 Opus。已经建立的 Fast 缓存线路在同一段对话里继续保留，所以随后再次打开时，不会再次按未缓存输入价重读整段上下文。逐会话 opt-in 只改变新会话的初始开关，不会删除保存偏好。<span class="evidence-mark o">O</span></p></article>
+        <article class="tile"><h3>偏好与实际速度要分开看</h3><p>开关显示的是用户偏好，<code>usage.speed</code> 才是服务器报告的单次实际速度。Fast 429 期间，↯ 变灰，当前请求落回标准线路，冷却结束后自动恢复。额度耗尽的处理不同，本次交互会话会关闭 Fast，保存偏好仍然保留。<span class="evidence-mark o">O</span></p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="flow">
+      <div class="section-head"><span class="section-no">03 / FLOW</span><h2>快线在哪里分叉，又在哪里并回主线</h2></div>
+      <div class="switchyard">
+        <article class="node"><h3>入口</h3><p><code>/fast</code><br>保存偏好<br>组织与网络预检</p></article>
+        <article class="node main"><h3>Claude Code 路由器</h3><p>选择受支持 Opus<br>首次开启建立 Fast 缓存键<br>每回合选择 fast 或 standard speed</p></article>
+        <div class="grid-2">
+          <article class="node fast"><h3>高速线路</h3><p><span class="arrow">↗</span> Fast 配置<br>$10 / $50 MTok<br>独立限流池</p></article>
+          <article class="node standard"><h3>标准线路</h3><p><span class="arrow">↘</span> 同一 Opus<br>$5 / $25 MTok<br>冷却或额度耗尽时承接</p></article>
+        </div>
+      </div>
+      <div class="factline"><span class="evidence-mark o">O</span><p>Claude Code 的缓存契约有一处产品级优化。第一次打开 Fast 会换缓存线路；后续手动关闭、429 回退和再次开启都保持这条线路，不再重读整段对话。</p></div>
+      <div class="factline"><span class="evidence-mark i">I</span><p>图里的路由器是对官方请求字段、界面状态和缓存规则的合并表达。官方没有公开 2.1.247 的完整内部函数调用图。</p></div>
+    </section>
+
+    <section data-xray-section="limits">
+      <div class="section-head"><span class="section-no">04 / LIMITS</span><h2>四种失败，停在四个不同位置</h2></div>
+      <table class="matrix">
+        <thead><tr><th>触发条件</th><th>状态怎样变</th><th>用户看到什么</th><th>随后怎样收费</th></tr></thead>
+        <tbody>
+          <tr><td>组织未启用、模型不在 allowlist</td><td>Fast 不进入开启态</td><td>组织禁用或模型不允许的提示</td><td>请求继续按标准线路</td></tr>
+          <tr><td>预检无法直达 Anthropic</td><td>可用性检查失败，Fast 不启动</td><td>网络连接问题或当前不可用</td><td>标准速度与标准费率</td></tr>
+          <tr><td>Fast 429 限流</td><td>临时切到 standard，冷却后自动恢复</td><td>↯ 变灰</td><td>回退请求按标准费率</td></tr>
+          <tr><td>usage credits 耗尽</td><td>交互会话关掉本次 Fast，保存偏好不变</td><td>额度耗尽通知</td><td>被拒请求改用标准速度重试</td></tr>
+          <tr><td>529 或普通服务故障</td><td>公开契约没有确认同一条标准回退</td><td>可能进入通用重试或错误流程</td><td>没有成功响应就不能据此断言标准费率</td></tr>
+        </tbody>
+      </table>
+      <p class="note warning"><span class="evidence-mark o">O</span><span class="evidence-mark i">I</span>官方 API 页把容量不足的 529 写成错误；Claude Code 页只明确承诺 Fast 限流与额度耗尽时走标准速度。服务故障回退仍是未知项，因果图没有把它画成既成事实。</p>
+    </section>
+
+    <section data-xray-section="experiment">
+      <div class="section-head"><span class="section-no">05 / OBSERVATION</span><h2>本轮只核静态证据，没有花一枚 token</h2></div>
+      <div class="grid-3">
+        <article class="tile"><h3>版本与摘要</h3><p>保留安装文件返回 Claude Code 2.1.247，SHA-256 与任务基线完全一致。<span class="evidence-mark l">L</span></p></article>
+        <article class="tile"><h3>帮助与安装包</h3><p>帮助页展示模型、settings 与 print 模式的通用 fallback。安装包有限字符串核对命中 Fast 开关、逐会话 opt-in、speed 与额度耗尽提示。<span class="evidence-mark l">L</span></p></article>
+        <article class="tile"><h3>真实实验</h3><p>未启动 Claude 会话，未改设置，也未制造 429 或 529。Fast 从第一枚 token 开始计费，本页因此保持 documented。<span class="evidence-mark r">R</span> 缺失</p></article>
+      </div>
+      <p class="footer-note">研究时活动命令已升级到 2.1.248。本页所有本机结论仍以保留的 2.1.247 安装文件为准。</p>
+    </section>
+
+    <section data-xray-section="implementation">
+      <div class="section-head"><span class="section-no">06 / IMPLEMENTATION</span><h2>配置、请求与显示，各自保存一层状态</h2></div>
+      <div class="grid-2">
+        <article class="tile"><h3>设置层</h3><p><code>fastMode</code> 保存用户偏好。<code>fastModePerSessionOptIn</code> 控制新会话是否必须重新打开。环境变量可以彻底禁用 Fast。<span class="evidence-mark o">O</span><span class="evidence-mark l">L</span></p></article>
+        <article class="tile"><h3>请求层</h3><p>Fast API 形状包含 beta header 与 fast speed。响应 usage.speed 才是某次请求实际走了哪条线路的服务器证据。<span class="evidence-mark o">O</span></p></article>
+        <article class="tile"><h3>显示层</h3><p>Fast mode ON 与 ↯ 表示开启。限流冷却时 ↯ 变灰。模型切换引起开关变化时，CLI 与 Remote Control 会重新同步状态。<span class="evidence-mark o">O</span></p></article>
+        <article class="tile"><h3>版本层</h3><p>Fast 的默认模型几次变更。2.1.219 起是 Opus 5；Opus 4.7 已退出 Fast 支持，2.1.247 不应再沿用旧教程。<span class="evidence-mark o">O</span></p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="unknowns">
+      <div class="section-head"><span class="section-no">07 / UNKNOWNS</span><h2>还不能写死的地方</h2></div>
+      <details open><summary>529 与普通 5xx 会不会切标准速度</summary><p>平台 API 会把 Fast 容量不足列为 529 错误。Claude Code 文档的自动标准回退只覆盖 Fast 限流与 usage credits 耗尽。2.1.247 的精确重试矩阵没有公开。</p></details>
+      <details><summary>可用性检查缓存怎样保存和失效</summary><p>官方只说过去成功的检查结果可以缓存后继续使用，没有公开本机文件位置、TTL 或清除条件。本轮也没有读取私人配置来猜。</p></details>
+      <details><summary>各层 Fast 限额是多少</summary><p>官方说明 Fast 有独立限流头与 tier-specific limits，没有在 Claude Code 页给一组适用于所有套餐和组织的固定数字。</p></details>
+      <details><summary>多端提示是否逐字一致</summary><p>官方承诺 CLI、VS Code 与 Remote Control 同步开关状态。本轮没有真实多端会话，无法逐字符核对全部降级通知。</p></details>
+    </section>
+
+    <section data-xray-section="sources">
+      <div class="section-head"><span class="section-no">08 / SOURCES</span><h2>从这些一手资料复核</h2></div>
+      <div class="source-list">
+        <a href="https://code.claude.com/docs/en/fast-mode">Claude Code Fast Mode<br><small>证明开关、显示、资格门和回退</small></a>
+        <a href="https://platform.claude.com/docs/en/build-with-claude/fast-mode">Claude Platform Fast Mode<br><small>证明请求字段、实际 speed、429 与 529</small></a>
+        <a href="https://platform.claude.com/docs/en/about-claude/pricing">Claude Platform Pricing<br><small>证明标准与 Fast 的 token 费率</small></a>
+        <a href="https://code.claude.com/docs/en/prompt-caching">Claude Code Prompt Caching<br><small>证明首次开启与回退的缓存成本</small></a>
+        <a href="https://code.claude.com/docs/en/settings">Claude Code Settings<br><small>证明配置 schema 与设置作用域</small></a>
+        <a href="https://code.claude.com/docs/en/changelog">Claude Code changelog<br><small>证明默认模型和 2.1.247 版本边界</small></a>
+      </div>
+      <p class="footer-note">页面状态 documented。证据图例 <span class="evidence-mark o">O</span>官方契约 <span class="evidence-mark l">L</span>本机静态与帮助 <span class="evidence-mark r">R</span>真实实验 <span class="evidence-mark i">I</span>研究者推断。本页缺少 R。</p>
+      <p><a href="../index.html">返回总索引</a></p>
+    </section>
+  </main>
+</body>
+</html>

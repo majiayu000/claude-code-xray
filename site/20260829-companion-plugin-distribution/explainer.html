@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-EXT-MARKETPLACE-PUBLISH">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>Marketplace 发布、推荐与依赖政策矩阵</title>
+  <style>
+    :root {
+      --ink: #151712;
+      --paper: #f2efd9;
+      --paper-hi: #fffce8;
+      --lime: #d9ff3f;
+      --blue: #1d4ed8;
+      --red: #db2c20;
+      --steel: #656a61;
+      --line: rgba(21, 23, 18, .28);
+      --shadow: 10px 10px 0 #151712;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(217,255,63,.36), transparent 20rem),
+        repeating-linear-gradient(0deg, rgba(21,23,18,.035) 0 1px, transparent 1px 5px),
+        var(--paper);
+      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      line-height: 1.68;
+    }
+
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: .25em; }
+    a:hover { color: var(--blue); }
+    a:focus-visible, summary:focus-visible {
+      outline: 4px solid var(--blue);
+      outline-offset: 4px;
+    }
+    code {
+      padding: .08em .36em;
+      background: var(--ink);
+      color: var(--lime);
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: .88em;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2 {
+      font-family: "DIN Condensed", "Impact", "PingFang SC", sans-serif;
+      font-weight: 900;
+      line-height: .98;
+      text-transform: uppercase;
+    }
+    h1 { max-width: 1000px; margin-bottom: 28px; font-size: clamp(52px, 9.5vw, 132px); letter-spacing: -.055em; }
+    h2 { margin-bottom: 24px; font-size: clamp(38px, 5.4vw, 76px); letter-spacing: -.035em; }
+    h3 { margin-bottom: 9px; font-size: 20px; line-height: 1.22; }
+
+    .frame { width: min(1240px, calc(100% - 36px)); margin: 0 auto; }
+    .topline {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 22px;
+      align-items: center;
+      padding: 10px max(18px, calc((100vw - 1240px) / 2));
+      color: var(--paper-hi);
+      background: var(--ink);
+      border-bottom: 6px solid var(--lime);
+      font: 800 12px/1.45 "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .07em;
+    }
+    .topline .meta { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+    .topline a { color: var(--paper-hi); }
+    .status { padding: 3px 8px; color: var(--ink); background: var(--lime); }
+
+    section { position: relative; padding: clamp(72px, 9vw, 124px) 0; border-top: 2px solid var(--ink); }
+    .hero { min-height: calc(100vh - 58px); display: grid; align-items: center; border-top: 0; overflow: hidden; }
+    .hero::before {
+      content: "MKT";
+      position: absolute;
+      right: -3vw;
+      bottom: -5vw;
+      color: transparent;
+      -webkit-text-stroke: 3px rgba(21,23,18,.12);
+      font: 900 clamp(180px, 35vw, 520px)/.7 "DIN Condensed", sans-serif;
+      transform: rotate(-7deg);
+      pointer-events: none;
+    }
+    .hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.42fr) minmax(260px, .58fr); gap: clamp(42px, 7vw, 100px); align-items: end; }
+    .eyebrow { display: flex; align-items: center; gap: 13px; margin-bottom: 18px; font: 900 12px/1 "SFMono-Regular", Menlo, monospace; letter-spacing: .15em; }
+    .eyebrow::before { content: ""; width: 52px; height: 11px; background: var(--red); }
+    .lede { max-width: 830px; font-size: clamp(19px, 2vw, 28px); line-height: 1.55; }
+    .hero-note { margin-top: 28px; padding: 17px 20px; color: var(--paper-hi); background: var(--blue); border-left: 12px solid var(--lime); font-weight: 700; }
+    .ticket {
+      padding: 26px;
+      background: var(--lime);
+      border: 3px solid var(--ink);
+      box-shadow: var(--shadow);
+      transform: rotate(1.4deg);
+    }
+    .ticket b, .ticket strong { display: block; }
+    .ticket b { margin-top: 14px; font: 900 11px/1 "SFMono-Regular", Menlo, monospace; letter-spacing: .14em; }
+    .ticket strong { margin-top: 5px; font: 900 23px/1.1 "SFMono-Regular", Menlo, monospace; overflow-wrap: anywhere; }
+    .ticket .cut { height: 24px; margin: 24px -26px 18px; border-top: 2px dashed var(--ink); border-bottom: 2px dashed var(--ink); background: var(--paper-hi); }
+    .nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 30px; }
+    .nav a { padding: 6px 10px; background: var(--paper-hi); border: 1px solid var(--ink); font-size: 13px; font-weight: 800; text-decoration: none; }
+
+    .terms-grid, .legend, .source-grid, .unknown-grid { display: grid; gap: 15px; }
+    .terms-grid { grid-template-columns: repeat(4, 1fr); }
+    .term { min-height: 210px; padding: 22px; background: var(--paper-hi); border: 2px solid var(--ink); }
+    .term .mark { float: right; color: var(--blue); font: 900 46px/1 "DIN Condensed", sans-serif; }
+    .legend { grid-template-columns: repeat(4, 1fr); margin-top: 36px; }
+    .legend article { padding: 19px; border-top: 10px solid var(--ink); background: rgba(255,252,232,.62); }
+    .legend article:nth-child(1) { border-color: var(--blue); }
+    .legend article:nth-child(2) { border-color: var(--red); }
+    .legend article:nth-child(3) { border-color: var(--lime); }
+    .legend article:nth-child(4) { border-color: var(--steel); }
+    .badge { display: inline-grid; place-items: center; min-width: 28px; height: 28px; margin-right: 6px; padding: 0 6px; color: var(--paper-hi); background: var(--ink); border-radius: 50%; font: 900 12px/1 Menlo, monospace; vertical-align: .08em; }
+    .badge.o { background: var(--blue); }
+    .badge.l { background: var(--red); }
+    .badge.r { color: var(--ink); background: var(--lime); }
+    .badge.i { background: var(--steel); }
+
+    .sequence { color: var(--paper-hi); background: var(--ink); }
+    .sequence .eyebrow::before { background: var(--lime); }
+    .rail { display: grid; grid-template-columns: repeat(6, minmax(180px, 1fr)); margin-top: 38px; overflow-x: auto; border: 2px solid var(--paper-hi); }
+    .stop { position: relative; min-height: 280px; padding: 26px 20px; border-right: 1px dashed rgba(255,252,232,.46); }
+    .stop:last-child { border-right: 0; }
+    .stop b { color: var(--lime); font: 900 12px/1 Menlo, monospace; letter-spacing: .11em; }
+    .stop h3 { margin-top: 70px; font-size: 25px; }
+    .stop p { color: #d5d7cc; font-size: 14px; }
+    .stop::after { content: ""; position: absolute; left: 20px; top: 58px; width: calc(100% - 40px); height: 8px; background: var(--red); }
+    .stop:nth-child(even)::after { background: var(--blue); }
+
+    .matrix-wrap { overflow-x: auto; border: 3px solid var(--ink); box-shadow: var(--shadow); }
+    .matrix { width: 100%; min-width: 900px; border-collapse: collapse; background: var(--paper-hi); }
+    .matrix th, .matrix td { padding: 17px 18px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .matrix th { color: var(--paper-hi); background: var(--blue); font-size: 13px; letter-spacing: .05em; }
+    .matrix tr:last-child td { border-bottom: 0; }
+    .matrix td:first-child { font-weight: 900; }
+    .yes { color: #125e22; font-weight: 900; }
+    .no { color: var(--red); font-weight: 900; }
+
+    .access { background: var(--paper-hi); }
+    .access-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 34px; }
+    .access-card { min-height: 410px; padding: 22px; background: var(--paper); border: 3px solid var(--ink); box-shadow: 6px 6px 0 var(--blue); }
+    .access-card:nth-child(even) { box-shadow-color: var(--red); }
+    .access-card .surface { display: block; margin-bottom: 34px; color: var(--blue); font: 900 11px/1 Menlo, monospace; letter-spacing: .1em; }
+    .access-card dl { margin: 20px 0 0; }
+    .access-card dt { margin-top: 14px; color: var(--red); font: 900 11px/1.35 Menlo, monospace; letter-spacing: .08em; }
+    .access-card dd { margin: 5px 0 0; font-size: 14px; }
+    .access-note { margin-top: 28px; padding: 18px 20px; color: var(--paper-hi); background: var(--ink); }
+
+    .limits { background: var(--lime); }
+    .gate-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 34px; border: 3px solid var(--ink); }
+    .gate { min-height: 270px; padding: 24px; background: var(--paper-hi); border-right: 2px solid var(--ink); }
+    .gate:last-child { border-right: 0; }
+    .gate .signal { display: block; margin-bottom: 54px; color: var(--red); font: 900 12px/1 Menlo, monospace; letter-spacing: .12em; }
+    details { margin-top: 16px; padding: 0 20px; background: var(--paper-hi); border: 2px solid var(--ink); }
+    summary { cursor: pointer; padding: 16px 0; font-weight: 900; }
+    details p { padding-bottom: 17px; }
+
+    .experiment-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(32px, 6vw, 78px); align-items: start; }
+    .receipt { padding: 26px; color: var(--lime); background: var(--ink); border: 3px solid var(--red); box-shadow: 10px 10px 0 var(--blue); font-family: Menlo, Consolas, monospace; transform: rotate(-1deg); }
+    .receipt b { display: block; margin-bottom: 18px; color: var(--paper-hi); }
+    .receipt-row { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 13px 0; border-bottom: 1px dotted rgba(255,252,232,.38); }
+    .receipt-row:last-child { border-bottom: 0; }
+    .blocked { color: #ff746c; font-weight: 900; }
+
+    .implementation { background: var(--paper-hi); }
+    .split { display: grid; grid-template-columns: .68fr 1.32fr; gap: clamp(32px, 6vw, 82px); align-items: start; }
+    .version-stack { display: grid; gap: 10px; }
+    .version { display: grid; grid-template-columns: 100px 1fr; gap: 16px; padding: 16px; border: 2px solid var(--ink); background: var(--paper); }
+    .version b { color: var(--blue); font: 900 16px/1.4 Menlo, monospace; }
+    .version p { margin: 0; font-size: 14px; }
+
+    .unknown-grid { grid-template-columns: repeat(5, 1fr); }
+    .unknown { min-height: 250px; padding: 22px; color: var(--paper-hi); background: var(--ink); border-top: 10px solid var(--red); }
+    .unknown:nth-child(even) { border-color: var(--blue); }
+    .unknown b { color: var(--lime); font: 900 12px/1 Menlo, monospace; }
+    .unknown h3 { margin-top: 38px; }
+    .unknown p { color: #d6d8cf; font-size: 14px; }
+
+    .sources { color: var(--paper-hi); background: var(--blue); }
+    .sources .eyebrow::before { background: var(--lime); }
+    .source-grid { grid-template-columns: repeat(3, 1fr); }
+    .source { min-height: 170px; padding: 22px; color: var(--ink); background: var(--paper-hi); border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--lime); }
+    .source b { display: block; margin-bottom: 28px; color: var(--red); font: 900 11px/1 Menlo, monospace; letter-spacing: .1em; }
+    .source a { font-weight: 900; }
+    .repro { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 44px; }
+    .repro ol { margin: 0; padding: 25px 25px 25px 48px; color: var(--ink); background: var(--lime); }
+    .boundary { padding: 25px; border: 2px solid var(--paper-hi); }
+    footer { padding: 32px 0; background: var(--paper); font-size: 13px; }
+
+    @media (max-width: 980px) {
+      .hero-grid, .experiment-grid, .split { grid-template-columns: 1fr; }
+      .ticket { width: min(460px, 92%); }
+      .terms-grid, .legend { grid-template-columns: 1fr 1fr; }
+      .gate-grid { grid-template-columns: 1fr 1fr; }
+      .gate:nth-child(2) { border-right: 0; }
+      .gate:nth-child(-n+2) { border-bottom: 2px solid var(--ink); }
+      .unknown-grid { grid-template-columns: repeat(2, 1fr); }
+      .source-grid { grid-template-columns: 1fr 1fr; }
+      .access-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 580px) {
+      .topline { position: relative; grid-template-columns: 1fr; }
+      .frame { width: min(100% - 28px, 1240px); }
+      section { padding: 62px 0; }
+      .hero { min-height: auto; }
+      h1 { font-size: clamp(48px, 15vw, 76px); }
+      .lede { font-size: 19px; }
+      .terms-grid, .legend, .gate-grid, .unknown-grid, .source-grid, .repro, .access-grid { grid-template-columns: 1fr; }
+      .access-card { min-height: auto; }
+      .gate { min-height: auto; border-right: 0; border-bottom: 2px solid var(--ink); }
+      .gate:last-child { border-bottom: 0; }
+      .unknown { min-height: auto; }
+      .version { grid-template-columns: 1fr; }
+      .hero::before { bottom: 6vw; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Marketplace 发布、推荐与依赖政策矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-plugin-distribution/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-EXT-MARKETPLACE-PUBLISH · Marketplace 发布、推荐与依赖政策矩阵">
+  <meta property="og:description" content="Claude Code X-Ray：Marketplace 发布、推荐与依赖政策矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-plugin-distribution/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-EXT-MARKETPLACE-PUBLISH · Marketplace 发布、推荐与依赖政策矩阵">
+  <meta name="twitter:description" content="Claude Code X-Ray：Marketplace 发布、推荐与依赖政策矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-EXT-MARKETPLACE-PUBLISH</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topline">
+    <div class="meta">
+      <span>CLAUDE CODE XRY</span>
+      <span>COMP-EXT-MARKETPLACE-PUBLISH</span>
+      <span>Claude Code 2.1.247</span>
+      <span class="status">当前状态 documented</span>
+    </div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer">
+      <div class="frame hero-grid">
+        <div>
+          <div class="eyebrow">MARKETPLACE SHIPPING DESK</div>
+          <h1>一份目录先能被找到，推荐和依赖才有落点。</h1>
+          <p class="lede">发布方交付的是一份可寻址、可校验、可更新的目录。目录告诉 Claude Code 去哪里取插件，插件声明再给出版本和依赖。推荐还要经过组织许可或官方目录检查，任何一种提示都不会替用户安装。</p>
+          <div class="hero-note"><span class="badge o">O</span><span class="badge l">L</span>官方契约已经讲清，当前研究 shell 没有可调用的 Claude Code 入口，也没有远端发布权限。本页保持 documented，不把文档示例写成真实运行。</div>
+          <nav class="nav" aria-label="页内导航">
+            <a href="#trip">发布顺序</a>
+            <a href="#matrix">政策矩阵</a>
+            <a href="#access">访问与费用</a>
+            <a href="#gates">停止位置</a>
+            <a href="#local">本机观察</a>
+            <a href="#sources">一手来源</a>
+          </nav>
+        </div>
+        <aside class="ticket" aria-label="页面研究票据">
+          <b>FEATURE UNIT</b>
+          <strong>COMP-EXT-MARKETPLACE-PUBLISH</strong>
+          <div class="cut"></div>
+          <b>BASELINE</b>
+          <strong>2.1.247</strong>
+          <b>COUNT</b>
+          <strong>COMPANION</strong>
+          <b>STATUS</b>
+          <strong>DOCUMENTED</strong>
+        </aside>
+      </div>
+    </section>
+
+    <section data-xray-section="terms">
+      <div class="frame">
+        <div class="eyebrow">FOUR DECLARATIONS</div>
+        <h2>四份声明，各管一件事</h2>
+        <div class="terms-grid">
+          <article class="term"><span class="mark">M</span><h3>目录文件</h3><p><code>marketplace.json</code> 给出目录名字、维护者、插件条目和每个插件的 source。</p></article>
+          <article class="term"><span class="mark">P</span><h3>插件 manifest</h3><p><code>plugin.json</code> 给出插件身份、组件、显式版本和依赖。默认 strict 模式下，它是组件定义的权威来源。</p></article>
+          <article class="term"><span class="mark">R</span><h3>Relevance</h3><p>目录条目里的本机匹配线索。管理员放行该 marketplace 后，线索才会让建议出现。</p></article>
+          <article class="term"><span class="mark">H</span><h3>CLI hint</h3><p>外部 CLI 输出的一行标记。协议只接纳 Anthropic 控制目录中的插件。</p></article>
+        </div>
+        <div class="legend" aria-label="证据图例">
+          <article><h3><span class="badge o">O</span>官方契约</h3><p>Anthropic 文档公开的 schema、流程、限制和版本门。</p></article>
+          <article><h3><span class="badge l">L</span>本机证据</h3><p>本轮 shell 的命令可见性与获准读取的相邻页面。</p></article>
+          <article><h3><span class="badge r">R</span>真实实验</h3><p>本页没有 R。未发布、未登录、未启动 Claude 会话。</p></article>
+          <article><h3><span class="badge i">I</span>研究推断</h3><p>只连接公开步骤，内部审核和事务实现仍留作未知。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="trip" class="sequence" data-xray-section="sequence">
+      <div class="frame">
+        <div class="eyebrow">ONE PRODUCER TRIP</div>
+        <h2>发布方走过六个站点</h2>
+        <p><span class="badge o">O</span>这条时间线停在可分发与可建议。用户怎样添加目录、安装、启停和卸载，交给相邻主页面。</p>
+        <div class="rail" aria-label="Marketplace 生产方发布顺序">
+          <article class="stop"><b>01 PACKAGE</b><h3>整理插件</h3><p>组件放在插件根目录，manifest 写身份、版本与依赖。</p></article>
+          <article class="stop"><b>02 CATALOG</b><h3>登记条目</h3><p>目录根写 marketplace 文件，每个条目给名字和可取的 source。</p></article>
+          <article class="stop"><b>03 CONSTRAIN</b><h3>固定版本</h3><p>显式版本适合发布节奏，省略版本可让 git commit 成为更新身份。</p></article>
+          <article class="stop"><b>04 RECOMMEND</b><h3>声明线索</h3><p>组织目录可写 relevance。自有 CLI 只有在官方目录列名后才能发 hint。</p></article>
+          <article class="stop"><b>05 VALIDATE</b><h3>校验与测试</h3><p>先校验目录和 manifest，再逐项试组件。目录校验不会替你打开所有组件文件。</p></article>
+          <article class="stop"><b>06 DISTRIBUTE</b><h3>托管或提交</h3><p>自建目录分享 git 或 URL 来源。Community 走提交审核，官方目录另行策展。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="matrix" data-xray-section="flow">
+      <div class="frame">
+        <div class="eyebrow">POLICY MATRIX</div>
+        <h2>五类契约，各有自己的门</h2>
+        <div class="matrix-wrap">
+          <table class="matrix">
+            <thead><tr><th>路径</th><th>发布方交付</th><th>谁开门</th><th>版本身份</th><th>失败与停止</th></tr></thead>
+            <tbody>
+              <tr><td>自建 marketplace</td><td>托管目录与插件 source，分享目录地址</td><td>用户添加来源，组织策略仍可阻止</td><td>manifest、目录条目或 source commit</td><td>目录不可取、schema 错、名称受保留、source 不可取</td></tr>
+              <tr><td>Community</td><td>提交插件仓库，通过 validator 与安全筛查</td><td>Anthropic 审核；用户手动添加社区目录</td><td>目录固定到 commit SHA，CI 随新提交改 pin</td><td>校验或筛查失败；批准后还可能等夜间同步</td></tr>
+              <tr><td>Relevance</td><td>条目里写 topic 与本机信号</td><td>管理员把目录加入建议 allowlist</td><td>沿插件本身的版本规则</td><td>未放行、来源不匹配、信号不命中，只保留普通目录条目</td></tr>
+              <tr><td>CLI hint</td><td>CLI 在 Claude Code 子进程里输出一行标记</td><td>目标必须位于 Anthropic 控制的目录</td><td>协议版本当前为 1</td><td>行内标记、自建目录目标、非主交互或遥测关闭都会静默或不提示</td></tr>
+              <tr><td>依赖版本</td><td>manifest 或目录条目写依赖名、范围与可选目录名</td><td>根 marketplace 放行跨目录目标</td><td>git 标签按插件名和 semver 解析</td><td>无匹配标签、范围冲突、目标目录未配置或跨目录未许可</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top:28px"><span class="badge i">I</span>把“发布完成”限定为目录和插件源可取、静态校验已过最稳妥。审核通过、组织许可、用户安装与插件运行各有自己的门，不能由前一步推出。</p>
+      </div>
+    </section>
+
+    <section id="access" class="access" data-xray-section="access">
+      <div class="frame">
+        <div class="eyebrow">ACCOUNT AND PLAN GATES</div>
+        <h2>四种发布入口，账号和套餐各不相同</h2>
+        <div class="access-grid">
+          <article class="access-card">
+            <span class="surface">SELF-HOSTED</span>
+            <h3>自建托管</h3>
+            <p><span class="badge o">O</span>官方步骤是托管目录仓库并分享地址，没有设置 Anthropic 账号或 Team、Enterprise 套餐门。</p>
+            <dl>
+              <dt>登录与权限</dt><dd>发布方要有托管服务的写权限。私有来源还依赖 git 凭据，具体账号由托管方决定。</dd>
+              <dt>费用</dt><dd><span class="badge i">I</span>发布步骤没有模型调用。仓库、网络和托管费用由所选服务决定，Anthropic 文档没有替第三方定价。</dd>
+            </dl>
+          </article>
+          <article class="access-card">
+            <span class="surface">ORG SETTINGS</span>
+            <h3>组织内分发</h3>
+            <p><span class="badge o">O</span><code>Organization settings &gt; Plugins</code> 是 Team 或 Enterprise 套餐的分发入口。</p>
+            <dl>
+              <dt>仓库与权限</dt><dd>Marketplace 仓库必须是 private 或 internal。组织同步通过 Claude GitHub App 或组织的 GitHub Enterprise App 读取仓库。</dd>
+              <dt>费用</dt><dd>入口受 Team 或 Enterprise 套餐约束。<span class="badge i">I</span>官方没有给插件同步另列一次模型调用费。</dd>
+            </dl>
+          </article>
+          <article class="access-card">
+            <span class="surface">COMMUNITY / CLAUDE.AI</span>
+            <h3>组织表单提交</h3>
+            <p><span class="badge o">O</span>claude.ai 的 Community 表单要求 Team 或 Enterprise 组织，还要有目录管理权限。Owner 默认具备该权限。</p>
+            <dl>
+              <dt>登录与权限</dt><dd>需要登录合格组织并进入目录提交表单。提交后仍要经过 validator 与安全筛查。</dd>
+              <dt>费用</dt><dd>套餐本身有费用边界。<span class="badge i">I</span>官方提交说明没有公布按次提交费，也没有要求为审核启动付费模型会话。</dd>
+            </dl>
+          </article>
+          <article class="access-card">
+            <span class="surface">COMMUNITY / CONSOLE</span>
+            <h3>个人作者提交</h3>
+            <p><span class="badge o">O</span>不在 Team 或 Enterprise 组织里的个人作者可以改用 Console 表单，仍需 Console 账号并接受同一审核链。</p>
+            <dl>
+              <dt>登录与权限</dt><dd>需要登录 Console。公开说明没有再列 claude.ai 的目录管理角色。</dd>
+              <dt>费用</dt><dd><span class="badge i">I</span>公开提交说明没有写 API 余额、付费调用或提交费要求。本页把费用条件记为未确认，不写成免费。</dd>
+            </dl>
+          </article>
+        </div>
+        <p class="access-note"><span class="badge i">I</span>“没有单列模型调用费”和“免费”含义不同。这里只记录官方发布步骤与明示门槛，账号订阅、第三方托管和未来审核收费仍按各自条款确认。</p>
+      </div>
+    </section>
+
+    <section id="gates" class="limits" data-xray-section="limits">
+      <div class="frame">
+        <div class="eyebrow">FOUR STOP GATES</div>
+        <h2>四道门，任何一道都能停</h2>
+        <div class="gate-grid">
+          <article class="gate"><span class="signal">IDENTITY GATE</span><h3>名字与 source</h3><p><span class="badge o">O</span>同名目录会替换先前来源。保留名和冒名名称在每次加载时重查，第三方不能借官方名字通过。</p></article>
+          <article class="gate"><span class="signal">POLICY GATE</span><h3>组织许可</h3><p><span class="badge o">O</span>Relevance 的声明本身不够。管理员还要许可 marketplace，并让登记来源与许可来源对得上。</p></article>
+          <article class="gate"><span class="signal">SOLVER GATE</span><h3>依赖与标签</h3><p><span class="badge o">O</span>跨目录默认拒绝。版本范围找不到满足条件的标签时，独立 git 依赖会让安装停住。</p></article>
+          <article class="gate"><span class="signal">HUMAN GATE</span><h3>用户确认</h3><p><span class="badge o">O</span>Relevance 只显示建议。Hint 也给一次询问，30 秒没有答复就按拒绝处理。两者都不自动安装。</p></article>
+        </div>
+        <details open><summary>目录校验通过以后还差什么</summary><p>Marketplace 目录校验不会打开每个插件的 skill、agent、command 或 hook 文件。发布方还要逐项测试组件。Community 审核另有自动安全筛查，公开文档没有给出完整规则。</p></details>
+        <details><summary>为什么自建 marketplace 的 hint 不工作</summary><p>CLI hint 协议明确要求目标位于 Anthropic 控制的 marketplace。自建目录可以用 relevance 做组织内建议，也可以靠文档和安装命令分发，hint 标记会被静默丢弃。</p></details>
+        <details><summary>推荐会泄露命中的路径和命令吗</summary><p>官方契约说 relevance 在用户机器本地匹配，不增加网络流量，也不把命中的信号或值报告给 Anthropic 或目录运营方。本页没有抓包 R。</p></details>
+      </div>
+    </section>
+
+    <section id="local" data-xray-section="experiment">
+      <div class="frame experiment-grid">
+        <div>
+          <div class="eyebrow">LOCAL CHECK</div>
+          <h2>本轮停在只读帮助入口</h2>
+          <p>研究先调用版本和 plugin、marketplace、validate 相关帮助。当前 shell 都返回命令不存在。几个常见安装位置和全局 npm 根目录也没有找到可执行入口。</p>
+          <p><span class="badge l">L</span>这只说明当前研究进程的 PATH 没有 Claude Code。任务给定的 2.1.247 仍是页面基线，产品行为全部按官方契约标成 O。</p>
+          <p>远端发布、community 提交、组织策略修改和真实 hint 都会改外部状态或需要已有权限。本轮没有做。没有 R，页面便不能写成 verified。</p>
+        </div>
+        <div class="receipt" aria-label="本机只读观察回执">
+          <b>LOCAL READOUT / 2026-08-30</b>
+          <div class="receipt-row"><span>version</span><span class="blocked">NO ENTRY</span></div>
+          <div class="receipt-row"><span>plugin help</span><span class="blocked">NO ENTRY</span></div>
+          <div class="receipt-row"><span>marketplace help</span><span class="blocked">NO ENTRY</span></div>
+          <div class="receipt-row"><span>validate help</span><span class="blocked">NO ENTRY</span></div>
+          <div class="receipt-row"><span>remote publish</span><span class="blocked">NOT RUN</span></div>
+          <div class="receipt-row"><span>real session</span><span class="blocked">NOT RUN</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="implementation" data-xray-section="implementation">
+      <div class="frame split">
+        <div>
+          <div class="eyebrow">VERSION EDGE</div>
+          <h2>2.1.247 落在哪条线上</h2>
+          <p>本页只列会改变生产方声明方式的公开门槛。更晚版本可能继续扩 schema，复现时要先固定二进制。</p>
+        </div>
+        <div class="version-stack">
+          <div class="version"><b>2.1.110</b><p>依赖版本范围开始有公开支持门槛。</p></div>
+          <div class="version"><b>2.1.172</b><p>Claude Code 启动的子进程开始带 <code>CLAUDE_CODE_CHILD_SESSION</code>。CLI 也可用覆盖更广的 <code>CLAUDECODE</code>。</p></div>
+          <div class="version"><b>2.1.224</b><p>Archive source 可用，目录条目还能用 SHA-256 固定 zip 内容。</p></div>
+          <div class="version"><b>2.1.229</b><p>Command source 可用，它的版本始终包含产物哈希。</p></div>
+          <div class="version"><b>2.1.239</b><p><code>metadata.pluginRoot</code> 可为相对 source 提供统一根目录。</p></div>
+          <div class="version"><b>2.1.242</b><p>本地 side-load 依赖开始能匹配带 marketplace 名称的声明。</p></div>
+          <div class="version"><b>2.1.247</b><p>本页固定基线。名称中的控制字符和双向格式字符有更明确的校验说明。</p></div>
+          <details>
+            <summary>这次用哪两个摘要固定基线</summary>
+            <p>官方索引 SHA-256 为 <code>465c161f71598cf6231bab83b6ca31365f3c1146120bb8d2a2a6dce323302442</code>，本机二进制 SHA-256 为 <code>5086b9b64d8bb842e1f599cdd3767ab08c6b2266e462fcc5686ae4b019cca8f7</code>。本轮没有拿到二进制路径，第二个摘要没有 L 复核。</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section data-xray-section="unknowns">
+      <div class="frame">
+        <div class="eyebrow">OPEN QUESTIONS</div>
+        <h2>六处仍然空着</h2>
+        <div class="unknown-grid">
+          <article class="unknown"><b>U01</b><h3>内部事务</h3><p>下载、校验、策略判断、求解与缓存写入怎样回滚，没有公开函数链。</p></article>
+          <article class="unknown"><b>U02</b><h3>审核细则</h3><p>Community 安全筛查的完整规则、人工复核条件和服务时限未公开。</p></article>
+          <article class="unknown"><b>U03</b><h3>建议排序</h3><p>多个插件和多个 relevance 信号同时命中时，完整排序规则未公开。</p></article>
+          <article class="unknown"><b>U04</b><h3>提示记忆</h3><p>CLI hint 的已提示状态存在哪里、何时清理，本轮没有读取也没有实验。</p></article>
+          <article class="unknown"><b>U05</b><h3>本机输出</h3><p>2.1.247 对全部 relevance 字段的 validator 文案没有 L 或 R。</p></article>
+          <article class="unknown"><b>U06</b><h3>Console 费用</h3><p>个人作者提交是否要求 API 余额、以后是否收提交费，公开说明没有承诺。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="sources" class="sources" data-xray-section="sources">
+      <div class="frame">
+        <div class="eyebrow">PRIMARY SOURCES</div>
+        <h2>沿这些一手资料复核</h2>
+        <div class="source-grid">
+          <article class="source"><b>O1 CATALOG</b><a href="https://code.claude.com/docs/en/plugin-marketplaces">证明 marketplace schema、source、strict、版本与发布流程</a></article>
+          <article class="source"><b>O2 DEPENDENCIES</b><a href="https://code.claude.com/docs/en/plugin-dependencies">证明 semver、跨目录许可、标签约定与失败条件</a></article>
+          <article class="source"><b>O3 RELEVANCE</b><a href="https://code.claude.com/docs/en/plugin-relevance">证明本机信号、管理员许可和建议呈现</a></article>
+          <article class="source"><b>O4 CLI HINT</b><a href="https://code.claude.com/docs/en/plugin-hints">证明单行协议、官方目录限制、频率与停止条件</a></article>
+          <article class="source"><b>O5 COMMUNITY</b><a href="https://code.claude.com/docs/en/plugins">证明 community 提交、校验、安全筛查和同步节奏</a></article>
+          <article class="source"><b>O6 REFERENCE</b><a href="https://code.claude.com/docs/en/plugins-reference">证明 manifest 字段、版本优先级与 validator 边界</a></article>
+        </div>
+        <div class="repro">
+          <ol>
+            <li>固定 2.1.247 并核对任务给定的二进制摘要。</li>
+            <li>在临时目录建最小 marketplace、插件、relevance 和同目录依赖。</li>
+            <li>严格校验目录，再逐项测试插件组件。</li>
+            <li>使用隔离配置根加入目录并安装测试包，只保留摘要。</li>
+            <li>Relevance 需要隔离 managed settings，hint 需要隔离主交互会话，两步都先取得授权。</li>
+            <li>删除临时配置根，不发布、不推送、不提交审核。</li>
+          </ol>
+          <div class="boundary">
+            <h3>与主页面的交接</h3>
+            <p>本页到可分发、可建议和可解析为止。用户添加目录、安装、启用、更新、卸载与 prune 由 <a href="../20260827-ext-05-plugin-lifecycle/explainer.html">EXT-05 插件生命周期主页面</a> 继续讲。</p>
+            <p><a href="../index.html">返回总索引</a></p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="frame">COMP-EXT-MARKETPLACE-PUBLISH　状态 documented　Claude Code 2.1.247　研究日期 2026-08-30　<a href="../index.html">返回总索引</a></div>
+  </footer>
+</body>
+</html>

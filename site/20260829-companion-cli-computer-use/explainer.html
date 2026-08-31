@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-UI-COMPUTER-USE">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>伴页 · CLI Computer Use 的屏幕、动作与系统权限</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --coal: #101413;
+      --coal-2: #171d1b;
+      --panel: #1c2421;
+      --paper: #f2ead7;
+      --muted: #a8b2aa;
+      --line: #3a4640;
+      --amber: #ffc857;
+      --mint: #78d8b1;
+      --red: #ff695c;
+      --blue: #8fc8ff;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--coal); }
+    body {
+      margin: 0;
+      color: var(--paper);
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0, rgba(255,255,255,.018) 1px, transparent 1px, transparent 48px),
+        linear-gradient(180deg, #0d1110, var(--coal) 34rem);
+      font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      line-height: 1.72;
+      text-rendering: optimizeLegibility;
+    }
+
+    a {
+      color: var(--mint);
+      text-decoration-thickness: .08em;
+      text-underline-offset: .24em;
+    }
+    a:hover { color: var(--amber); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      padding: .1em .38em;
+      border: 1px solid rgba(120,216,177,.28);
+      background: #080b0a;
+      color: var(--mint);
+      font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+      font-size: .88em;
+    }
+
+    .wrap { width: min(calc(100% - 36px), var(--max)); margin-inline: auto; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--line);
+      background: rgba(13,17,16,.94);
+      backdrop-filter: blur(12px);
+    }
+    .topbar-inner {
+      width: min(calc(100% - 36px), var(--max));
+      min-height: 62px;
+      margin-inline: auto;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .id-mark {
+      color: var(--coal);
+      background: var(--amber);
+      padding: 7px 11px;
+      font: 900 .76rem/1.1 "IBM Plex Mono", monospace;
+      letter-spacing: .06em;
+      white-space: nowrap;
+    }
+    .topnav {
+      margin-left: auto;
+      display: flex;
+      gap: 18px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      white-space: nowrap;
+      font-size: .86rem;
+    }
+    .topnav::-webkit-scrollbar { display: none; }
+    .topnav a { color: var(--muted); text-decoration: none; }
+    .topnav a:hover { color: var(--paper); }
+
+    main { overflow: hidden; }
+    .hero {
+      min-height: calc(100svh - 62px);
+      padding: clamp(46px, 8vw, 94px) 0 46px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(290px, .7fr);
+      gap: clamp(34px, 7vw, 92px);
+      align-items: center;
+    }
+    .eyebrow, .section-label {
+      margin: 0 0 18px;
+      color: var(--amber);
+      font: 800 .76rem/1.35 "IBM Plex Mono", monospace;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before {
+      display: inline-block;
+      width: 34px;
+      height: 8px;
+      margin-right: 12px;
+      background: repeating-linear-gradient(90deg, var(--amber) 0 5px, transparent 5px 9px);
+      content: "";
+    }
+    h1, h2, h3 {
+      margin-top: 0;
+      font-family: "Iowan Old Style", "Songti SC", STSong, serif;
+      text-wrap: balance;
+    }
+    h1 {
+      max-width: 11ch;
+      margin-bottom: 26px;
+      font-size: clamp(3.1rem, 7.5vw, 7.2rem);
+      line-height: .98;
+      letter-spacing: -.055em;
+    }
+    .lead {
+      max-width: 37em;
+      margin: 0;
+      color: #d8dfd9;
+      font-size: clamp(1.08rem, 2vw, 1.46rem);
+      line-height: 1.62;
+    }
+    .lead strong { color: var(--amber); }
+
+    .gate-console {
+      position: relative;
+      padding: 28px;
+      border: 1px solid #536158;
+      background:
+        linear-gradient(rgba(120,216,177,.04) 1px, transparent 1px),
+        var(--coal-2);
+      background-size: 100% 28px;
+      box-shadow: 14px 14px 0 #070908;
+    }
+    .gate-console::before {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: -18px 0 var(--amber), -36px 0 var(--mint);
+      content: "";
+    }
+    .status-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 12px 0 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font: 700 .8rem/1.4 "IBM Plex Mono", monospace;
+    }
+    .status-line b { color: var(--red); }
+    .gate-list { list-style: none; margin: 0; padding: 0; }
+    .gate-list li {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 12px;
+      padding: 14px 0;
+      border-bottom: 1px dashed var(--line);
+      color: var(--muted);
+    }
+    .gate-list li:last-child { border-bottom: 0; }
+    .gate-list span {
+      display: grid;
+      width: 26px;
+      height: 26px;
+      place-items: center;
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      font: 800 .72rem/1 monospace;
+    }
+    .gate-list b { display: block; color: var(--paper); }
+    .hero-chain {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: 10px;
+      border-top: 3px solid var(--amber);
+      border-bottom: 1px solid var(--line);
+      background: #0b0f0e;
+    }
+    .chain-cell {
+      min-height: 92px;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+    }
+    .chain-cell:last-child { border-right: 0; }
+    .chain-cell small { color: var(--amber); font: 700 .72rem/1 monospace; }
+    .chain-cell b { display: block; margin-top: 9px; }
+    .chain-cell p { margin: 3px 0 0; color: var(--muted); font-size: .84rem; }
+
+    .section {
+      padding: clamp(72px, 9vw, 124px) 0;
+      border-top: 1px solid var(--line);
+    }
+    .section h2 {
+      max-width: 15ch;
+      margin-bottom: 20px;
+      font-size: clamp(2.2rem, 5vw, 4.8rem);
+      line-height: 1.04;
+      letter-spacing: -.04em;
+    }
+    .section-intro {
+      max-width: 50rem;
+      margin: 0 0 42px;
+      color: var(--muted);
+      font-size: 1.06rem;
+    }
+
+    .actor-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      padding: 1px;
+      background: var(--line);
+    }
+    .actor {
+      min-height: 230px;
+      padding: 24px;
+      background: var(--coal-2);
+    }
+    .actor-num { color: var(--amber); font: 800 .8rem/1 monospace; }
+    .actor h3 { margin: 38px 0 12px; font-size: 1.35rem; }
+    .actor p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+    .sequence {
+      position: relative;
+      margin-top: 44px;
+    }
+    .sequence::before {
+      position: absolute;
+      left: 24px;
+      top: 25px;
+      bottom: 25px;
+      width: 2px;
+      background: linear-gradient(var(--mint), var(--amber), var(--red));
+      content: "";
+    }
+    .step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 50px minmax(150px, .45fr) minmax(0, 1fr);
+      gap: 24px;
+      padding: 18px 0;
+      align-items: start;
+    }
+    .step-index {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      width: 50px;
+      height: 50px;
+      place-items: center;
+      border: 2px solid var(--mint);
+      border-radius: 50%;
+      background: var(--coal);
+      color: var(--mint);
+      font: 800 .75rem/1 monospace;
+    }
+    .step h3 { margin: 9px 0 0; font-size: 1.35rem; }
+    .step p { margin: 8px 0 0; color: var(--muted); }
+    .tag {
+      display: inline-grid;
+      width: 23px;
+      height: 23px;
+      margin-right: 7px;
+      place-items: center;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+      color: var(--mint);
+      font: 800 .7rem/1 monospace;
+      vertical-align: .08em;
+    }
+    .tag.l { color: var(--blue); }
+    .tag.r { color: var(--red); }
+    .tag.i { color: var(--amber); }
+
+    .flow-board {
+      padding: clamp(22px, 4vw, 42px);
+      border: 1px solid var(--line);
+      background: var(--coal-2);
+    }
+    .flow-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .flow-node {
+      position: relative;
+      min-height: 180px;
+      padding: 22px;
+      border-top: 4px solid var(--mint);
+      background: #0b0f0e;
+    }
+    .flow-node:not(:last-child)::after {
+      position: absolute;
+      right: -17px;
+      top: 50%;
+      z-index: 2;
+      color: var(--amber);
+      content: "→";
+      font: 900 1.35rem/1 monospace;
+    }
+    .flow-node small { color: var(--mint); font: 700 .72rem/1 monospace; }
+    .flow-node b { display: block; margin: 22px 0 10px; }
+    .flow-node p { margin: 0; color: var(--muted); font-size: .88rem; }
+    .return-note {
+      margin: 24px 0 0;
+      padding: 20px;
+      border-left: 4px solid var(--amber);
+      background: #101513;
+      color: var(--muted);
+    }
+    .return-note b { color: var(--paper); }
+
+    .limit-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .limit {
+      padding: 26px;
+      border: 1px solid var(--line);
+      background: var(--coal-2);
+    }
+    .limit.stop { border-color: rgba(255,105,92,.7); }
+    .limit small { color: var(--amber); font: 700 .72rem/1 monospace; }
+    .limit h3 { margin: 19px 0 11px; font-size: 1.32rem; }
+    .limit p, .limit li { color: var(--muted); }
+    .limit p { margin: 0; }
+    .limit ul { margin: 13px 0 0; padding-left: 1.1rem; }
+
+    .stop-strip {
+      margin-top: 36px;
+      display: grid;
+      grid-template-columns: minmax(180px, .45fr) 1fr;
+      border: 2px solid var(--red);
+      background: #240f0d;
+    }
+    .esc-key {
+      display: grid;
+      min-height: 190px;
+      place-items: center;
+      border-right: 2px solid var(--red);
+      color: var(--paper);
+      font: 900 clamp(4rem, 10vw, 8rem)/1 "IBM Plex Mono", monospace;
+      letter-spacing: -.08em;
+      text-shadow: 5px 5px 0 #000;
+    }
+    .stop-copy { padding: 28px; align-self: center; }
+    .stop-copy h3 { margin-bottom: 10px; font-size: 1.55rem; }
+    .stop-copy p { margin: 0; color: #d9b7b2; }
+
+    .experiment {
+      display: grid;
+      grid-template-columns: minmax(220px, .55fr) minmax(0, 1.45fr);
+      border: 1px solid var(--line);
+      background: var(--coal-2);
+    }
+    .experiment-score {
+      min-height: 250px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-right: 1px solid var(--line);
+    }
+    .experiment-score b { color: var(--red); font: 900 clamp(3.4rem, 8vw, 7rem)/.9 monospace; }
+    .experiment-score span { color: var(--muted); }
+    .experiment-copy { padding: 30px; }
+    .experiment-copy p { margin-top: 0; color: var(--muted); }
+    .experiment-copy ul { padding-left: 1.2rem; color: var(--muted); }
+
+    .version-rail {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 4px solid var(--amber);
+      border-left: 1px solid var(--line);
+    }
+    .version {
+      min-height: 190px;
+      padding: 24px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: var(--coal-2);
+    }
+    .version b { color: var(--amber); font: 900 1.3rem/1 monospace; }
+    .version p { margin: 20px 0 0; color: var(--muted); }
+    details { border-top: 1px solid var(--line); background: rgba(28,36,33,.66); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary { padding: 18px; cursor: pointer; font-weight: 800; }
+    details p { max-width: 52rem; margin: 0; padding: 0 18px 22px 42px; color: var(--muted); }
+
+    .unknowns { list-style: none; margin: 0; padding: 0; counter-reset: unknown; }
+    .unknowns li {
+      position: relative;
+      min-height: 92px;
+      padding: 22px 20px 22px 88px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      counter-increment: unknown;
+    }
+    .unknowns li:last-child { border-bottom: 1px solid var(--line); }
+    .unknowns li::before {
+      position: absolute;
+      left: 20px;
+      top: 21px;
+      color: var(--amber);
+      content: "?" counter(unknown);
+      font: 900 1.1rem/1 monospace;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 38px;
+    }
+    .legend-item { padding: 18px; border: 1px solid var(--line); background: var(--coal-2); }
+    .legend-item b { display: block; margin-bottom: 8px; }
+    .legend-item span:last-child { color: var(--muted); font-size: .86rem; }
+    .source-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .source {
+      min-height: 126px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      background: var(--coal-2);
+      text-decoration: none;
+    }
+    .source:hover { border-color: var(--mint); background: #202b27; }
+    .source b { display: block; color: var(--mint); }
+    .source span { display: block; margin-top: 8px; color: var(--muted); font-size: .9rem; }
+    .footer {
+      margin-top: 46px;
+      padding-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    @media (max-width: 920px) {
+      .hero { grid-template-columns: 1fr; }
+      .gate-console { max-width: 540px; }
+      .actor-grid, .legend { grid-template-columns: repeat(2, 1fr); }
+      .flow-row { grid-template-columns: repeat(2, 1fr); }
+      .flow-node:nth-child(2)::after { display: none; }
+      .version-rail { grid-template-columns: 1fr; }
+      .experiment { grid-template-columns: 1fr; }
+      .experiment-score { border-right: 0; border-bottom: 1px solid var(--line); }
+    }
+
+    @media (max-width: 620px) {
+      .wrap, .topbar-inner { width: min(calc(100% - 26px), var(--max)); }
+      .topbar-inner { gap: 10px; }
+      .topnav a:not(.index-link) { display: none; }
+      .hero { min-height: auto; padding-top: 62px; }
+      h1 { font-size: clamp(3.2rem, 16vw, 5.1rem); }
+      .hero-chain, .actor-grid, .flow-row, .limit-grid, .legend, .source-grid { grid-template-columns: 1fr; }
+      .chain-cell { border-right: 0; border-bottom: 1px solid var(--line); }
+      .chain-cell:last-child { border-bottom: 0; }
+      .actor { min-height: auto; }
+      .actor h3 { margin-top: 20px; }
+      .flow-node::after { display: none; }
+      .step { grid-template-columns: 50px 1fr; gap: 16px; }
+      .step p { grid-column: 2; margin-top: -10px; }
+      .stop-strip { grid-template-columns: 1fr; }
+      .esc-key { min-height: 150px; border-right: 0; border-bottom: 2px solid var(--red); }
+      .footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：CLI Computer Use 的屏幕、动作与系统权限。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-cli-computer-use/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-UI-COMPUTER-USE · CLI Computer Use 的屏幕、动作与系统权限">
+  <meta property="og:description" content="Claude Code X-Ray：CLI Computer Use 的屏幕、动作与系统权限。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-cli-computer-use/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-UI-COMPUTER-USE · CLI Computer Use 的屏幕、动作与系统权限">
+  <meta name="twitter:description" content="Claude Code X-Ray：CLI Computer Use 的屏幕、动作与系统权限。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-UI-COMPUTER-USE</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <span class="id-mark">COMP-UI-COMPUTER-USE</span>
+      <nav class="topnav" aria-label="页内导航">
+        <a href="#sequence">动作时序</a>
+        <a href="#limits">权限与停止</a>
+        <a href="#unknowns">未知项</a>
+        <a class="index-link" href="../index.html">返回总索引</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="wrap hero" data-xray-section="answer" aria-labelledby="hero-title">
+      <div>
+        <p class="eyebrow">CLI COMPUTER USE · MACOS CONTROL PATH</p>
+        <h1 id="hero-title">两道系统权限都通过，CLI 才能看和动</h1>
+        <p class="lead">项目先启用内置的 <code>computer-use</code>，macOS 再分别放行<strong>屏幕录制</strong>和<strong>辅助功能</strong>。Claude 每次会话还要申请具体应用。三处都通过以后，它才会接收缩小后的屏幕截图，并向获准应用发出点击、输入或滚动动作。按 Esc 或 Ctrl+C 能立即截断当前动作。</p>
+      </div>
+
+      <aside class="gate-console" aria-label="研究状态与权限门">
+        <div class="status-line"><span>PAGE STATUS</span><b>documented</b></div>
+        <ul class="gate-list">
+          <li><span>01</span><div><b>项目开关</b><code>/mcp</code> 中启用，按项目保存</div></li>
+          <li><span>02</span><div><b>系统双授权</b>屏幕录制负责看，辅助功能负责动</div></li>
+          <li><span>03</span><div><b>应用批准</b>本次会话只控制用户放行的应用</div></li>
+        </ul>
+        <div class="status-line"><span>CLAUDE CODE</span><b style="color:var(--paper)">2.1.247</b></div>
+      </aside>
+
+      <div class="hero-chain" aria-label="核心状态链">
+        <div class="chain-cell"><small>STATE 00</small><b>关闭</b><p>内置服务器默认不连接</p></div>
+        <div class="chain-cell"><small>STATE 01</small><b>等待系统授权</b><p>看屏幕与发动作分属两道门</p></div>
+        <div class="chain-cell"><small>STATE 02</small><b>控制获准应用</b><p>单会话持有全机锁</p></div>
+        <div class="chain-cell"><small>STATE 03</small><b>停止或退出</b><p>动作先停，退出后才释放锁</p></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="wrap">
+        <p class="section-label">01 / ACTORS</p>
+        <h2 id="terms-title">四个角色，各守一段</h2>
+        <p class="section-intro">这条链从项目开关开始，经过操作系统和应用批准，最后落到屏幕与输入设备。把角色分开以后，权限不足发生在哪里就很清楚。</p>
+        <div class="actor-grid">
+          <article class="actor"><span class="actor-num">A1</span><h3>用户</h3><p>启用服务器，授予 macOS 权限，允许或拒绝应用，并随时按 Esc 或 Ctrl+C 接回控制权。</p></article>
+          <article class="actor"><span class="actor-num">A2</span><h3>Claude Code 会话</h3><p>加载默认关闭的内置 MCP，申请应用，取得全机锁，把屏幕结果交给当前对话。</p></article>
+          <article class="actor"><span class="actor-num">A3</span><h3>macOS</h3><p>Screen Recording 决定能否看见，Accessibility 决定能否点击、输入和滚动。</p></article>
+          <article class="actor"><span class="actor-num">A4</span><h3>获准应用</h3><p>实际接收动作。浏览器和交易平台只读，终端与 IDE 只允许点击，其余应用才可能得到完整控制。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="sequence" class="section" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="wrap">
+        <p class="section-label">02 / ONE GUI TURN</p>
+        <h2 id="sequence-title">一次桌面动作怎样走</h2>
+        <p class="section-intro">同一任务里，Claude 会先找 MCP、Bash 或 Claude in Chrome 这类更精确的入口。只有 GUI 没有合适接口时，屏幕控制才接手。</p>
+        <div class="sequence">
+          <article class="step"><span class="step-index">01</span><h3><span class="tag">O</span>项目启用</h3><p>用户在交互会话运行 <code>/mcp</code>，把默认关闭的 <code>computer-use</code> 打开。该选择按项目保存。</p></article>
+          <article class="step"><span class="step-index">02</span><h3><span class="tag">O</span>首次请求系统权限</h3><p>第一次需要桌面能力时，CLI 给出 macOS 设置入口。两项都授予后，用户在提示中选择 Try again。屏幕录制授权有时要重启 Claude Code。</p></article>
+          <article class="step"><span class="step-index">03</span><h3><span class="tag">O</span>批准具体应用</h3><p>终端列出 Claude 想控制的应用、额外权限和会隐藏的其他应用数量。用户可仅在本次会话允许，也可以拒绝。</p></article>
+          <article class="step"><span class="step-index">04</span><h3><span class="tag">O</span>取得全机锁</h3><p>第一次电脑动作取得锁。第二个 Claude 会话此时不能控制电脑，要等持有者退出。</p></article>
+          <article class="step"><span class="step-index">05</span><h3><span class="tag">O</span>观察并发动作</h3><p>未批准的可见应用被隐藏，终端留在屏幕上但不进入截图。截图缩小后送给模型，获准应用接收点击、输入或滚动。</p></article>
+          <article class="step"><span class="step-index">06</span><h3><span class="tag">O</span>结束一轮</h3><p>一轮完成后，Claude 自动恢复被隐藏的应用。会话仍持有全机锁，直到退出。</p></article>
+          <article class="step"><span class="step-index">07</span><h3><span class="tag i">I</span>权限被收回</h3><p>后续动作必须重新满足系统和应用权限。公开契约没有说明动作已经发出时撤权会不会让它完成，因此这里保留未知。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="wrap">
+        <p class="section-label">03 / SCREEN &amp; INPUT FLOW</p>
+        <h2 id="flow-title">屏幕往回走，动作往前走</h2>
+        <p class="section-intro">官方公开了四个相邻环节。把它们连成逐调用数据路径含有研究推断，底层消息格式和坐标算法没有公开。</p>
+        <div class="flow-board">
+          <div class="flow-row" aria-label="桌面观察与动作数据流">
+            <article class="flow-node"><small>REQUEST</small><b>当前会话</b><p>保留用户任务，决定何时调用内置 MCP，并接住观察结果。</p></article>
+            <article class="flow-node"><small>LOCK</small><b>computer-use</b><p>检查系统与应用许可，取得全机锁，安排截图和输入动作。</p></article>
+            <article class="flow-node"><small>OS GATE</small><b>macOS</b><p>屏幕录制开放可见内容，辅助功能开放点击、输入与滚动。</p></article>
+            <article class="flow-node"><small>TARGET</small><b>获准应用</b><p>显示状态并接收允许级别内的动作。应用类别限制动作上限。</p></article>
+          </div>
+          <p class="return-note"><b>返回方向</b> 每张截图先缩小，再送给模型。官方示例把 3456×2234 缩到约 1372×887并保持宽高比。终端窗口不在截图里，用户仍能看见会话并随时停止。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="limits" class="section" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="wrap">
+        <p class="section-label">04 / GATES &amp; STOPS</p>
+        <h2 id="limits-title">权限逐层放行，停止分两步</h2>
+        <p class="section-intro">这项能力直接操作真实桌面，没有 Bash 沙箱。官方用项目开关、系统权限、应用批准、应用分级和全机锁缩小暴露面。</p>
+        <div class="limit-grid">
+          <article class="limit"><small>ELIGIBILITY</small><h3>入口条件</h3><p>macOS、Pro 或 Max、claude.ai 认证和交互会话缺一不可。Team、Enterprise、第三方模型提供商与 <code>-p</code> 都不在 CLI 预览范围。</p></article>
+          <article class="limit"><small>OS PERMISSIONS</small><h3>系统双授权</h3><p>只给 Screen Recording 时能否观察而不能动作，官方按权限用途支持这一理解。实际组合失败信息没有在本轮验证。</p></article>
+          <article class="limit"><small>APP APPROVAL</small><h3>每会话应用门</h3><p>一次允许只活到本次会话结束。Finder 和系统设置会显示文件或系统设置风险。2.1.243 起，桌面、Dock 和 Finder 动作都要批准 Finder。</p></article>
+          <article class="limit"><small>CONTROL TIER</small><h3>动作上限</h3><p>浏览器与交易平台只读，终端和 IDE 只允许点击。应用通过批准也不能越过所属类别的控制上限。</p></article>
+          <article class="limit stop"><small>DENY</small><h3>拒绝当前申请</h3><p>Deny 会挡住本次应用控制。CLI 目前没有 Desktop 那种可配置的拒绝应用列表。</p></article>
+          <article class="limit stop"><small>SESSION EXIT</small><h3>释放机器</h3><p>任务完成不会释放锁。持有会话退出后，其他会话才能取得电脑控制；异常退出时官方会检测死亡进程并释放。</p></article>
+        </div>
+
+        <div class="stop-strip" aria-label="全局停止方式">
+          <div class="esc-key">ESC</div>
+          <div class="stop-copy"><h3>按键先停动作，会话退出再释放锁</h3><p>macOS 通知会提示全局 Esc。用户也能在终端按 Ctrl+C。两种方式都会立刻终止当前动作、恢复被隐藏的应用并交还控制权。当前会话仍保留全机锁。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="wrap">
+        <p class="section-label">05 / SAFE OBSERVATION</p>
+        <h2 id="experiment-title">本轮没有假装控制过桌面</h2>
+        <div class="experiment">
+          <div class="experiment-score"><b>R=0</b><span>页面状态 documented</span></div>
+          <div class="experiment-copy">
+            <p>真实实验会启动符合套餐条件的交互会话，还要改项目启用项并触发系统授权。任务禁止新开付费会话，也要求不影响正在使用的桌面，因此本页停在官方契约与只读观察。</p>
+            <ul>
+              <li><span class="tag l">L</span>当前隔离 <code>PATH</code> 找不到 <code>claude</code>，`--version` 与 `--help` 无法从这个入口复核。</li>
+              <li><span class="tag">O</span>官方 Computer use、MCP、Desktop 与 changelog 互相核对了权限、锁、中断和版本差异。</li>
+              <li><span class="tag r">R</span>没有截图、点击、输入、打开应用、读取私人配置或检查现有会话锁。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="wrap">
+        <p class="section-label">06 / IMPLEMENTATION &amp; VERSIONS</p>
+        <h2 id="implementation-title">公开到项目开关和全机锁为止</h2>
+        <p class="section-intro">官方说明默认关闭的内置服务器通过项目项 <code>enabledMcpServers</code> 启用，也说明截图缩小、应用隐藏和全机锁。动作协议、采样节奏与锁文件路径没有公开。</p>
+        <div class="version-rail" aria-label="版本边界">
+          <article class="version"><b>2.1.85</b><p>changelog 修复多显示器下 <code>switch_display</code> 返回不可用，说明早期版本的多屏路径有明确差异。</p></article>
+          <article class="version"><b>2.1.243</b><p>桌面、Dock 与 Finder 窗口开始像其他应用一样要求用户在访问框中批准 Finder。</p></article>
+          <article class="version"><b>2.1.247</b><p>本页固定基线。包含此前两项变化，页面状态仍因缺少真实运行证据保持 documented。</p></article>
+        </div>
+        <div style="margin-top:34px">
+          <details open><summary>为什么服务器已启用仍不能动</summary><p>项目开关只让内置 MCP 连接。macOS 双授权和本次会话的应用批准仍要分别通过，应用类别还会限制动作级别。</p></details>
+          <details><summary>为什么第二个会话报占用</summary><p>锁在第一次电脑动作时取得，在会话退出时释放。任务结束和按 Esc 都不会提前释放。</p></details>
+          <details><summary>为什么屏幕小字看不清</summary><p>截图会自动缩小，且没有目标尺寸设置。官方建议放大应用里的文字或控件，不必降低显示器分辨率。</p></details>
+          <details><summary>浏览器页面为什么不在本页展开</summary><p>官方优先让网页任务走 Claude in Chrome。扩展连接、站点许可和标签页动作由 <a href="../20260827-ui-06-claude-in-chrome/explainer.html">UI-06 Claude in Chrome</a> 解释，本页只保留工具选择边界。</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section id="unknowns" class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="wrap">
+        <p class="section-label">07 / OPEN QUESTIONS</p>
+        <h2 id="unknowns-title">公开材料没有走到这里</h2>
+        <ul class="unknowns">
+          <li>屏幕采样在什么事件后发生，连续动作之间何时重拍，官方没有说明。</li>
+          <li>动作消息格式、坐标转换、辅助功能元素选择和多显示器坐标系没有公开。</li>
+          <li>动作发出以后，用户马上撤销系统权限或应用许可，当前动作是否完成，公开契约没有原子性保证。</li>
+          <li>Esc 或 Ctrl+C 到原生输入停止之间的最坏延迟没有公开。</li>
+          <li>异常退出的锁检测周期、锁文件路径和每会话应用批准的内存结构没有公开。</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="wrap">
+        <p class="section-label">08 / EVIDENCE MAP</p>
+        <h2 id="sources-title">证据身份与复现入口</h2>
+        <div class="legend" aria-label="O L R I 证据图例">
+          <div class="legend-item"><b><span class="tag">O</span>官方契约</b><span>Anthropic 官方文档、帮助与 changelog</span></div>
+          <div class="legend-item"><b><span class="tag l">L</span>本机静态</b><span>本机命令、公开帮助与匿名安装入口</span></div>
+          <div class="legend-item"><b><span class="tag r">R</span>真实实验</b><span>本页缺席，没有控制桌面</span></div>
+          <div class="legend-item"><b><span class="tag i">I</span>研究推断</b><span>只串起公开环节并保留未知</span></div>
+        </div>
+
+        <div class="source-grid">
+          <a class="source" href="https://code.claude.com/docs/en/computer-use"><b>官方 CLI Computer Use 文档</b><span>证明启用、系统授权、应用批准、屏幕处理、锁与中断</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/mcp"><b>官方 MCP 文档</b><span>证明默认关闭的内置服务器和项目启用项</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/desktop"><b>官方 Desktop 文档</b><span>证明共用引擎、平台差异与应用控制分级</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/changelog"><b>官方 Claude Code changelog</b><span>证明多显示器修复与 Finder 批准的版本节点</span></a>
+          <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+        </div>
+
+        <div class="footer">
+          <span>COMP-UI-COMPUTER-USE · 状态 documented · Claude Code 2.1.247</span>
+          <span><a href="../20260827-ui-06-claude-in-chrome/explainer.html">回到 UI-06 Chrome 页面</a>　<a href="../index.html">返回总索引</a></span>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

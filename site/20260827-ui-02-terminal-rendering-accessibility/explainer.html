@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="UI-02">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>UI-02 Fullscreen 渲染与无障碍呈现</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #e8f0e8;
+      --muted: #aeb9ae;
+      --paper: #101411;
+      --panel: #171d18;
+      --panel-2: #1e261f;
+      --line: #526052;
+      --signal: #adff7a;
+      --amber: #ffc857;
+      --cyan: #7dd9e8;
+      --danger: #ff8b7c;
+      --shadow: #050706;
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      --sans: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Noto Sans Mono CJK SC", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--paper);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(173, 255, 122, .025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(173, 255, 122, .018) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: var(--sans);
+      line-height: 1.72;
+      text-rendering: optimizeLegibility;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, transparent 0 5px, rgba(255,255,255,.012) 5px 6px);
+    }
+
+    a { color: var(--signal); text-underline-offset: .2em; }
+    a:hover { color: #d3ffb7; }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+
+    code, .mono {
+      font-family: var(--mono);
+      font-size: .93em;
+    }
+
+    .site-head {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 54px;
+      padding: .7rem clamp(1rem, 4vw, 4rem);
+      border-bottom: 1px solid var(--line);
+      background: rgba(16, 20, 17, .96);
+      backdrop-filter: blur(10px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      letter-spacing: .04em;
+      font-family: var(--mono);
+      font-weight: 700;
+    }
+
+    .lamp {
+      width: .72rem;
+      height: .72rem;
+      border: 2px solid #d8ffd0;
+      border-radius: 50%;
+      background: var(--signal);
+      box-shadow: 0 0 14px rgba(173,255,122,.5);
+    }
+
+    .head-links {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      font-size: .84rem;
+    }
+
+    .status-chip {
+      padding: .2rem .58rem;
+      color: var(--paper);
+      background: var(--amber);
+      font-family: var(--mono);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    main { overflow: clip; }
+
+    .hero {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.22fr) minmax(300px, .78fr);
+      gap: clamp(2rem, 7vw, 7rem);
+      align-items: center;
+      min-height: calc(100svh - 54px);
+      padding: clamp(3.5rem, 8vw, 8rem) clamp(1rem, 7vw, 7rem);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero::after {
+      content: "ALT BUFFER / LINEAR TEXT";
+      position: absolute;
+      right: -1.5rem;
+      bottom: 1.6rem;
+      color: rgba(173,255,122,.14);
+      font: 800 clamp(1.2rem, 3.2vw, 3rem)/1 var(--mono);
+      letter-spacing: .12em;
+      transform: rotate(-3deg);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .65rem 1rem;
+      margin: 0 0 1.2rem;
+      color: var(--amber);
+      font: 700 .82rem/1.4 var(--mono);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 12ch;
+      margin-bottom: 1.5rem;
+      font-family: var(--serif);
+      font-size: clamp(2.9rem, 7.8vw, 7.4rem);
+      font-weight: 800;
+      line-height: .98;
+      letter-spacing: -.055em;
+    }
+
+    .lede {
+      max-width: 47rem;
+      margin-bottom: 1.5rem;
+      color: #d7e1d7;
+      font-size: clamp(1.05rem, 1.55vw, 1.35rem);
+      line-height: 1.75;
+    }
+
+    .proof {
+      display: inline-flex;
+      gap: .55rem;
+      align-items: center;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .84rem;
+    }
+
+    .proof b, .mark {
+      display: inline-grid;
+      place-items: center;
+      min-width: 1.7rem;
+      height: 1.7rem;
+      padding: 0 .35rem;
+      border: 1px solid currentColor;
+      color: var(--signal);
+      font-family: var(--mono);
+      font-size: .78rem;
+      line-height: 1;
+    }
+
+    .switchboard {
+      position: relative;
+      padding: 1rem;
+      border: 1px solid #728172;
+      background: #0b0e0c;
+      box-shadow: 12px 12px 0 var(--shadow), 13px 13px 0 #354035;
+      font-family: var(--mono);
+    }
+
+    .switchboard::before {
+      content: "RENDER ROUTE";
+      position: absolute;
+      top: -1.1rem;
+      left: 1rem;
+      padding: .15rem .55rem;
+      color: var(--paper);
+      background: var(--signal);
+      font-size: .68rem;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .route {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: .8rem;
+      align-items: center;
+      padding: .8rem;
+      border-bottom: 1px dashed #455045;
+    }
+
+    .route:last-child { border-bottom: 0; }
+    .route small { display: block; color: var(--muted); }
+    .route .route-state { color: var(--signal); font-weight: 800; }
+    .route.override .route-state { color: var(--amber); }
+
+    .legend-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-bottom: 1px solid var(--line);
+      background: #0c100d;
+    }
+
+    .legend-item {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: .7rem;
+      align-items: center;
+      padding: 1rem clamp(1rem, 3vw, 2.4rem);
+      border-right: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .86rem;
+    }
+
+    .legend-item:last-child { border-right: 0; }
+    .legend-item b { color: var(--ink); }
+    .legend-item.r .mark { color: #879287; }
+    .legend-item.i .mark { color: var(--cyan); }
+
+    .section {
+      display: grid;
+      grid-template-columns: minmax(180px, .34fr) minmax(0, 1fr);
+      gap: clamp(2rem, 6vw, 7rem);
+      padding: clamp(4.5rem, 9vw, 9rem) clamp(1rem, 7vw, 7rem);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-head {
+      align-self: start;
+      position: sticky;
+      top: 88px;
+    }
+
+    .section-no {
+      display: block;
+      margin-bottom: .8rem;
+      color: var(--signal);
+      font: 800 .78rem/1 var(--mono);
+      letter-spacing: .13em;
+    }
+
+    h2 {
+      margin-bottom: 1rem;
+      font-family: var(--serif);
+      font-size: clamp(2rem, 4.4vw, 4.3rem);
+      line-height: 1.08;
+      letter-spacing: -.04em;
+    }
+
+    .section-head p {
+      max-width: 23rem;
+      color: var(--muted);
+      font-size: .95rem;
+    }
+
+    .content { min-width: 0; }
+
+    .term-grid, .limit-grid, .unknown-grid, .source-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .card {
+      position: relative;
+      min-width: 0;
+      padding: 1.25rem 1.3rem 1.35rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      width: 2rem;
+      height: 3px;
+      background: var(--signal);
+    }
+
+    .card h3 {
+      margin-bottom: .55rem;
+      color: var(--signal);
+      font-family: var(--mono);
+      font-size: 1rem;
+    }
+
+    .card p { margin-bottom: 0; color: #cad4ca; }
+    .card .mark { float: right; margin-left: .8rem; }
+
+    .timeline { counter-reset: stage; }
+
+    .stage {
+      counter-increment: stage;
+      display: grid;
+      grid-template-columns: 3.4rem minmax(0, 1fr);
+      gap: 1.2rem;
+      position: relative;
+      padding-bottom: 2rem;
+    }
+
+    .stage::before {
+      content: counter(stage, decimal-leading-zero);
+      display: grid;
+      place-items: center;
+      width: 3.4rem;
+      height: 3.4rem;
+      border: 1px solid var(--signal);
+      color: var(--signal);
+      background: #0e120f;
+      font: 800 1rem/1 var(--mono);
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      top: 3.4rem;
+      bottom: 0;
+      left: 1.68rem;
+      border-left: 1px dashed #647064;
+    }
+
+    .stage:last-child { padding-bottom: 0; }
+    .stage:last-child::after { display: none; }
+    .stage h3 { margin: .1rem 0 .35rem; font-size: 1.08rem; }
+    .stage p { margin-bottom: 0; color: var(--muted); }
+    .stage strong { color: var(--ink); }
+
+    .flow-sheet {
+      padding: clamp(1rem, 3vw, 2rem);
+      border: 1px solid #6d7b6d;
+      background: #0b0f0c;
+      box-shadow: inset 0 0 0 6px #141a15;
+    }
+
+    .inputs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .75rem;
+    }
+
+    .node {
+      padding: .9rem;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      text-align: center;
+      font-size: .9rem;
+    }
+
+    .node b { display: block; color: var(--signal); font-family: var(--mono); }
+
+    .join {
+      width: 1px;
+      height: 2rem;
+      margin: 0 auto;
+      background: var(--signal);
+      box-shadow: 0 0 8px rgba(173,255,122,.35);
+    }
+
+    .selector {
+      width: min(100%, 32rem);
+      margin: 0 auto;
+      padding: 1rem;
+      border: 2px solid var(--amber);
+      color: var(--amber);
+      background: #17130b;
+      text-align: center;
+      font-family: var(--mono);
+      font-weight: 800;
+    }
+
+    .branches {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .75rem;
+      position: relative;
+      padding-top: 2rem;
+    }
+
+    .branches::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 16.66%;
+      right: 16.66%;
+      height: 1px;
+      background: var(--signal);
+    }
+
+    .branch { min-height: 10rem; text-align: left; }
+    .branch b { margin-bottom: .35rem; }
+    .branch small { color: var(--muted); }
+    .branch.reader { border-color: var(--amber); }
+    .branch.reader b { color: var(--amber); }
+
+    .theme-rail {
+      margin-top: 1rem;
+      padding: .8rem 1rem;
+      border-left: 4px solid var(--cyan);
+      color: #c4eaf0;
+      background: #101b1d;
+    }
+
+    .note {
+      margin: 1rem 0 0;
+      padding: .9rem 1rem;
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .limit-card { min-height: 14rem; }
+    .limit-card h3 { color: var(--amber); }
+    .limit-card::before { background: var(--amber); }
+
+    .fact-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-bottom: 1.2rem;
+      border: 1px solid var(--line);
+    }
+
+    .fact {
+      padding: 1.1rem;
+      border-right: 1px solid var(--line);
+    }
+
+    .fact:last-child { border-right: 0; }
+    .fact b { display: block; color: var(--signal); font: 800 1rem/1.4 var(--mono); }
+    .fact span { color: var(--muted); font-size: .88rem; }
+
+    details {
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 1rem 1.2rem;
+      color: var(--signal);
+      font-family: var(--mono);
+      font-weight: 800;
+    }
+
+    .details-body { padding: 0 1.2rem 1.2rem; color: var(--muted); }
+    .details-body p:last-child { margin-bottom: 0; }
+
+    .version-list {
+      display: grid;
+      gap: .75rem;
+    }
+
+    .version-row {
+      display: grid;
+      grid-template-columns: 7rem minmax(0, 1fr);
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px dashed var(--line);
+    }
+
+    .version-row:last-child { border-bottom: 0; }
+    .version-row b { color: var(--signal); font-family: var(--mono); }
+    .version-row p { margin: 0; color: var(--muted); }
+    .version-row.conflict b { color: var(--danger); }
+
+    .unknown-grid { counter-reset: unknown; }
+    .unknown-card { counter-increment: unknown; }
+    .unknown-card::after {
+      content: "?" counter(unknown);
+      position: absolute;
+      right: .8rem;
+      bottom: .25rem;
+      color: rgba(173,255,122,.11);
+      font: 900 3rem/1 var(--mono);
+    }
+
+    .source-card {
+      display: block;
+      min-height: 9.5rem;
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .source-card:hover {
+      border-color: var(--signal);
+      background: #1d281e;
+    }
+
+    .source-card span {
+      display: block;
+      margin-bottom: .55rem;
+      color: var(--amber);
+      font: 700 .72rem/1 var(--mono);
+      letter-spacing: .09em;
+    }
+
+    .source-card strong { color: var(--signal); }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2rem clamp(1rem, 7vw, 7rem);
+      color: var(--muted);
+      background: #080b09;
+      font-size: .85rem;
+    }
+
+    @media (max-width: 900px) {
+      .hero, .section { grid-template-columns: 1fr; }
+      .hero { min-height: auto; padding-top: 5rem; }
+      .section-head { position: static; }
+      .legend-bar { grid-template-columns: repeat(2, 1fr); }
+      .legend-item:nth-child(2) { border-right: 0; }
+      .legend-item:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .inputs, .branches { grid-template-columns: 1fr; }
+      .branches::before { left: 50%; right: auto; bottom: 0; width: 1px; height: auto; }
+      .fact-strip { grid-template-columns: 1fr; }
+      .fact { border-right: 0; border-bottom: 1px solid var(--line); }
+      .fact:last-child { border-bottom: 0; }
+    }
+
+    @media (max-width: 600px) {
+      .site-head { align-items: flex-start; }
+      .head-links { flex-direction: column; align-items: flex-end; gap: .35rem; }
+      .hero { padding-inline: 1rem; }
+      h1 { max-width: 10ch; font-size: clamp(2.65rem, 14vw, 4.5rem); }
+      .term-grid, .limit-grid, .unknown-grid, .source-grid { grid-template-columns: 1fr; }
+      .legend-bar { grid-template-columns: 1fr; }
+      .legend-item, .legend-item:nth-child(2) { border-right: 0; border-bottom: 1px solid var(--line); }
+      .legend-item:last-child { border-bottom: 0; }
+      .section { padding-inline: 1rem; }
+      .stage { grid-template-columns: 2.7rem minmax(0, 1fr); gap: .85rem; }
+      .stage::before { width: 2.7rem; height: 2.7rem; }
+      .stage::after { top: 2.7rem; left: 1.33rem; }
+      .version-row { grid-template-columns: 1fr; gap: .25rem; }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+
+    @media print {
+      .site-head { position: static; }
+      body { background: #fff; color: #111; }
+      .section, .hero, .legend-bar { break-inside: avoid; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Fullscreen 渲染与无障碍呈现。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ui-02-terminal-rendering-accessibility/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="UI-02 · Fullscreen 渲染与无障碍呈现">
+  <meta property="og:description" content="Claude Code X-Ray：Fullscreen 渲染与无障碍呈现。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ui-02-terminal-rendering-accessibility/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="UI-02 · Fullscreen 渲染与无障碍呈现">
+  <meta name="twitter:description" content="Claude Code X-Ray：Fullscreen 渲染与无障碍呈现。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>UI-02</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="site-head">
+    <div class="brand"><span class="lamp" aria-hidden="true"></span><span>UI-02 / TERMINAL PRESENTATION</span></div>
+    <div class="head-links">
+      <span class="status-chip">当前状态 documented</span>
+      <a href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <p class="eyebrow"><span>Claude Code 2.1.247</span><span>固定基线 2026-08-27</span></p>
+        <h1 id="answer-title">Fullscreen 把对话搬进终端备用屏幕</h1>
+        <p class="lede">普通 renderer 把更新写进终端原生滚动区。Fullscreen 重启当前对话，在备用屏幕只绘制可见消息，输入框留在底部。Screen-reader 一旦开启，通常会优先改成带标签的线性文本并使用经典 renderer。主题最后决定界面颜色，终端应用自己的配色仍由终端掌管。</p>
+        <span class="proof"><b>O</b> 三份官方界面文档互相核对</span>
+      </div>
+
+      <aside class="switchboard" aria-label="三种呈现路径示意">
+        <div class="route">
+          <span>classic<small>原生 scrollback</small></span>
+          <span class="route-state">MAIN</span>
+        </div>
+        <div class="route">
+          <span>fullscreen<small>alternate buffer</small></span>
+          <span class="route-state">ALT</span>
+        </div>
+        <div class="route override">
+          <span>screen-reader<small>linear labeled text</small></span>
+          <span class="route-state">AX</span>
+        </div>
+      </aside>
+    </section>
+
+    <div class="legend-bar" aria-label="证据图例">
+      <div class="legend-item"><span class="mark">O</span><span><b>官方契约</b><br>公开承诺与接口</span></div>
+      <div class="legend-item"><span class="mark">L</span><span><b>本机静态</b><br>版本、帮助与文件快照</span></div>
+      <div class="legend-item r"><span class="mark">R</span><span><b>真实实验</b><br>本页没有这一层</span></div>
+      <div class="legend-item i"><span class="mark">I</span><span><b>研究推断</b><br>保留条件与未知</span></div>
+    </div>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head">
+        <span class="section-no">01 / TERMS</span>
+        <h2 id="terms-title">先认清四个角色</h2>
+        <p>Fullscreen 说的是绘图表面。它与窗口是否最大化没有关系。</p>
+      </div>
+      <div class="content term-grid">
+        <article class="card"><span class="mark">O</span><h3>renderer</h3><p>Claude Code 把会话界面画到终端的路径。本页只比较 classic、fullscreen 与 screen-reader 的呈现结果。</p></article>
+        <article class="card"><span class="mark">O</span><h3>classic</h3><p>经典 renderer 使用终端主屏与原生滚动区。终端自己的查找和 tmux copy mode 能处理已经写出的文本。</p></article>
+        <article class="card"><span class="mark">O</span><h3>fullscreen</h3><p>替代 renderer 使用备用屏幕缓冲区，只保留当前可见消息的渲染树，并在应用内处理滚动、选择与 transcript 浏览。</p></article>
+        <article class="card"><span class="mark">O</span><h3>screen-reader</h3><p>无障碍呈现状态会输出平直的线性文本，去掉界面框线和只靠颜色表达的信息，并给消息加可搜索标签。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head">
+        <span class="section-no">02 / SEQUENCE</span>
+        <h2 id="sequence-title">一次切换怎样发生</h2>
+        <p>用户动作先触发可重启检查。无障碍状态与终端条件随后选出呈现路径。</p>
+      </div>
+      <div class="content timeline">
+        <article class="stage"><div><h3>用户请求 fullscreen</h3><p>在普通交互会话中运行 <strong>/tui fullscreen</strong>。裸命令只报告当前 renderer，default 则请求回到经典路径。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>CLI 先检查重启能否保留限制</h3><p>会话级启动参数或临时 deny、ask 规则若无法交给新进程，Claude Code 会解释原因并停止，不切换，也不保存这次选择。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>允许切换时重启当前对话</h3><p>CLI 保存 tui 选择，带回屏幕上的对话、权限模式、effort、模型与官方列明的部分启动状态。曾经 rewind 的会话从当前屏幕状态继续。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>启动选择器处理覆盖条件</h3><p>禁用备用屏幕、no-flicker 值、失败记录、终端环境、保存的 tui 与官方功能开关共同决定起始 renderer。Screen-reader 对普通会话有更高的呈现优先级。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>renderer 把帧写给终端</h3><p>Classic 继续累积原生 scrollback。Fullscreen 把当前可见消息画到备用屏幕，输入框固定在底部；主题 token 决定颜色。<span class="mark">O</span></p></div></article>
+        <article class="stage"><div><h3>退出、回切或失败构成停止</h3><p>用户运行 default 可回切。Fullscreen 在同版本连续启动失败后会维持 classic，升级或再次明确请求 fullscreen 才会重试。<span class="mark">O</span></p></div></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head">
+        <span class="section-no">03 / FLOW</span>
+        <h2 id="flow-title">决定流向的输入</h2>
+        <p>呈现选择发生在本地终端这一侧。主题是一条并行的颜色轨道。</p>
+      </div>
+      <div class="content">
+        <div class="flow-sheet" role="img" aria-label="启动输入进入呈现选择器，随后分到 classic、fullscreen 或 screen-reader 三条路径">
+          <div class="inputs">
+            <div class="node"><b>用户选择</b><span>tui 与环境变量</span></div>
+            <div class="node"><b>运行条件</b><span>终端、SSH 与失败记录</span></div>
+            <div class="node"><b>无障碍状态</b><span>flag、env 与 setting</span></div>
+          </div>
+          <div class="join" aria-hidden="true"></div>
+          <div class="selector">LOCAL PRESENTATION SELECTOR <span class="mark">I</span></div>
+          <div class="join" aria-hidden="true"></div>
+          <div class="branches">
+            <div class="node branch"><b>classic</b><small>主屏与原生 scrollback<br>终端原生搜索可见</small></div>
+            <div class="node branch"><b>fullscreen</b><small>备用屏幕与可见消息渲染树<br>应用内滚动和 transcript</small></div>
+            <div class="node branch reader"><b>screen-reader</b><small>线性标签、静态进度和编号菜单<br>普通会话使用 classic</small></div>
+          </div>
+          <div class="theme-rail"><strong>主题轨道</strong> auto、内置主题或自定义 token 改 Claude Code 的界面颜色。终端配色仍留在终端应用。<span class="mark">O</span></div>
+        </div>
+        <p class="note">图中的 selector 是研究者对官方优先次序的合并画法，标记为 I。各输入与三条输出路径本身来自官方文档。</p>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head">
+        <span class="section-no">04 / LIMITS</span>
+        <h2 id="limits-title">门、失败和例外</h2>
+        <p>这条状态机很本地，仍然会被重启能力、终端兼容性和附着会话卡住。</p>
+      </div>
+      <div class="content limit-grid">
+        <article class="card limit-card"><span class="mark">O</span><h3>重启门</h3><p>/tui 需要用新进程重启同一对话。无法转交的 system prompt 替换、tools allowlist 或会话内临时规则会让它拒绝切换。停止点发生在保存选择之前。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>失败回退</h3><p>一次失败让下次启动先走 classic；同版本第二次失败会持续留在 classic。成功画出首帧并稳定十秒，或正常退出，才算启动成功。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>无障碍例外</h3><p>普通 screen-reader 会话忽略 tui 并输出滚动文本。附着后台会话仍进入备用屏幕，没有原生 scrollback；这是官方列出的已知限制。</p></article>
+        <article class="card limit-card"><span class="mark">O</span><h3>终端边界</h3><p>Fullscreen 仍是 research preview。iTerm2 的 tmux 集成模式与它不兼容，少见终端或特殊配置也可能出现错位、残影与滚动问题。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head">
+        <span class="section-no">05 / EXPERIMENT</span>
+        <h2 id="experiment-title">这次只做静态核对</h2>
+        <p>没有打开新的交互会话，也没有写用户设置。证据到 L 为止，页面因此是 documented。</p>
+      </div>
+      <div class="content">
+        <div class="fact-strip">
+          <div class="fact"><b>2.1.247</b><span>固定二进制版本</span></div>
+          <div class="fact"><b>5086…8f7</b><span>SHA-256 首尾摘要相符</span></div>
+          <div class="fact"><b>arm64</b><span>Mach-O 本机安装文件</span></div>
+        </div>
+        <details open>
+          <summary>L 证据怎样取得</summary>
+          <div class="details-body">
+            <p>只读运行固定二进制的 version、help、shasum 和 file。Help 明确列出 ax-screen-reader，并把结果描述为平直文本与无装饰边框。公开 settings schema 还列出 tui、theme、prefersReducedMotion 与 axScreenReader。</p>
+            <p>这些结果能证明 2.1.247 带有入口和静态契约。它们无法证明备用屏幕已经启动，也无法代替 VoiceOver 或 NVDA 的真实播报。</p>
+          </div>
+        </details>
+        <p class="note"><span class="mark">R</span> 本轮没有真实实验。交互式 TTY 可能读取现有认证、写用户设置或触发付费会话，超出本轮安全边界。</p>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head">
+        <span class="section-no">06 / VERSION</span>
+        <h2 id="implementation-title">2.1.247 所在的位置</h2>
+        <p>固定版本已经拥有三条呈现路径。官方资料对 screen-reader 的最早版本留下一个冲突。</p>
+      </div>
+      <div class="content version-list">
+        <div class="version-row"><b>2.1.110</b><p>官方 changelog 记录 /tui 命令与 tui 设置，允许在同一对话里切换 fullscreen。</p></div>
+        <div class="version-row"><b>2.1.118</b><p>命名自定义主题进入 /theme，插件也能提供 themes 目录。</p></div>
+        <div class="version-row conflict"><b>2.1.181 / 208</b><p>Accessibility 页把最低版本写成 2.1.181，官方 changelog 又在 2.1.208 记录新增 screen-reader。当前资料无法确定最早公开可用点。</p></div>
+        <div class="version-row"><b>2.1.236</b><p>从这一版起，fullscreen 启动失败会回退到 classic。更早版本仍会继续尝试 fullscreen。</p></div>
+        <div class="version-row"><b>2.1.247</b><p>本页固定快照。版本与完整 SHA-256 已在本机核对，renderer 的真实运行仍未验证。</p></div>
+        <div class="version-row"><b>主题文件</b><p>官方规定每个自定义主题是 JSON，可继承 dark、light、daltonized 或 ANSI base，再覆盖颜色 token。无效 token 会被忽略。</p></div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head">
+        <span class="section-no">07 / UNKNOWNS</span>
+        <h2 id="unknowns-title">还不能写死的地方</h2>
+        <p>缺 R 的部分保持空白。页面不拿官方承诺代替这台机器的真实屏幕。</p>
+      </div>
+      <div class="content unknown-grid">
+        <article class="card unknown-card"><h3>首次启动路径</h3><p>当前终端究竟会命中默认表中的哪一行，还取决于安装时间、功能开关、环境和失败记录。</p></article>
+        <article class="card unknown-card"><h3>失败状态存放</h3><p>官方公开了计数和清零行为，没有公开 2.1.247 把本机状态保存在哪个结构中。本轮也不读取私人配置。</p></article>
+        <article class="card unknown-card"><h3>真实听读</h3><p>VoiceOver、NVDA 与不同终端能否稳定按标签、停顿和 bell 工作，需要隔离 TTY 与辅助技术实测。</p></article>
+        <article class="card unknown-card"><h3>版本冲突</h3><p>2.1.181 与 2.1.208 两个官方口径怎样对应测试、发布或默认开放，现有一手资料没有解释。</p></article>
+        <article class="card unknown-card"><h3>主题对比度</h3><p>自定义 token 在低色深终端和不同背景下的实际对比度，需要逐终端检查，JSON 合法不能保证看得清。</p></article>
+        <article class="card unknown-card"><h3>attached 体验</h3><p>Screen-reader 用户附着后台会话时会进入备用屏幕。离开方式有官方说明，完整播报体验仍缺 R。</p></article>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head">
+        <span class="section-no">08 / SOURCES</span>
+        <h2 id="sources-title">一手资料与复现入口</h2>
+        <p>技术结论只取 Anthropic 官方文档、公开 schema 和官方仓库。详细命令见 evidence.md。</p>
+      </div>
+      <div class="content source-grid">
+        <a class="card source-card" href="https://code.claude.com/docs/en/fullscreen"><span>OFFICIAL DOC</span><strong>Fullscreen rendering</strong><p>证明备用屏幕、切换重启、优先次序、滚动与失败回退。</p></a>
+        <a class="card source-card" href="https://code.claude.com/docs/en/accessibility"><span>OFFICIAL DOC</span><strong>Screen reader mode</strong><p>证明线性文本、入口优先级、消息标签、bell 与已知限制。</p></a>
+        <a class="card source-card" href="https://code.claude.com/docs/en/terminal-config"><span>OFFICIAL DOC</span><strong>Terminal configuration</strong><p>证明主题选择、自定义 token、终端配色边界与 fullscreen 入口。</p></a>
+        <a class="card source-card" href="https://code.claude.com/docs/en/settings"><span>OFFICIAL DOC</span><strong>Claude Code settings</strong><p>证明设置的保存位置、来源与通用优先级框架。</p></a>
+        <a class="card source-card" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><span>OFFICIAL REPO</span><strong>Claude Code changelog</strong><p>证明 /tui、自定义主题、screen-reader 与失败回退的版本记录。</p></a>
+        <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>UI-02 · Fullscreen 渲染与无障碍呈现</span>
+    <span>documented · Claude Code 2.1.247 · 2026-08-27 baseline</span>
+  </footer>
+</body>
+</html>

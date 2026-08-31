@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="PAR-05">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>PAR-05 本地 Code Review 的差异读取与发现输出</title>
+  <style>
+    :root {
+      --paper: #f1ead9;
+      --ink: #171914;
+      --muted: #5a5f54;
+      --rule: #8c8b7e;
+      --green: #164f3d;
+      --green-soft: #d6e0d5;
+      --red: #a52a24;
+      --yellow: #d3a22c;
+      --white: #fbf8ef;
+      --shadow: 8px 8px 0 rgba(23,25,20,.16);
+      --serif: "Iowan Old Style", "Songti SC", "Noto Serif CJK SC", serif;
+      --sans: "Avenir Next", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Mono", "Noto Sans Mono CJK SC", monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; background: var(--paper); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: var(--serif);
+      line-height: 1.72;
+      background:
+        linear-gradient(90deg, transparent 0 68px, rgba(165,42,36,.22) 68px 70px, transparent 70px),
+        repeating-linear-gradient(0deg, rgba(23,25,20,.028) 0 1px, transparent 1px 28px),
+        var(--paper);
+    }
+    a { color: var(--green); text-underline-offset: .18em; text-decoration-thickness: 1px; }
+    a:hover { color: var(--red); }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--yellow); outline-offset: 4px; border-radius: 2px; }
+    .topbar {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px clamp(22px, 5vw, 76px) 10px clamp(86px, 8vw, 126px);
+      border-bottom: 2px solid var(--ink);
+      font: 700 12px/1.3 var(--sans);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      background: rgba(241,234,217,.94);
+    }
+    .topbar a { text-transform: none; letter-spacing: .02em; }
+    .status { display: inline-flex; gap: 8px; align-items: center; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 3px rgba(211,162,44,.22); }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 0 0 88px 54px; }
+    section { scroll-margin-top: 20px; }
+    .hero {
+      min-height: 660px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+      gap: clamp(34px, 7vw, 96px);
+      align-items: center;
+      padding: clamp(54px, 9vw, 120px) 0 68px;
+      border-bottom: 3px solid var(--ink);
+    }
+    .kicker { margin: 0 0 20px; font: 800 13px/1.4 var(--sans); letter-spacing: .16em; color: var(--red); }
+    h1, h2, h3 { font-family: var(--sans); line-height: 1.14; }
+    h1 { margin: 0; max-width: 840px; font-size: clamp(42px, 7vw, 94px); letter-spacing: -.065em; }
+    h1 span { display: block; color: var(--green); }
+    .lede { max-width: 760px; margin: 30px 0 0; font-size: clamp(20px, 2.2vw, 29px); line-height: 1.58; }
+    .answer-line { border-bottom: 4px solid var(--red); padding-bottom: 2px; }
+    .docket {
+      position: relative;
+      background: var(--white);
+      border: 2px solid var(--ink);
+      padding: 26px 24px 28px;
+      box-shadow: var(--shadow);
+      transform: rotate(1deg);
+    }
+    .docket::before { content: "REVIEW"; position: absolute; top: -24px; right: 18px; padding: 5px 13px; border: 3px solid var(--red); color: var(--red); font: 900 15px/1 var(--sans); letter-spacing: .13em; transform: rotate(-5deg); background: var(--paper); }
+    .docket dl { margin: 0; }
+    .docket div { padding: 11px 0; border-bottom: 1px solid var(--rule); }
+    .docket div:last-child { border-bottom: 0; }
+    dt { font: 800 11px/1.4 var(--sans); letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+    dd { margin: 3px 0 0; font: 750 17px/1.45 var(--sans); }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--ink); padding: 4px 8px; background: var(--paper); font: 750 12px/1.25 var(--sans); }
+    .badge b { color: var(--red); }
+    .section-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: clamp(30px, 6vw, 90px); padding: 78px 0; border-bottom: 1px solid var(--rule); }
+    .section-label { position: sticky; top: 24px; align-self: start; }
+    .section-no { display: block; font: 900 58px/1 var(--sans); color: transparent; -webkit-text-stroke: 1px var(--red); }
+    h2 { margin: 8px 0 0; font-size: clamp(25px, 3vw, 39px); letter-spacing: -.035em; }
+    h3 { margin: 34px 0 10px; font-size: 19px; }
+    p { margin: 0 0 18px; }
+    .intro { font-size: 21px; max-width: 760px; }
+    .terms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 2px solid var(--ink); }
+    .term { padding: 22px 24px 24px 0; border-bottom: 1px solid var(--rule); }
+    .term:nth-child(odd) { border-right: 1px solid var(--rule); padding-right: 24px; }
+    .term:nth-child(even) { padding-left: 24px; }
+    .term strong { display: block; font: 850 15px/1.4 var(--sans); color: var(--green); margin-bottom: 8px; }
+    .timeline { list-style: none; margin: 10px 0 0; padding: 0; counter-reset: step; }
+    .timeline li { position: relative; display: grid; grid-template-columns: 58px minmax(0,1fr); gap: 22px; padding: 0 0 34px; counter-increment: step; }
+    .timeline li::before { content: counter(step, decimal-leading-zero); width: 50px; height: 50px; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 50%; background: var(--paper); font: 900 14px/1 var(--mono); z-index: 1; }
+    .timeline li::after { content: ""; position: absolute; left: 24px; top: 50px; bottom: 0; border-left: 2px dotted var(--rule); }
+    .timeline li:last-child::after { display: none; }
+    .timeline strong { display: block; font: 850 18px/1.45 var(--sans); margin: 3px 0 5px; }
+    code { font-family: var(--mono); font-size: .89em; background: rgba(22,79,61,.1); padding: .08em .3em; border-radius: 2px; }
+    .evidence { color: var(--red); font: 900 11px/1 var(--sans); letter-spacing: .08em; vertical-align: .12em; }
+    .flow-board { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 26px 0; }
+    .flow-board::before { content: ""; position: absolute; left: 5%; right: 5%; top: 35px; height: 2px; background: var(--ink); }
+    .flow-node { position: relative; min-height: 126px; border: 2px solid var(--ink); padding: 54px 14px 14px; background: var(--white); box-shadow: 3px 3px 0 rgba(23,25,20,.14); font: 750 14px/1.5 var(--sans); }
+    .flow-node::before { content: attr(data-mark); position: absolute; top: 13px; left: calc(50% - 12px); width: 24px; height: 24px; display: grid; place-items: center; color: var(--white); background: var(--green); border-radius: 50%; font: 900 11px/1 var(--sans); }
+    .branch-note { margin-top: 20px; padding: 18px 20px; border-left: 5px solid var(--yellow); background: rgba(255,255,255,.45); }
+    .stop-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .stop-table th, .stop-table td { padding: 14px 12px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+    .stop-table th { font: 850 12px/1.4 var(--sans); letter-spacing: .08em; color: var(--green); }
+    .stop-table td:first-child { width: 24%; font-weight: 800; }
+    .note { padding: 18px 20px; border: 1px solid var(--ink); background: var(--green-soft); }
+    .checks { list-style: none; padding: 0; margin: 22px 0 0; }
+    .checks li { position: relative; padding: 11px 0 11px 34px; border-bottom: 1px solid var(--rule); }
+    .checks li::before { content: "✓"; position: absolute; left: 2px; top: 11px; color: var(--green); font: 900 17px/1 var(--sans); }
+    details { border-top: 1px solid var(--rule); }
+    details:last-child { border-bottom: 1px solid var(--rule); }
+    summary { cursor: pointer; padding: 17px 6px; font: 800 16px/1.4 var(--sans); }
+    details p { padding: 0 6px 12px 28px; color: var(--muted); }
+    .source-list { list-style: none; padding: 0; margin: 0; }
+    .source-list li { display: grid; grid-template-columns: 44px minmax(0,1fr); gap: 16px; padding: 17px 0; border-bottom: 1px solid var(--rule); }
+    .source-list b { color: var(--red); font: 900 13px/1.5 var(--mono); }
+    footer { padding: 34px 0 0; font: 700 13px/1.6 var(--sans); color: var(--muted); }
+    @media (max-width: 900px) {
+      body { background-position: -34px 0, 0 0, 0 0; }
+      .topbar { padding-left: 24px; }
+      main { width: min(100% - 28px, 760px); padding-left: 0; }
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .docket { max-width: 430px; transform: none; }
+      .section-grid { grid-template-columns: 1fr; gap: 26px; padding: 60px 0; }
+      .section-label { position: static; display: grid; grid-template-columns: 64px 1fr; align-items: end; gap: 10px; }
+      .section-no { font-size: 42px; }
+      h2 { margin-bottom: 4px; }
+      .flow-board { grid-template-columns: 1fr; }
+      .flow-board::before { left: 25px; right: auto; top: 5%; bottom: 5%; width: 2px; height: auto; }
+      .flow-node { min-height: auto; padding: 16px 16px 16px 62px; }
+      .flow-node::before { top: calc(50% - 12px); left: 13px; }
+    }
+    @media (max-width: 520px) {
+      .topbar { align-items: flex-start; flex-direction: column; padding: 10px 16px; gap: 6px; }
+      main { width: min(100% - 24px, 460px); }
+      .hero { padding-top: 52px; }
+      h1 { font-size: clamp(39px, 13vw, 58px); }
+      .lede { font-size: 19px; }
+      .terms { grid-template-columns: 1fr; }
+      .term:nth-child(odd) { border-right: 0; padding-right: 0; }
+      .term:nth-child(even) { padding-left: 0; }
+      .timeline li { grid-template-columns: 48px minmax(0,1fr); gap: 15px; }
+      .timeline li::before { width: 42px; height: 42px; }
+      .timeline li::after { left: 20px; top: 42px; }
+      .stop-table, .stop-table tbody, .stop-table tr, .stop-table td { display: block; width: 100%; }
+      .stop-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      .stop-table tr { padding: 12px 0; border-bottom: 1px solid var(--rule); }
+      .stop-table td { border: 0; padding: 4px 0; }
+      .stop-table td:first-child { width: 100%; color: var(--red); }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print { body { background: white; } .topbar { position: static; } .docket, .flow-node { box-shadow: none; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：本地 Code Review 的差异读取与发现输出。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-par-05-local-code-review/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="PAR-05 · 本地 Code Review 的差异读取与发现输出">
+  <meta property="og:description" content="Claude Code X-Ray：本地 Code Review 的差异读取与发现输出。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-par-05-local-code-review/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="PAR-05 · 本地 Code Review 的差异读取与发现输出">
+  <meta name="twitter:description" content="Claude Code X-Ray：本地 Code Review 的差异读取与发现输出。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>PAR-05</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div>Claude Code XRY / PAR-05</div>
+    <div class="status"><span class="dot" aria-hidden="true"></span>当前状态 documented · Claude Code 2.1.247</div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="page-title">
+  <div><p class="kicker">18 / LOCAL REVIEW DOSSIER</p>
+    <h1 id="page-title">先圈定改动，<span>再判断问题。</span></h1>
+    <p class="lede">用户启动本地 Code Review 后，Claude Code 按公开契约确定默认 diff 或显式 target，并在独立审阅上下文中寻找能够落到文件位置、说明影响且值得修复的问题。无可靠发现也是有效终点。<span class="evidence">O</span></p>
+  </div>
+  <aside class="docket" aria-label="研究档案"><dl>
+    <div><dt>Feature</dt><dd>PAR-05</dd></div><div><dt>Status</dt><dd>documented</dd></div>
+    <div><dt>Baseline</dt><dd>2026-08-27</dd></div><div><dt>Runtime</dt><dd>Claude Code 2.1.247</dd></div>
+    <div><dt>Public basis</dt><dd>Official contract</dd></div>
+  </dl><div class="legend"><span class="badge"><b>O</b> 官方契约</span><span class="badge"><b>R</b> 真实实验</span></div></aside>
+</section>
+
+    <section class="section-grid" data-xray-section="terms" aria-labelledby="terms-title">
+  <div class="section-label"><span class="section-no">01</span><h2 id="terms-title">先认四样东西</h2></div>
+  <div><p class="intro">本页只使用公开 Code Review 契约，不公开安装物中的内部审阅模板。</p>
+    <div class="terms">
+      <div class="term"><strong>默认范围</strong>当前分支领先 upstream 的提交，加上未提交改动。<span class="evidence">O</span></div>
+      <div class="term"><strong>显式 target</strong>文件、PR、分支或 ref range 可以替代默认范围。<span class="evidence">O</span></div>
+      <div class="term"><strong>finding</strong>值得报告的问题必须具体、可定位并说明影响；空结果仍然有效。<span class="evidence">O</span></div>
+      <div class="term"><strong>effort</strong>low 与 medium 偏向高置信问题，high 与 max 扩大覆盖。<span class="evidence">O</span></div>
+    </div>
+  </div>
+</section>
+
+    <section class="section-grid" data-xray-section="sequence" aria-labelledby="sequence-title">
+  <div class="section-label"><span class="section-no">02</span><h2 id="sequence-title">公开契约里的 review 流程</h2></div>
+  <div><ol class="timeline">
+    <li><div><strong>选择范围</strong>使用默认 diff，或由用户提供文件、PR、分支与 ref range。<span class="evidence">O</span></div></li>
+    <li><div><strong>分出审阅上下文</strong>默认在后台 subagent 中运行，避免占用主对话上下文。<span class="evidence">O</span></div></li>
+    <li><div><strong>检查变化</strong>Claude 读取所需代码与项目规则，寻找具体且可操作的问题。内部搜索顺序不是公开承诺。<span class="evidence">O</span></div></li>
+    <li><div><strong>返回结果</strong>终端返回文字，支持的宿主可以接收结构化 findings；没有发现时可以返回空结果。<span class="evidence">O</span></div></li>
+  </ol></div>
+</section>
+
+    <section class="section-grid" data-xray-section="flow" aria-labelledby="flow-title">
+  <div class="section-label"><span class="section-no">03</span><h2 id="flow-title">范围、上下文与结果</h2></div>
+  <div><p class="intro">diff 或 target 规定审阅边界，Claude 读取必要上下文，最后把有证据的问题交回当前会话或宿主。</p>
+    <div class="flow-board"><div class="flow-node" data-mark="1">默认 diff 或 target</div><div class="flow-node" data-mark="2">必要代码与项目规则</div><div class="flow-node" data-mark="3">具体问题及位置</div><div class="flow-node" data-mark="4">文字或 findings list</div></div>
+    <p class="branch-note"><strong>动作边界</strong>普通 review 停在报告；<code>--fix</code> 才修改工作区，<code>--comment</code> 才尝试写 PR 评论。<span class="evidence">O</span></p>
+  </div>
+</section>
+
+    <section class="section-grid" data-xray-section="limits" aria-labelledby="limits-title">
+  <div class="section-label"><span class="section-no">04</span><h2 id="limits-title">停止位置</h2></div>
+  <div><table class="stop-table"><thead><tr><th>情形</th><th>公开边界</th></tr></thead><tbody>
+    <tr><td>没有差异</td><td>没有可审阅范围时，不应制造 finding。</td></tr>
+    <tr><td>证据不足</td><td>问题必须具体、可定位并说明实际影响；effort 只改变覆盖强度。</td></tr>
+    <tr><td>权限被拒</td><td>工具调用仍受当前权限规则约束，关键内容不可读时只能缩小结论或停止。</td></tr>
+  </tbody></table></div>
+</section>
+
+    <section class="section-grid" data-xray-section="experiment" aria-labelledby="experiment-title">
+  <div class="section-label"><span class="section-no">05</span><h2 id="experiment-title">公开证据边界</h2></div>
+  <div><p class="intro">本页公开版只保留官方 Code Review、Commands 与 Permissions 契约。</p>
+    <p>没有启动真实模型 review，因此页面状态仍是 documented。私有研究环境中的安装物核对只用于发现需要向官方文档求证的问题，不在公开版披露内部模板或分支。</p>
+  </div>
+</section>
+
+    <section class="section-grid" data-xray-section="implementation" aria-labelledby="implementation-title">
+  <div class="section-label"><span class="section-no">06</span><h2 id="implementation-title">版本与产品边界</h2></div>
+  <div><h3>本地 review 与自动 PR Review 不同</h3>
+    <p>本地 review 围绕当前会话的 diff 或 target 工作；自动 PR Review 有自己的资格、触发与计费。<span class="evidence">O</span></p>
+    <h3>effort 改变覆盖强度</h3><p>官方只承诺低档偏向高置信，高档扩大覆盖；不承诺固定候选数量或内部搜索顺序。<span class="evidence">O</span></p>
+    <h3>写入需要显式动作</h3><p>普通 review 只报告。<code>--fix</code> 会改工作区，<code>--comment</code> 会尝试写 PR 评论，仍受 Git 与权限规则约束。<span class="evidence">O</span></p>
+  </div>
+</section>
+
+    <section class="section-grid" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+  <div class="section-label"><span class="section-no">07</span><h2 id="unknowns-title">仍然不知道</h2></div>
+  <div><details open><summary>空范围的最终文案</summary><p>官方定义了空结果边界，没有固定所有宿主显示的同一句话。</p></details>
+    <details><summary>权限阻断后的具体续跑</summary><p>拒绝会回到模型；是否改用别的只读方法取决于当次上下文。</p></details>
+    <details><summary>大型 diff 的固定阈值</summary><p>公开文档没有给所有环境通用的文件数、行数或字节上限。</p></details>
+  </div>
+</section>
+
+    <section class="section-grid" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-label"><span class="section-no">08</span><h2 id="sources-title">一手资料与复现</h2></div>
+      <div>
+        <ul class="source-list">
+          <li><b>O-01</b><a href="https://code.claude.com/docs/en/code-review">Code Review 文档，证明本地范围、后台运行、输出、effort 与版本差异</a></li>
+          <li><b>O-02</b><a href="https://code.claude.com/docs/en/commands">Commands 文档，证明 /review 别名、参数与旧版边界</a></li>
+          <li><b>O-03</b><a href="https://code.claude.com/docs/en/permissions">Permissions 文档，证明工具批准、deny 优先与阻断</a></li>
+          <li><b>O-04</b><a href="https://code.claude.com/docs/en/permission-modes">Permission Modes 文档，证明不同模式下可直接执行的动作</a></li>
+          <li><b>O-05</b><a href="https://code.claude.com/docs/en/agent-sdk/agent-loop">Agent Loop 文档，证明工具拒绝会作为结果回给模型</a></li>
+          <li><b>O-06</b><a href="https://code.claude.com/docs/en/authentication">Authentication 文档，证明 Claude Code 支持的账户与认证方式</a></li>
+          <li><b>O-07</b><a href="https://code.claude.com/docs/en/feature-availability">Feature Availability 文档，证明本地 CLI 的提供商范围</a></li>
+          <li><b>O-08</b><a href="https://code.claude.com/docs/en/costs">Costs 文档，证明套餐额度、按 token 计费与用量阻断</a></li>
+        </ul>
+        <h3>安全复现办法</h3>
+        <p>在无私人内容的临时仓库固定 2.1.247，先保存 Git 算出的两份预期 diff，再分别运行默认 review、显式路径 review、空 diff review，并用临时 ask 或 deny 规则阻断一次 diff 读取。只记录匿名化文件位置、工具类型、批准状态和最终 findings。不要保存 prompt、思考或完整工具输出。这些步骤会启动 Claude 并触发模型调用，需另行授权。</p>
+        <footer>研究日期 2026-08-27 · 页面状态 documented · PAR-05 · <a href="../index.html">返回总索引</a></footer>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="EXT-01">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>EXT-01 · Skills 的发现、加载与执行</title>
+  <style>
+    :root {
+      --ink: #182019;
+      --paper: #f3efdf;
+      --paper-2: #e7dfc7;
+      --green: #234b3a;
+      --green-2: #376c50;
+      --rust: #a5442c;
+      --gold: #d6a64d;
+      --line: #7d7a66;
+      --muted: #606254;
+      --shadow: rgba(32, 43, 32, .18);
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+      --serif: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 0 31px, rgba(165,68,44,.16) 32px, transparent 33px),
+        repeating-linear-gradient(0deg, rgba(35,75,58,.04) 0 1px, transparent 1px 24px),
+        var(--paper);
+      font-family: var(--sans);
+      line-height: 1.72;
+    }
+    a { color: var(--green); text-decoration-thickness: 1px; text-underline-offset: .2em; }
+    a:hover { color: var(--rust); }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+    code { font-family: var(--mono); font-size: .92em; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+      padding: .7rem clamp(1rem, 4vw, 4rem);
+      color: #f7f1df;
+      background: rgba(24,32,25,.96);
+      border-bottom: 3px solid var(--gold);
+      backdrop-filter: blur(8px);
+      font-size: .84rem;
+      letter-spacing: .04em;
+    }
+    .topbar a { color: #f7f1df; }
+    .status { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; }
+    .status b { color: #ffcf6e; font-family: var(--mono); }
+    main { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding-bottom: 6rem; }
+    .hero {
+      min-height: 76vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.16fr) minmax(300px, .84fr);
+      align-items: center;
+      gap: clamp(2rem, 7vw, 7rem);
+      padding: clamp(4.6rem, 9vw, 8rem) 0 4rem;
+    }
+    .eyebrow { margin: 0 0 .8rem; font: 700 .78rem/1.2 var(--mono); letter-spacing: .16em; color: var(--rust); }
+    h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.16; }
+    h1 { max-width: 12ch; margin: 0; font-size: clamp(3.15rem, 7vw, 6.6rem); letter-spacing: -.055em; }
+    .answer { max-width: 39rem; margin: 2rem 0 0; font-size: clamp(1.12rem, 2vw, 1.42rem); line-height: 1.7; }
+    .answer strong { color: var(--rust); font-weight: 700; }
+    .file-cabinet { position: relative; min-height: 480px; padding: 1rem; }
+    .drawer {
+      position: absolute;
+      left: var(--left);
+      top: var(--top);
+      width: var(--width);
+      min-height: 104px;
+      padding: 1.15rem 1.3rem;
+      color: #f3efdf;
+      background: var(--green);
+      border: 2px solid var(--ink);
+      box-shadow: 12px 12px 0 rgba(165,68,44,.28);
+      transform: rotate(var(--tilt));
+    }
+    .drawer:nth-child(2) { background: #d9cfae; color: var(--ink); }
+    .drawer:nth-child(3) { background: var(--rust); }
+    .drawer .tab { display: inline-block; margin: -2.35rem 0 .8rem; padding: .3rem .8rem; color: var(--ink); background: var(--gold); border: 2px solid var(--ink); font: 700 .74rem/1 var(--mono); }
+    .drawer p { margin: .2rem 0; }
+    .drawer small { opacity: .75; }
+    .stamp { position: absolute; right: 0; bottom: 1rem; padding: .7rem 1rem; border: 3px double var(--rust); color: var(--rust); font: 800 .78rem/1 var(--mono); transform: rotate(-8deg); }
+    .legend { display: flex; gap: .55rem 1.1rem; flex-wrap: wrap; padding: 1rem 0 2.5rem; border-top: 1px solid var(--line); font-size: .88rem; }
+    .legend b, .badge { display: inline-grid; place-items: center; min-width: 1.75rem; height: 1.75rem; margin-right: .35rem; color: #f7f1df; background: var(--green); border-radius: 50%; font: 800 .78rem/1 var(--mono); }
+    .legend span:nth-child(2) b { background: var(--rust); }
+    .legend span:nth-child(3) b { background: #5e6674; }
+    .legend span:nth-child(4) b { background: #8a6a29; }
+    section { padding: clamp(3.8rem, 8vw, 7rem) 0; border-top: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: 7rem 1fr; gap: 1rem; align-items: start; margin-bottom: 2.3rem; }
+    .section-no { padding-top: .45rem; color: var(--rust); font: 700 .8rem/1 var(--mono); letter-spacing: .15em; }
+    h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.8rem); letter-spacing: -.035em; }
+    h3 { margin: 0 0 .7rem; font-size: 1.3rem; }
+    p { max-width: 72ch; }
+    .lede { max-width: 58ch; font-size: 1.12rem; }
+    .terms { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .term { min-height: 190px; padding: 1.35rem; background: var(--paper); }
+    .term em { display: block; margin-bottom: 1.4rem; color: var(--rust); font: 700 .76rem/1 var(--mono); font-style: normal; }
+    .term p { margin: 0; color: var(--muted); font-size: .93rem; }
+    .sequence { counter-reset: step; display: grid; gap: 1.2rem; }
+    .step {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 4rem minmax(150px, .6fr) minmax(0, 1.4fr) auto;
+      gap: 1.2rem;
+      align-items: center;
+      padding: 1.4rem 1.2rem;
+      background: rgba(255,255,255,.28);
+      border-bottom: 1px solid var(--line);
+    }
+    .step::before { content: "0" counter(step); color: var(--rust); font: 800 1.25rem/1 var(--mono); }
+    .step h3, .step p { margin: 0; }
+    .step p { color: var(--muted); }
+    .evidence { white-space: nowrap; color: var(--green); font: 700 .72rem/1 var(--mono); }
+    .flow-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: .75rem; align-items: stretch; }
+    .flow-card { position: relative; min-height: 195px; padding: 1.2rem; color: #f5efd9; background: var(--green); border: 2px solid var(--ink); }
+    .flow-card:nth-child(even) { color: var(--ink); background: var(--paper-2); }
+    .flow-card:not(:last-child)::after { content: "›"; position: absolute; z-index: 2; right: -.72rem; top: 42%; color: var(--rust); font: 800 2rem/1 var(--mono); }
+    .flow-card small { display: block; margin-bottom: 1rem; color: var(--gold); font: 700 .7rem/1 var(--mono); }
+    .flow-card:nth-child(even) small { color: var(--rust); }
+    .flow-card p { margin: 0; font-size: .92rem; }
+    .callout { margin-top: 1.2rem; padding: 1.4rem; border-left: 6px solid var(--rust); background: rgba(165,68,44,.08); }
+    .gate-table { display: grid; grid-template-columns: 1fr 1.2fr 1.2fr; border: 1px solid var(--line); }
+    .gate-table > div { padding: .95rem 1rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .gate-table > div:nth-child(3n) { border-right: 0; }
+    .gate-table .th { color: #f7f1df; background: var(--ink); font: 700 .78rem/1.3 var(--mono); }
+    .gate-table .halt { color: var(--rust); font-weight: 700; }
+    .observation { display: grid; grid-template-columns: .85fr 1.15fr; gap: 1.2rem; }
+    .ticket { padding: 1.5rem; background: #171d18; color: #e8e5d8; box-shadow: 10px 10px 0 var(--shadow); }
+    .ticket code { color: #ffcf6e; }
+    .ticket p { margin: .6rem 0; }
+    .verdict { padding: 1.5rem; border: 2px solid var(--rust); }
+    .verdict .big { margin: .1rem 0 .8rem; color: var(--rust); font: 800 clamp(2rem, 5vw, 4.2rem)/1 var(--mono); }
+    .file-tree { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .folder { padding: 1.4rem; background: var(--paper-2); border-top: 7px solid var(--green); }
+    .folder ul { margin: .8rem 0 0; padding-left: 1.25rem; }
+    .unknown-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .unknown { padding: 1.4rem; border: 1px solid var(--line); background: rgba(255,255,255,.25); }
+    .unknown b { color: var(--rust); font: 800 .78rem/1 var(--mono); }
+    details { margin: 1rem 0; border: 1px solid var(--line); background: rgba(255,255,255,.25); }
+    summary { cursor: pointer; padding: 1rem 1.2rem; font-weight: 700; }
+    details > div { padding: 0 1.2rem 1.2rem; }
+    .sources { display: grid; gap: .9rem; }
+    .source { display: grid; grid-template-columns: 5rem 1fr; gap: 1rem; padding: 1.1rem 0; border-bottom: 1px solid var(--line); }
+    .source b { color: var(--rust); font: 800 .75rem/1.3 var(--mono); }
+    footer { padding: 2rem 0 4rem; color: var(--muted); font-size: .85rem; }
+    @media (max-width: 850px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .file-cabinet { min-height: 400px; }
+      .terms { grid-template-columns: repeat(2, 1fr); }
+      .flow-grid { grid-template-columns: 1fr; }
+      .flow-card:not(:last-child)::after { right: 50%; top: auto; bottom: -.85rem; transform: rotate(90deg); }
+      .gate-table { grid-template-columns: 1fr; }
+      .gate-table > div { border-right: 0; }
+      .gate-table .th { display: none; }
+      .gate-table > div:nth-child(3n+1) { padding-bottom: .2rem; color: var(--rust); font-weight: 700; border-bottom: 0; }
+      .gate-table > div:nth-child(3n+2) { padding-top: .2rem; padding-bottom: .2rem; border-bottom: 0; }
+      .observation, .file-tree { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 540px) {
+      body { background-position: -16px 0, 0 0; }
+      .topbar { position: static; align-items: flex-start; }
+      main { width: min(100% - 1.35rem, 1180px); }
+      h1 { font-size: clamp(2.75rem, 16vw, 4.6rem); }
+      .file-cabinet { min-height: 350px; padding: 0; }
+      .drawer { min-height: 90px; padding: .85rem; }
+      .terms, .unknown-grid { grid-template-columns: 1fr; }
+      .section-head { grid-template-columns: 1fr; gap: .45rem; }
+      .step { grid-template-columns: 2.3rem 1fr; }
+      .step p, .step .evidence { grid-column: 2; }
+      .source { grid-template-columns: 1fr; gap: .3rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Skills 的发现、加载与执行。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-ext-01-skills/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="EXT-01 · Skills 的发现、加载与执行">
+  <meta property="og:description" content="Claude Code X-Ray：Skills 的发现、加载与执行。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-ext-01-skills/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="EXT-01 · Skills 的发现、加载与执行">
+  <meta name="twitter:description" content="Claude Code X-Ray：Skills 的发现、加载与执行。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>EXT-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="status"><b>EXT-01</b><span>当前状态 documented</span><span>Claude Code 2.1.247 基线</span></div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+  <main>
+    <section class="hero" data-xray-section="answer">
+      <div>
+        <p class="eyebrow">SKILLS · DISCOVERY TO CONTEXT</p>
+        <h1>先看标签，再取正文</h1>
+        <p class="answer">在本地 Claude Code 里，程序先把可由模型调用的文件型 Skill <strong>名称和描述</strong>编成一份清单。用户点名，或 Claude 判断当前任务匹配以后，完整 <code>SKILL.md</code> 才渲染成一条消息进入会话。支持文件还要等正文说明需要时再读。</p>
+        <p>手动专用 Skill 的描述不交给模型，只等用户输入完整名称调用。Cowork、cloud、同步 Skills 和 Agent SDK 沿用这套按需思路，来源与执行门另有差别。<span class="evidence">O</span></p>
+      </div>
+      <div class="file-cabinet" aria-label="Skill 从描述索引到正文和支持文件的三层文件示意">
+        <div class="drawer" style="--left:2%;--top:3%;--width:80%;--tilt:-2deg"><span class="tab">01 INDEX</span><p>名称 ＋ 描述</p><small>每次请求里的轻量目录</small></div>
+        <div class="drawer" style="--left:14%;--top:36%;--width:82%;--tilt:1.5deg"><span class="tab">02 SKILL.md</span><p>调用以后进入对话</p><small>渲染后的正文持续留存</small></div>
+        <div class="drawer" style="--left:6%;--top:69%;--width:70%;--tilt:-1deg"><span class="tab">03 RESOURCES</span><p>参考资料 ＋ 脚本</p><small>正文指路以后再取</small></div>
+        <div class="stamp">DOCUMENTED</div>
+      </div>
+    </section>
+
+    <div class="legend" aria-label="证据图例">
+      <span><b>O</b>官方契约</span><span><b>L</b>本机静态证据</span><span><b>R</b>本轮真实实验</span><span><b>I</b>研究者推断</span>
+    </div>
+
+    <section data-xray-section="terms">
+      <div class="section-head"><span class="section-no">01 TERMS</span><h2>四件东西，先分开</h2></div>
+      <div class="terms">
+        <article class="term"><em>DISCOVERY</em><h3>发现</h3><p>Claude Code 从企业、个人、项目、插件和加入目录里找到候选 Skill，并处理同名项。</p></article>
+        <article class="term"><em>LISTING</em><h3>描述清单</h3><p>模型可调用项的名称与描述。它有总预算，名称都保留，较少使用项的描述可能先被缩掉。</p></article>
+        <article class="term"><em>BODY</em><h3>正文</h3><p>调用后渲染的 <code>SKILL.md</code>。它作为一条消息进入上下文，随后不会每回合重读文件。</p></article>
+        <article class="term"><em>RESOURCE</em><h3>支持文件</h3><p>参考资料、例子与脚本。正文告诉 Claude 在什么情况下读取或运行，文件不会自动全塞进上下文。</p></article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><span class="section-no">02 SURFACES</span><h2>先看会话跑在哪里</h2></div>
+      <p class="lede">本页后面的六步主链讲本地 Claude Code。远端会话、从 claude.ai 同步到本机的 Skill 和 Claude Agent SDK 仍会先发现描述，再按需取正文；它们拿文件的地方和能执行的内容并不相同。</p>
+      <div class="gate-table" aria-label="不同 Claude Skills 表面的来源与执行边界">
+        <div class="th">表面</div><div class="th">从哪里发现</div><div class="th">正文与执行边界</div>
+        <div>本地 Claude Code</div><div>企业、个人、项目、插件与加入目录</div><div>本页主链完整适用，包括参数替换、支持文件与获准的动态命令</div>
+        <div>Cowork 与 cloud</div><div>要以 claude.ai 账号登录，都取账号已启用项，不读本机个人目录；cloud 还取克隆仓库里的项目 Skill 与仓库声明的插件</div><div>cloud 在隔离容器中保留本地正文行为；Cowork 会把正文里的动态命令换成禁用占位文本</div>
+        <div>同步到本机</div><div>先用 claude.ai 登录，在非交互运行里明确开启同步，下载后才供本地会话发现</div><div>本机会话不执行其中的动态命令，也不自动附上引用文件，不替换项目目录与会话编号变量</div>
+        <div>Claude Agent SDK</div><div>由 <code>settingSources</code> 选择本地文件来源，也可加载本地插件；<code>skills</code> 选项再过滤可见项</div><div>描述先给模型，正文仍按需加载；项目和个人 Skill 的 <code>allowed-tools</code> 会生效，SDK 顶层 <code>allowedTools</code> 也能追加预授权；同步 Skill 另按自身规则处理</div>
+      </div>
+      <div class="callout">本地 Skills 随 CLI 和 Claude Agent SDK 在官方列出的各模型提供商上可用，不要求另买 claude.ai 订阅。发起模型请求时仍要有可用认证，可以来自 Claude 订阅、Anthropic Console、云提供商或企业网关；用量和费用跟随所选方案。<span class="evidence">O</span></div>
+      <div class="callout">Claude API、claude.ai 对话与 Managed Agents 的 Agent Skills 另有上传、Skill ID、容器和预置文档 Skill 等接口。本页不拿本地目录优先级和动态注入规则解释那些产品面。<span class="evidence">O</span></div>
+    </section>
+
+    <section data-xray-section="sequence">
+      <div class="section-head"><span class="section-no">03 SEQUENCE</span><h2>一次调用走过六道门</h2></div>
+      <div class="sequence">
+        <article class="step"><h3>扫描候选位置</h3><p>启动目录到仓库根目录先加入。更深的嵌套目录等 Claude 首次读写其中的文件才出现。</p><span class="evidence">O</span></article>
+        <article class="step"><h3>解决名称与范围</h3><p>企业、个人和项目同名时按公开优先级取一份。插件使用带命名空间的名称。嵌套同名项保留目录限定名。</p><span class="evidence">O</span></article>
+        <article class="step"><h3>编描述清单</h3><p>默认把名称与描述交给模型。清单超预算时仍保留名称，从较少调用项开始缩掉描述。</p><span class="evidence">O</span></article>
+        <article class="step"><h3>用户或模型调用</h3><p>用户输入斜杠名称可以直接点名。模型依据描述自行判断。两个前言字段分别关掉模型入口或用户入口。</p><span class="evidence">O</span></article>
+        <article class="step"><h3>先渲染，再装入</h3><p>参数与路径变量先替换，动态命令也先执行。成功后，渲染正文才作为一条消息进入当前会话或分叉上下文。</p><span class="evidence">O</span></article>
+        <article class="step"><h3>执行并留下痕迹</h3><p>Claude 按正文读需要的资源并调用工具。正文留在会话，临时工具授权只活到下一条用户消息。</p><span class="evidence">O</span></article>
+      </div>
+    </section>
+
+    <section data-xray-section="flow">
+      <div class="section-head"><span class="section-no">04 FLOW</span><h2>文件怎样变成一次行动</h2></div>
+      <div class="flow-grid" role="img" aria-label="从技能目录到描述清单、渲染正文、会话消息和工具结果的数据流">
+        <article class="flow-card"><small>FILESYSTEM</small><h3>Skill 目录</h3><p>前言给出名称、描述与调用门，正文写流程，旁边放参考资料和脚本。</p></article>
+        <article class="flow-card"><small>CONTEXT LISTING</small><h3>轻量清单</h3><p>模型先看到候选名称和描述。手动专用项在这里保持隐藏。</p></article>
+        <article class="flow-card"><small>RENDER</small><h3>调用渲染</h3><p>参数、路径变量和动态命令结果进入正文。任何前置失败都在这里停止。</p></article>
+        <article class="flow-card"><small>MESSAGE</small><h3>会话消息</h3><p>正文以内联消息进入当前对话，或成为分叉子 Agent 的任务。</p></article>
+        <article class="flow-card"><small>ACTION</small><h3>工具与结果</h3><p>Claude 决定读哪些支持文件、调用哪些工具，结果再回到当前流程。</p></article>
+      </div>
+      <div class="callout"><strong><code>allowed-tools</code> 容易读错。</strong> 它只让列出的工具在本次调用回合免询问，并不把其他工具移走。其他工具仍受普通权限规则管理。<span class="evidence">O</span></div>
+    </section>
+
+    <section data-xray-section="limits">
+      <div class="section-head"><span class="section-no">05 LIMITS</span><h2>哪里会停，停下来剩什么</h2></div>
+      <div class="gate-table" aria-label="Skill 调用门与停止结果">
+        <div class="th">位置</div><div class="th">条件</div><div class="th">结果</div>
+        <div>发现</div><div>嵌套目录尚未被访问</div><div class="halt">不在自动补全，也不能按名称调用</div>
+        <div>描述</div><div>清单超出预算</div><div>名称保留，部分描述缩短，自动匹配可能变差</div>
+        <div>前言</div><div>YAML 无法解析</div><div>正文仍可手动调用，元数据为空，模型没有描述可匹配</div>
+        <div>调用门</div><div>模型入口或用户入口被关闭</div><div>对应角色不能调用，另一入口是否可用取决于字段</div>
+        <div>可见性</div><div><code>skillOverrides</code> 设为 off</div><div>模型清单与用户菜单都隐藏，完整名称调用也报错</div>
+        <div>权限</div><div>Skill 工具或具体 Skill 命中 deny</div><div>调用被拒绝，正文不应被当成已执行流程</div>
+        <div>动态注入</div><div>命令失败，或权限检查得到非 allow</div><div class="halt">整次调用中止，Claude 看不到这次正文</div>
+        <div>下一回合</div><div>用户发送新消息</div><div>正文仍在，临时工具授权清除</div>
+        <div>自动压缩</div><div>已调用 Skill 太多或过长</div><div>最近项优先再附加，较旧项可能整个掉出预算</div>
+      </div>
+    </section>
+
+    <section data-xray-section="experiment">
+      <div class="section-head"><span class="section-no">06 OBSERVATION</span><h2>这次只确认了静态入口</h2></div>
+      <div class="observation">
+        <div class="ticket">
+          <p><code>$ claude --version</code></p><p>2.1.248 (Claude Code)</p>
+          <p><code>$ claude --help</code></p><p>可见 add-dir、plugin-dir、disable-slash-commands 与工具权限入口</p>
+          <p><code>$ claude plugin validate --help</code></p><p>可校验目录里的 Skills、Agents 与 Commands</p>
+        </div>
+        <div class="verdict">
+          <p class="eyebrow">NO PAID SESSION · NO R</p>
+          <p class="big">documented</p>
+          <p>本机已经从固定基线 <code>2.1.247</code> 升到 <code>2.1.248</code>，可执行文件哈希也不再匹配。官方在线索引在次日同样变化。本轮没有启动可能计费的 Claude 会话，因此这些结果属于 L，只证明入口存在。</p>
+          <p>运行时的发现顺序、正文消息和停止点仍由 O 契约支撑，没有冒充 R。<span class="evidence">L ＋ O</span></p>
+        </div>
+      </div>
+    </section>
+
+    <section data-xray-section="implementation">
+      <div class="section-head"><span class="section-no">07 IMPLEMENTATION</span><h2>作者控制什么，Claude Code 控制什么</h2></div>
+      <div class="file-tree">
+        <article class="folder"><h3>Skill 作者留下的东西</h3><ul><li><code>SKILL.md</code> 前言里的名称、描述与调用字段</li><li>正文里的流程、资源导航和停止条件</li><li>同目录参考资料、例子与脚本</li><li>可选的参数与路径变量</li></ul></article>
+        <article class="folder"><h3>Claude Code 在运行时做的事</h3><ul><li>按位置发现并解决名称</li><li>按预算生成描述清单</li><li>处理调用门、参数替换与动态命令</li><li>把正文送往当前会话或分叉上下文</li></ul></article>
+      </div>
+      <details><summary>版本边界</summary><div><p>页面基线固定为 2026-08-27 的 Claude Code <code>2.1.247</code>。官方文档还标出几个较早变化。<code>2.1.218</code> 起分叉 Skill 默认可后台运行，<code>2.1.233</code> 起校验命令可定位前言问题，<code>2.1.246</code> 起会话用 <code>/cd</code> 移动后会加入新目录的项目 Skills。</p><p>本机次日已到 <code>2.1.248</code>。官方 changelog 没有宣称这一版改写 Skills 主链，这也不能证明内部实现完全没变。</p></div></details>
+      <details><summary>压缩以后</summary><div><p>调用过的 Skill 会随自动压缩重新附上。每个 Skill 最多保留最近调用的前 5000 token，合并预算为 25000 token，最近调用者先占预算。较旧 Skill 可能整个消失。<span class="evidence">O</span></p></div></details>
+      <details><summary>分叉以后</summary><div><p><code>context: fork</code> 把正文变成子 Agent 的任务。它看不到当前对话历史，结果完成后回到主对话。这个子 Agent 的完整生命周期属于 PAR-07，本页只记录正文改道的边界。<span class="evidence">O</span></p></div></details>
+    </section>
+
+    <section data-xray-section="unknowns">
+      <div class="section-head"><span class="section-no">08 UNKNOWNS</span><h2>公开材料没有说完的部分</h2></div>
+      <div class="unknown-grid">
+        <article class="unknown"><b>U01</b><h3>清单的精确位置</h3><p>Claude Code 的 system prompt 没有公开。描述清单在完整请求中的序列化格式、位置和周边文本仍未知。<span class="evidence">O ＋ I</span></p></article>
+        <article class="unknown"><b>U02</b><h3>模型怎样判定匹配</h3><p>官方说明描述会参与判断，也给出预算规则，没有公布固定分数、阈值或可重复的排序算法。<span class="evidence">O</span></p></article>
+        <article class="unknown"><b>U03</b><h3>支持文件读多少</h3><p>正文负责指路，模型按任务取用。官方没有承诺每个引用文件都读，也没有给出确定的读取次序。<span class="evidence">O ＋ I</span></p></article>
+        <article class="unknown"><b>U04</b><h3>旧版真实路径</h3><p>本机 <code>2.1.247</code> 已被替换。重新安装会改动机器，本轮没有这样做，旧版二进制上的真实调用仍待隔离复现。<span class="evidence">L</span></p></article>
+        <article class="unknown"><b>U05</b><h3>远端表面没有实测</h3><p>本轮没有登录 claude.ai，也没有启动 Cowork、cloud 或 SDK 请求。表面差异只写到官方契约允许的位置，仍缺 R。<span class="evidence">O</span></p></article>
+      </div>
+    </section>
+
+    <section data-xray-section="sources">
+      <div class="section-head"><span class="section-no">09 SOURCES</span><h2>一手来源与复现入口</h2></div>
+      <div class="sources">
+        <div class="source"><b>O · MAIN</b><a href="https://code.claude.com/docs/en/skills">官方 Skills 文档，证明发现位置、描述清单、按需正文、资源、调用与失败</a></div>
+        <div class="source"><b>O · MAP</b><a href="https://code.claude.com/docs/en/features-overview">官方扩展机制总览，证明 Skills 与常驻指令、插件和子 Agent 的分工</a></div>
+        <div class="source"><b>O · PLUGIN</b><a href="https://code.claude.com/docs/en/plugins-reference">官方 Plugins Reference，证明插件 Skill 的目录、自动发现和命名空间边界</a></div>
+        <div class="source"><b>O · SETTINGS</b><a href="https://code.claude.com/docs/en/settings">官方 Settings 文档，证明公开配置与 system prompt 未公开这一研究边界</a></div>
+        <div class="source"><b>O · ACCESS</b><a href="https://code.claude.com/docs/en/feature-availability">官方功能可用性文档，证明本地 Skills 与 Agent SDK 的提供商范围</a></div>
+        <div class="source"><b>O · AUTH</b><a href="https://code.claude.com/docs/en/authentication">官方认证文档，证明订阅、Console、云提供商与企业网关入口</a></div>
+        <div class="source"><b>O · SDK</b><a href="https://code.claude.com/docs/en/agent-sdk/skills">官方 Agent SDK Skills 文档，证明文件来源、按需加载与两处工具预授权入口</a></div>
+        <div class="source"><b>O · API</b><a href="https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview">官方 Agent Skills 总览，划清 Claude API、claude.ai 与本地主链</a></div>
+        <div class="source"><b>O · VERSION</b><a href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md">官方 changelog，核对 2.1.247 与次日版本差异</a></div>
+      </div>
+      <details><summary>怎样做一次完整复现</summary><div><ol><li>在隔离测试仓库固定安装 <code>2.1.247</code>，核对给定版本和哈希。</li><li>创建默认、手动专用、模型专用和嵌套四个无害 Skill。</li><li>在获准计费的会话里记录用户点名与模型匹配两条路径，只保留匿名化状态。</li><li>加一个只读支持文件和一个只读动态命令，再让另一个命令以状态 2 失败，核对正文是否在失败前进入上下文。</li><li>发送下一条用户消息并触发压缩，观察临时权限清除与正文再附加预算。</li></ol><p>详细命令边界、不能证明的事项和哈希摘要见同目录 <code>evidence.md</code>。</p></div></details>
+    </section>
+  </main>
+  <footer><div style="width:min(1180px,calc(100% - 2rem));margin:0 auto">EXT-01 · 研究日期 2026-08-28 · 页面状态 documented · <a href="../index.html">返回总索引</a></div></footer>
+</body>
+</html>

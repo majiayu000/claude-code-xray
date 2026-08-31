@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="COMP-UI-DESKTOP-PRMON">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>Desktop PR Monitor 的远端状态跟踪</title>
+  <style>
+    :root {
+      --night: #071013;
+      --panel: #0c171a;
+      --panel-2: #112126;
+      --paper: #e8eadf;
+      --muted: #9aaba8;
+      --line: #294047;
+      --green: #66f2a4;
+      --amber: #f7c85a;
+      --red: #ff6d64;
+      --blue: #73bff2;
+      --ink: #0b1619;
+      --shadow: 8px 8px 0 #020506;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--paper);
+      background-color: var(--night);
+      background-image:
+        linear-gradient(rgba(102, 242, 164, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(102, 242, 164, .035) 1px, transparent 1px);
+      background-size: 32px 32px;
+      font-family: "Iowan Old Style", "Songti SC", "STSong", serif;
+      line-height: 1.72;
+    }
+    a { color: var(--green); text-underline-offset: .24em; }
+    a:hover { color: #b7ffd1; }
+    a:focus-visible, summary:focus-visible { outline: 3px solid var(--amber); outline-offset: 4px; }
+    code, .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+    .wrap { width: min(1240px, calc(100% - 44px)); margin: 0 auto; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      border-bottom: 1px solid var(--line);
+      background: rgba(7, 16, 19, .94);
+      backdrop-filter: blur(10px);
+    }
+    .topbar .wrap { min-height: 58px; display: flex; align-items: center; gap: 18px; }
+    .unit {
+      color: var(--ink);
+      background: var(--green);
+      padding: 5px 10px;
+      font: 800 .72rem "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .05em;
+      white-space: nowrap;
+    }
+    nav { display: flex; flex-wrap: wrap; gap: 7px 16px; font-size: .84rem; }
+    nav a { color: var(--muted); text-decoration: none; }
+    nav a:hover { color: var(--paper); }
+    .index-link { margin-left: auto; white-space: nowrap; }
+    main { overflow: hidden; padding-bottom: 72px; }
+    section { scroll-margin-top: 80px; }
+    .hero {
+      min-height: calc(100svh - 58px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(430px, .98fr);
+      gap: 64px;
+      align-items: center;
+      padding: 70px 0 76px;
+    }
+    .eyebrow { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+    .chip {
+      border: 1px solid var(--line);
+      padding: 5px 10px;
+      color: var(--muted);
+      background: var(--panel);
+      font: 700 .75rem "SFMono-Regular", Menlo, monospace;
+    }
+    .chip.live { color: var(--amber); border-color: var(--amber); }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 {
+      max-width: 720px;
+      margin-bottom: 28px;
+      font-size: clamp(3rem, 7vw, 6.9rem);
+      line-height: .94;
+      letter-spacing: -.055em;
+      text-wrap: balance;
+    }
+    h1 span { color: var(--green); }
+    .lead { max-width: 720px; color: #d9ded5; font-size: clamp(1.08rem, 2vw, 1.36rem); }
+    .proof-note { max-width: 700px; color: var(--muted); font-size: .93rem; }
+    .tag { color: var(--green); font: 800 .68rem "SFMono-Regular", Menlo, monospace; letter-spacing: .08em; }
+    .tag.i { color: var(--blue); }
+    .tag.l { color: var(--amber); }
+    .tag.r { color: var(--red); }
+    .monitor {
+      position: relative;
+      border: 1px solid #58727a;
+      background: #081215;
+      box-shadow: var(--shadow);
+      transform: rotate(.55deg);
+    }
+    .monitor::after {
+      content: "REMOTE SIGNAL";
+      position: absolute;
+      right: 14px;
+      bottom: -30px;
+      color: #486168;
+      font: 800 .67rem "SFMono-Regular", Menlo, monospace;
+      letter-spacing: .2em;
+    }
+    .monitor-head { display: flex; align-items: center; gap: 8px; padding: 11px 13px; border-bottom: 1px solid var(--line); }
+    .lamp { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 14px rgba(102, 242, 164, .6); }
+    .monitor-title { margin-left: auto; color: var(--muted); font: .72rem "SFMono-Regular", Menlo, monospace; }
+    .pr-line { padding: 20px 22px 18px; display: flex; gap: 14px; align-items: center; border-bottom: 1px solid var(--line); }
+    .pr-number { color: var(--green); font: 800 1.5rem "SFMono-Regular", Menlo, monospace; }
+    .pr-line small { display: block; color: var(--muted); }
+    .check-list { padding: 12px 22px 20px; }
+    .check { display: grid; grid-template-columns: 12px 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #1d3035; }
+    .check:last-child { border-bottom: 0; }
+    .signal { width: 10px; height: 10px; border: 2px solid currentColor; border-radius: 50%; color: var(--amber); }
+    .signal.good { color: var(--green); background: var(--green); }
+    .signal.bad { color: var(--red); background: var(--red); }
+    .check em { color: var(--muted); font: normal .7rem "SFMono-Regular", Menlo, monospace; }
+    .toggles { display: grid; grid-template-columns: 1fr 1fr; border-top: 4px solid var(--green); }
+    .toggle { padding: 14px 18px; border-right: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+    .toggle:last-child { border-right: 0; }
+    .switch { display: inline-block; width: 30px; height: 16px; margin-right: 8px; border-radius: 999px; background: #84908c; vertical-align: -2px; }
+    .switch.on { background: #168c51; box-shadow: inset 15px 0 0 var(--green); }
+    .section { padding: 92px 0; border-top: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 30px; margin-bottom: 38px; }
+    .kicker { color: var(--green); font: 800 .73rem "SFMono-Regular", Menlo, monospace; letter-spacing: .16em; }
+    h2 { max-width: 880px; font-size: clamp(2rem, 4.4vw, 4.35rem); line-height: 1.08; letter-spacing: -.038em; text-wrap: balance; }
+    h3 { font-size: 1.16rem; }
+    .deck { max-width: 820px; color: var(--muted); font-size: 1.05rem; }
+    .legend { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
+    .legend article { min-height: 170px; padding: 23px; border-right: 1px solid var(--line); }
+    .legend article:last-child { border-right: 0; }
+    .badge {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 15px;
+      color: var(--green);
+      border: 1px solid currentColor;
+      font: 800 .82rem "SFMono-Regular", Menlo, monospace;
+    }
+    .badge.l { color: var(--amber); }
+    .badge.r { color: var(--red); }
+    .badge.i { color: var(--blue); }
+    .legend p, .card p, .card li { color: var(--muted); }
+    .timeline { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); }
+    .timeline::before { content: ""; position: absolute; top: 47px; left: 6%; right: 6%; height: 2px; background: var(--green); }
+    .step { position: relative; min-height: 280px; padding: 22px 18px; border: 1px solid var(--line); border-right: 0; background: var(--panel); }
+    .step:last-child { border-right: 1px solid var(--line); }
+    .step-no { position: relative; z-index: 2; display: grid; place-items: center; width: 50px; height: 50px; margin-bottom: 28px; color: var(--ink); background: var(--green); border-radius: 50%; font: 800 .82rem "SFMono-Regular", Menlo, monospace; }
+    .step:nth-child(4) .step-no { background: var(--red); }
+    .step p { margin-bottom: 0; color: var(--muted); font-size: .9rem; }
+    .flow-grid { display: grid; grid-template-columns: .9fr 1.2fr .9fr; gap: 16px; align-items: stretch; }
+    .card { border: 1px solid var(--line); background: var(--panel); padding: 25px; }
+    .card ul { margin: 15px 0 0; padding-left: 1.1em; }
+    .card li + li { margin-top: 8px; }
+    .pipe { display: grid; gap: 8px; }
+    .pipe-row { display: grid; grid-template-columns: 90px 1fr; min-height: 72px; border: 1px solid var(--line); background: var(--panel-2); }
+    .pipe-row b { display: grid; place-items: center; color: var(--ink); background: var(--green); font: 800 .69rem "SFMono-Regular", Menlo, monospace; }
+    .pipe-row:nth-child(2) b { background: var(--amber); }
+    .pipe-row:nth-child(3) b { background: var(--red); }
+    .pipe-row:nth-child(4) b { background: var(--blue); }
+    .pipe-row span { align-self: center; padding: 12px 15px; font-size: .91rem; }
+    .boundary { margin-top: 18px; border-left: 5px solid var(--blue); background: #0b1a21; padding: 22px 24px; color: #c5d6d8; }
+    .gates { display: grid; grid-template-columns: 1.08fr .92fr; gap: 18px; }
+    .gate-stack { display: grid; gap: 11px; }
+    .gate { display: grid; grid-template-columns: 150px 1fr; border: 1px solid var(--line); background: var(--panel); }
+    .gate b { padding: 16px; color: var(--ink); background: var(--amber); font-family: "SFMono-Regular", Menlo, monospace; }
+    .gate span { padding: 16px; }
+    .stopbox { border: 1px solid #704945; background: #211517; padding: 26px; }
+    .stopbox h3 { color: #ff9a91; }
+    .stopbox li + li { margin-top: 8px; }
+    .experiment-grid, .implementation-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .readout { padding: 25px; color: var(--ink); background: var(--paper); border-left: 5px solid var(--amber); }
+    .readout p { color: #3e5052; }
+    .readout.no-r { border-left-color: var(--red); }
+    .version-strip { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
+    .version { min-height: 180px; padding: 22px; border-right: 1px solid var(--line); background: var(--panel); }
+    .version:last-child { border-right: 0; }
+    .version strong { display: block; margin-bottom: 12px; color: var(--green); font: 800 .9rem "SFMono-Regular", Menlo, monospace; }
+    .version p { margin-bottom: 0; color: var(--muted); }
+    .neighbor { margin-top: 18px; padding: 24px; border: 1px solid var(--line); background: var(--panel-2); }
+    details { border-top: 1px solid var(--line); }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 21px 7px; font-size: 1.04rem; }
+    details p { max-width: 840px; padding: 0 7px 22px; color: var(--muted); }
+    .sources { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
+    .source { min-height: 180px; display: block; padding: 23px; border: 1px solid var(--line); background: var(--panel); text-decoration: none; }
+    .source:hover { border-color: var(--green); transform: translateY(-2px); }
+    .source b { display: block; margin-bottom: 10px; color: var(--paper); font-size: 1.08rem; }
+    .source span { color: var(--muted); }
+    .foot { margin-top: 34px; color: var(--muted); }
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; min-height: auto; }
+      .monitor { max-width: 700px; transform: none; }
+      .timeline { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .timeline::before { display: none; }
+      .step { min-height: 0; border-right: 1px solid var(--line); }
+      .flow-grid, .gates { grid-template-columns: 1fr; }
+      .legend, .version-strip { grid-template-columns: repeat(2, 1fr); }
+      .legend article:nth-child(2), .version:nth-child(2) { border-right: 0; }
+      .legend article:nth-child(-n+2), .version:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .sources { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .wrap { width: min(100% - 24px, 1240px); }
+      .topbar { position: static; }
+      .topbar .wrap { align-items: flex-start; padding: 12px 0; }
+      nav { display: none; }
+      .index-link { font-size: .8rem; }
+      .hero { padding: 46px 0 66px; gap: 38px; }
+      h1 { font-size: clamp(2.8rem, 15vw, 4.6rem); }
+      .monitor::after { display: none; }
+      .pr-line { padding-inline: 15px; }
+      .check-list { padding-inline: 15px; }
+      .toggles { grid-template-columns: 1fr; }
+      .toggle { border-right: 0; border-bottom: 1px solid #b6b9ae; }
+      .toggle:last-child { border-bottom: 0; }
+      .section { padding: 66px 0; }
+      .section-head { grid-template-columns: 1fr; gap: 10px; }
+      .legend, .timeline, .version-strip, .experiment-grid, .implementation-grid { grid-template-columns: 1fr; }
+      .legend article, .version { min-height: 0; border-right: 0; border-bottom: 1px solid var(--line); }
+      .legend article:last-child, .version:last-child { border-bottom: 0; }
+      .gate { grid-template-columns: 1fr; }
+      .gate b, .gate span { padding: 13px 15px; }
+      .pipe-row { grid-template-columns: 72px 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .source:hover { transform: none; }
+    }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Desktop PR Monitor 的远端状态跟踪。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260829-companion-desktop-pr-monitor/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="COMP-UI-DESKTOP-PRMON · Desktop PR Monitor 的远端状态跟踪">
+  <meta property="og:description" content="Claude Code X-Ray：Desktop PR Monitor 的远端状态跟踪。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260829-companion-desktop-pr-monitor/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="COMP-UI-DESKTOP-PRMON · Desktop PR Monitor 的远端状态跟踪">
+  <meta name="twitter:description" content="Claude Code X-Ray：Desktop PR Monitor 的远端状态跟踪。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>COMP-UI-DESKTOP-PRMON</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <div class="wrap">
+      <span class="unit">COMP-UI-DESKTOP-PRMON</span>
+      <nav aria-label="页内导航">
+        <a href="#sequence">顺序</a>
+        <a href="#flow">信号流</a>
+        <a href="#limits">权限与停止</a>
+        <a href="#unknowns">未知项</a>
+        <a href="#sources">来源</a>
+      </nav>
+      <a class="index-link" href="../index.html">返回总索引</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="wrap hero" data-xray-section="answer">
+      <div>
+        <p class="eyebrow">
+          <span class="chip live">当前状态 documented</span>
+          <span class="chip">Claude Code 2.1.247</span>
+          <span class="chip">伴页</span>
+        </p>
+        <h1>PR 开出以后<br><span>会话继续看守</span></h1>
+        <p class="lead">打开 GitHub PR 后，Desktop 会在会话里显示 CI 状态条，用本机 <code>gh</code> 轮询 checks，并把失败送回界面。用户可以让 Claude 自动修失败项，也可以等全部 checks 通过后 squash 合并。CI 结束会发桌面通知；PR 合并或关闭后，本地且已经停下的会话还能自动归档。<span class="tag">O</span></p>
+        <p class="proof-note">官方没有说明 Desktop 怎样判定 PR 属于当前会话，也没有公布关联键、轮询间隔或 review 展示。本页把 CLI 已知行为单独标出，不把它挪成 Desktop 运行事实。没有真实登录实验，状态保持 documented。</p>
+        <p><a href="../20260827-ui-05-desktop-workspace/explainer.html">回到主页面 UI-05 Desktop 项目会话与隔离工作区</a></p>
+      </div>
+
+      <div class="monitor" aria-label="PR checks 状态条示意">
+        <div class="monitor-head"><i class="lamp"></i><span class="mono">POLLING</span><span class="monitor-title">CI STATUS</span></div>
+        <div class="pr-line"><span class="pr-number">PR #184</span><span><strong>状态条已出现</strong><small>远端 checks 回到本地会话</small></span></div>
+        <div class="check-list">
+          <div class="check"><i class="signal good"></i><span>build</span><em>passed</em></div>
+          <div class="check"><i class="signal bad"></i><span>integration</span><em>failed</em></div>
+          <div class="check"><i class="signal"></i><span>required checks</span><em>pending</em></div>
+        </div>
+        <div class="toggles">
+          <div class="toggle"><i class="switch on"></i><strong>Auto-fix</strong></div>
+          <div class="toggle"><i class="switch"></i><strong>Auto-merge</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="terms">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">TERMS</p>
+          <div><h2>四种证据，各管一段距离</h2><p class="deck">重要结论旁边的字母说明它能走到哪里。本页有官方契约和本机只读观察，没有已登录的真实 PR 路径。</p></div>
+        </div>
+        <div class="legend">
+          <article><span class="badge">O</span><h3>官方契约</h3><p>Anthropic 官方文档与官方 changelog，说明产品承诺和版本变化。</p></article>
+          <article><span class="badge l">L</span><h3>本机静态</h3><p>当前 shell 能找到 <code>gh</code>，却不能调用 <code>claude</code>，安装包元数据也被系统拦住。</p></article>
+          <article><span class="badge r">R</span><h3>真实运行</h3><p>本页没有。没有登录 GitHub，也没有创建、修改或合并远端 PR。</p></article>
+          <article><span class="badge i">I</span><h3>研究推断</h3><p>只解释公开契约之间的连接，不能替代 Desktop 的内部状态与真实界面。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">SEQUENCE</p>
+          <div><h2>一条 PR 从出现到离开会话</h2><p class="deck">下面只把官方明确承诺的 Desktop 路径串起来。PR 怎样在内部与 session 绑定，仍然留白。</p></div>
+        </div>
+        <div class="timeline">
+          <article class="step"><span class="step-no">01</span><span class="tag i">O＋I</span><h3>打开 PR</h3><p>当前任务开出 GitHub PR。官方只承诺打开 PR 后出现状态条，没有公开 Desktop 怎样判定它属于当前会话，也没有说明保存哪一个关联键。</p></article>
+          <article class="step"><span class="step-no">02</span><span class="tag">O</span><h3>状态条出现</h3><p>会话开始显示 CI 状态。PR monitor 依赖本机已经安装并认证的 <code>gh</code>。</p></article>
+          <article class="step"><span class="step-no">03</span><span class="tag">O</span><h3>轮询 checks</h3><p>Desktop 让 GitHub CLI 查询 check 结果。pending 继续等待，failure 被送到会话。</p></article>
+          <article class="step"><span class="step-no">04</span><span class="tag">O</span><h3>失败后再改</h3><p>Auto-fix 开启时，Claude 读取失败输出并迭代。开关关闭时，官方没有承诺自动修改。</p></article>
+          <article class="step"><span class="step-no">05</span><span class="tag">O</span><h3>通过后合并</h3><p>Auto-merge 开启且所有 checks 通过以后，Desktop 尝试 squash 合并。仓库必须先允许 GitHub auto-merge。</p></article>
+          <article class="step"><span class="step-no">06</span><span class="tag">O</span><h3>通知与归档</h3><p>CI 结束时发送桌面通知。PR 合并或关闭后，开启 auto-archive 的本地已结束会话才会自动归档。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="flow" data-xray-section="flow">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">FLOW</p>
+          <div><h2>GitHub 的信号怎样回到会话</h2><p class="deck">公开资料能确认参与者和动作，不能确认 Desktop 的缓存文件、内部事件名或关联表。</p></div>
+        </div>
+        <div class="flow-grid">
+          <article class="card">
+            <span class="tag">用户</span>
+            <h3>决定自动化到哪一步</h3>
+            <ul><li>创建或打开 PR</li><li>打开 Auto-fix</li><li>打开 Auto-merge</li><li>在设置中打开 auto-archive</li></ul>
+          </article>
+          <div class="pipe" aria-label="PR 远端信号流">
+            <div class="pipe-row"><b>SESSION</b><span>PR 打开后，CI 状态条出现在会话中 <span class="tag">O</span></span></div>
+            <div class="pipe-row"><b>GH</b><span>本机 GitHub CLI 轮询远端 checks <span class="tag">O</span></span></div>
+            <div class="pipe-row"><b>CLAUDE</b><span>Auto-fix 读取失败输出并迭代 <span class="tag">O</span></span></div>
+            <div class="pipe-row"><b>DESKTOP</b><span>状态条更新，CI 完成时通知，终态可归档 <span class="tag">O</span></span></div>
+          </div>
+          <article class="card">
+            <span class="tag">GitHub</span>
+            <h3>提供远端判断</h3>
+            <ul><li>checks 的 pending、failure 与 success</li><li>仓库是否允许 auto-merge</li><li>PR 是否已经 merge 或 close</li><li>review 决策存在，但 Desktop 展示未获契约确认</li></ul>
+          </article>
+        </div>
+        <div class="boundary"><span class="tag i">O＋I</span> CLI 官方页面另外承诺 approved、pending review、changes requested 与 draft 四种 review 状态，也给了自己的刷新规则。Desktop 文档只承诺 CI checks 状态条。两处可能复用底层信息，本页没有证据把它写成同一条 UI 状态机。</div>
+      </div>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">LIMITS</p>
+          <div><h2>五道门决定监控能走多远</h2><p class="deck">Code tab 先检查账号与订阅。状态条还要能访问 GitHub，自动修复与自动合并也各有条件。远端失效仍没有一条已验证的恢复流程。</p></div>
+        </div>
+        <div class="gates">
+          <div class="gate-stack">
+            <div class="gate"><b>Code access</b><span>使用 Desktop Code tab 必须登录 Anthropic 账号，并持有有效的 Pro、Max、Team 或 Enterprise 订阅。界面要求升级或在线登录时，要先完成对应步骤。<span class="tag">O</span></span></div>
+            <div class="gate"><b>GitHub CLI</b><span><code>gh</code> 必须安装并认证。缺安装时，Desktop 在第一次尝试创建 PR 时提示安装。<span class="tag">O</span></span></div>
+            <div class="gate"><b>Auto-fix</b><span>用户要先开开关。关闭时停在失败展示，后续由用户处理。<span class="tag">O</span></span></div>
+            <div class="gate"><b>Auto-merge</b><span>用户开开关，checks 全部通过，仓库也允许 GitHub auto-merge，三项缺一项都会停住。<span class="tag">O</span></span></div>
+            <div class="gate"><b>Auto-archive</b><span>只处理 local 且已经停止运行的会话。PR merge 或 close 提供终态，设置仍要事先开启。<span class="tag">O</span></span></div>
+          </div>
+          <aside class="stopbox">
+            <h3>已知停止点与未知断点</h3>
+            <ul>
+              <li>Anthropic 账号未登录或缺少有效订阅时，Code tab 不能进入这条路径。</li>
+              <li>没有 PR 时，官方没有承诺 CI 状态条出现。</li>
+              <li><code>gh</code> 缺失或未认证时，监控前置条件不成立。</li>
+              <li>Auto-fix 关闭时，失败不会自动触发修复。</li>
+              <li>仓库没开 auto-merge 时，Desktop 不能替用户合并。</li>
+              <li>会话仍在运行时，merge 或 close 不会触发自动归档。</li>
+              <li>认证过期、仓库改名、PR 转移或权限撤回时怎样提示，官方没有说明。<span class="tag i">I</span></li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">EXPERIMENT</p>
+          <div><h2>这次只做了无账号的只读核对</h2><p class="deck">命令结果能说明工具是否可见，不能替代一次有 PR、有 CI 的 Desktop 会话。</p></div>
+        </div>
+        <div class="experiment-grid">
+          <article class="readout"><span class="tag l">L</span><h3><code>gh</code> 在当前 PATH</h3><p>本机可见 GitHub CLI <code>2.92.0</code>。没有运行认证状态检查，因此不知道账号、授权范围和仓库权限。</p></article>
+          <article class="readout"><span class="tag l">L</span><h3><code>claude</code> 不在当前 PATH</h3><p>版本与帮助命令都返回 command not found。本页仍按任务固定基线 <code>2.1.247</code> 写作，不声称本轮重验了二进制。</p></article>
+          <article class="readout"><span class="tag l">L</span><h3>Desktop 元数据被系统拦住</h3><p>读取安装包信息时得到 Operation not permitted。本页没有本机 Desktop 外壳版本，也没有把 Claude Code 版本冒充成外壳版本。</p></article>
+          <article class="readout no-r"><span class="tag r">R</span><h3>真实实验没有启动</h3><p>一次有效实验要先登录 Anthropic 账号并使用有效付费订阅，还要登录 GitHub、访问真实远端，并可能触发 push、修复和合并。本轮没有取得这些动作的权限，所以不会用普通 Git 命令假装验证了 GUI。</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">IMPLEMENTATION</p>
+          <div><h2>CLI 给出关联线索，仍解释不了 Desktop</h2><p class="deck">官方 changelog 公开了 CLI 的几个节点。它们帮助界定能力出现的时间，不能单独证明 Desktop 会发现任意既有 PR，也不能证明两端使用同一份缓存。</p></div>
+        </div>
+        <div class="version-strip">
+          <article class="version"><strong>2.1.20</strong><p>CLI footer 加入 PR review 状态，包含 approved、changes requested、pending 与 draft。<span class="tag">O</span></p></article>
+          <article class="version"><strong>2.1.27</strong><p>加入 <code>--from-pr</code>，会话内成功执行 <code>gh pr create</code> 后会自动关联 PR。<span class="tag">O</span></p></article>
+          <article class="version"><strong>2.1.247</strong><p>CLI footer 在终端重新聚焦时，若上次检查还不到一分钟，会跳过重复检查。<span class="tag">O</span></p></article>
+          <article class="version"><strong>Desktop</strong><p>打开 PR 后出现 CI 状态条，Auto-fix、Auto-merge、通知与归档也有公开契约。PR 归属判定、关联主键、缓存位置与轮询周期没有公开。<span class="tag">O＋I</span></p></article>
+        </div>
+        <div class="neighbor"><h3>本页停在主页面的远端一侧</h3><p><a href="../20260827-ui-05-desktop-workspace/explainer.html">UI-05 主页面</a>讲 session、worktree、diff、terminal 与文件面板。这里从 PR 已存在开始，只追踪远端 checks 怎样回到那份会话。commit、push 与创建 PR 留给 PAR-04，Code Review 与 Ultrareview 留给 PAR-05，会话身份与恢复留给 CTX-02。</p></div>
+      </div>
+    </section>
+
+    <section class="section" id="unknowns" data-xray-section="unknowns">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">UNKNOWNS</p>
+          <div><h2>还不能替 Desktop 填上的空白</h2><p class="deck">这些问题会改变实验步骤、权限判断与故障恢复，暂时保留比补一个内部实现更可靠。</p></div>
+        </div>
+        <details open><summary>会话到底怎样绑定一个 PR</summary><p>CLI changelog 说明 <code>gh pr create</code> 成功后自动关联，也提供 <code>--from-pr</code>。Desktop 文档没有公开它用 branch、URL、number 还是 session metadata。</p></details>
+        <details><summary>checks 多久刷新一次</summary><p>Desktop 文档只写轮询。前台、后台、失焦、网络失败与长期 pending 时的间隔、退避和停止条件都没有公布。</p></details>
+        <details><summary>review 决策会不会进 Desktop</summary><p>CLI 明确显示四种 review 状态。Desktop 只明确 CI checks 状态条。本页没有 R，也没有静态实现证据把两者接成同一份展示。</p></details>
+        <details><summary>远端对象失效以后怎样恢复</summary><p>PR merge 或 close 的归档条件已经公开。认证过期、仓库删除、改名、PR 转移或权限撤回时，错误提示、重试上限和重新关联办法仍未知。</p></details>
+        <details><summary>Auto-fix 会试到什么时候</summary><p>官方写明会读取失败输出并迭代，没有给最大轮数、费用边界、权限等待、重复失败或新失败出现后的停止规则。</p></details>
+        <details><summary>通知会不会漏掉 rerun</summary><p>官方承诺 CI 完成时发桌面通知。多次 rerun 怎样合并通知，系统拒绝通知权限以后有没有会话内补偿，资料没有说明。</p></details>
+      </div>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="kicker">SOURCES</p>
+          <div><h2>三份一手资料把边界钉住</h2><p class="deck">完整事实表、命令结果与待批准实验步骤见本目录的 evidence.md。</p></div>
+        </div>
+        <div class="sources">
+          <a class="source" href="https://code.claude.com/docs/en/desktop"><b>Desktop 参考</b><span>证明 Code tab 的账号与订阅门槛，以及 CI 状态条、checks 轮询、自动动作、通知与归档条件</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/interactive-mode#pr-review-status"><b>Interactive mode</b><span>证明 CLI 的 review 状态、远端终态与 GitHub CLI 前置条件</span></a>
+          <a class="source" href="https://code.claude.com/docs/en/changelog"><b>Claude Code changelog</b><span>证明 PR footer、会话关联与 <code>2.1.247</code> 刷新边界</span></a>
+        </div>
+        <p class="foot">COMP-UI-DESKTOP-PRMON · documented · Claude Code 2.1.247 · <a href="../20260827-ui-05-desktop-workspace/explainer.html">返回 UI-05 主页面</a> · <a href="../index.html">返回总索引</a></p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

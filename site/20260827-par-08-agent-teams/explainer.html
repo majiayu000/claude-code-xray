@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="PAR-08">
+  <meta name="xray:status" content="documented">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>PAR-08 · Agent Teams 的共享任务、消息与结束</title>
+  <style>
+    :root { --ink:#17201d; --muted:#5b6761; --paper:#eee9dd; --paper-2:#e3ddcf; --line:#aea897; --dark:#16211f; --green:#1d5545; --signal:#a63a1b; --amber:#d59b2d; --focus:#755000; --focus-dark:#f3bd57; --white:#fffdf6; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:linear-gradient(rgba(22,33,31,.035) 1px,transparent 1px),var(--paper); background-size:100% 28px; font-family:"Avenir Next","PingFang SC","Noto Sans CJK SC",sans-serif; line-height:1.72; }
+    a { color:inherit; text-underline-offset:.24em; text-decoration-thickness:1px; }
+    a:hover { color:var(--signal); }
+    a:focus-visible, summary:focus-visible { outline:3px solid var(--focus); outline-offset:4px; border-radius:2px; }
+    code { font-family:"SFMono-Regular",Consolas,monospace; font-size:.9em; background:rgba(23,32,29,.08); padding:.12em .38em; border-radius:2px; }
+    .topbar { position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:center; gap:20px; padding:11px max(22px,calc((100vw - 1240px)/2)); color:var(--white); background:rgba(22,33,31,.96); border-bottom:3px solid var(--signal); backdrop-filter:blur(12px); font-size:13px; letter-spacing:.06em; }
+    .topbar nav { display:flex; flex-wrap:wrap; gap:7px 16px; }
+    .topbar a { color:var(--white); }
+    .topbar a:focus-visible { outline-color:var(--focus-dark); }
+    main { width:min(1240px,calc(100% - 44px)); margin:0 auto; }
+    section { scroll-margin-top:76px; }
+    .hero { min-height:690px; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(310px,.75fr); align-items:stretch; border-left:1px solid var(--line); border-right:1px solid var(--line); }
+    .hero-copy { padding:clamp(58px,8vw,118px) clamp(26px,7vw,88px) 62px; border-right:1px solid var(--line); }
+    .eyebrow { display:flex; align-items:center; gap:12px; margin:0 0 28px; color:var(--green); font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+    .eyebrow::before { content:""; width:36px; height:4px; background:var(--signal); }
+    h1,h2,h3 { font-family:"Iowan Old Style","Songti SC",STSong,serif; font-weight:600; line-height:1.16; }
+    h1 { margin:0; max-width:760px; font-size:clamp(47px,6.7vw,92px); letter-spacing:-.055em; }
+    h1 span { display:block; color:var(--signal); }
+    .lede { max-width:740px; margin:34px 0 0; font-size:clamp(19px,2.2vw,28px); line-height:1.5; }
+    .hero-note { margin-top:26px; max-width:650px; color:var(--muted); }
+    .hero-rail { padding:62px 34px; background:var(--paper-2); display:flex; flex-direction:column; justify-content:space-between; gap:32px; }
+    .status-stamp { width:fit-content; padding:7px 13px 5px; color:var(--signal); border:2px solid var(--signal); transform:rotate(-2deg); font-family:"SFMono-Regular",Consolas,monospace; font-size:13px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .mini-ledger { margin:0; }
+    .mini-ledger div { padding:14px 0; border-top:1px solid var(--line); }
+    .mini-ledger dt { color:var(--muted); font-size:12px; letter-spacing:.1em; }
+    .mini-ledger dd { margin:3px 0 0; font-weight:700; }
+    .legend { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+    .legend span { display:inline-flex; align-items:center; gap:8px; min-height:33px; padding:5px 9px; border:1px solid var(--line); background:rgba(255,255,255,.3); font-size:12px; font-weight:700; }
+    .legend b { color:var(--white); background:var(--green); padding:0 6px; }
+    .legend .r b { background:var(--signal); }
+    .legend .i b { background:var(--muted); }
+    .section { display:grid; grid-template-columns:250px minmax(0,1fr); border:1px solid var(--line); border-top:0; background:rgba(255,253,246,.36); }
+    .section-head { padding:50px 28px; border-right:1px solid var(--line); }
+    .section-head .num { color:var(--signal); font-family:"SFMono-Regular",monospace; font-size:13px; }
+    .section-head h2 { margin:10px 0 0; font-size:clamp(30px,3vw,45px); letter-spacing:-.035em; }
+    .section-body { padding:50px clamp(25px,5vw,68px) 60px; min-width:0; }
+    .section-body > :first-child { margin-top:0; }
+    .section-body > :last-child { margin-bottom:0; }
+    .terms-grid { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid var(--line); }
+    .term { padding:22px; border-right:1px solid var(--line); }
+    .term:last-child { border-right:0; }
+    .term h3 { margin:0 0 8px; font-size:22px; }
+    .term p { margin:0; color:var(--muted); font-size:14px; }
+    .timeline { display:grid; gap:0; }
+    .step { display:grid; grid-template-columns:70px 150px minmax(0,1fr); min-height:124px; border-top:1px solid var(--line); }
+    .step:last-child { border-bottom:1px solid var(--line); }
+    .step-no { padding:26px 12px; color:var(--signal); font:700 23px/1 "SFMono-Regular",monospace; }
+    .step-state { padding:24px 18px; border-left:1px solid var(--line); border-right:1px solid var(--line); font-weight:800; }
+    .step-copy { padding:21px 26px; }
+    .step-copy p { margin:5px 0; }
+    .evidence-id { color:var(--green); font-family:"SFMono-Regular",monospace; font-size:12px; font-weight:800; }
+    .flow-board { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    .lane { min-height:260px; padding:20px; color:var(--white); background:var(--dark); border-top:5px solid var(--amber); }
+    .lane:nth-child(2) { border-color:var(--signal); }
+    .lane:nth-child(3) { border-color:#78a58c; }
+    .lane h3 { margin:0 0 18px; font-size:23px; }
+    .lane p { color:#d9dfda; font-size:14px; }
+    .lane .path { display:block; margin-top:18px; padding-top:14px; border-top:1px solid #53605b; word-break:break-word; }
+    .handoff { margin-top:18px; padding:18px 20px; border-left:5px solid var(--signal); background:rgba(226,87,45,.08); }
+    .gate-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .gate { padding:22px; border:1px solid var(--line); background:rgba(255,255,255,.27); }
+    .gate h3 { margin:0 0 9px; font-size:22px; }
+    .gate p { margin:0; color:var(--muted); }
+    .stopline { margin-top:18px; padding:22px; color:var(--white); background:var(--signal); }
+    .stopline strong { display:block; margin-bottom:7px; font-family:"Iowan Old Style","Songti SC",serif; font-size:24px; }
+    .access-note { margin-top:18px; padding:22px; border:2px solid var(--green); background:rgba(29,85,69,.07); }
+    .access-note h3 { margin:0 0 9px; color:var(--green); font-size:24px; }
+    .access-note p { margin:8px 0 0; }
+    .method { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(230px,.7fr); gap:18px; }
+    .terminal { padding:23px; color:#dce8e1; background:var(--dark); border-left:5px solid var(--amber); }
+    .terminal pre { white-space:pre-wrap; overflow-wrap:anywhere; margin:0; font-size:13px; line-height:1.7; }
+    .verdict { padding:22px; border:2px solid var(--signal); }
+    .verdict h3 { margin:0 0 7px; font-size:26px; color:var(--signal); }
+    .verdict p { margin:0; }
+    .version-strip { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid var(--line); }
+    .version { padding:18px; border-right:1px solid var(--line); }
+    .version:last-child { border-right:0; }
+    .version b { display:block; color:var(--signal); font-family:"SFMono-Regular",monospace; }
+    .version span { display:block; margin-top:7px; font-size:13px; }
+    details { border-top:1px solid var(--line); }
+    details:last-child { border-bottom:1px solid var(--line); }
+    summary { cursor:pointer; padding:17px 4px; font-weight:800; }
+    details p { margin:0 0 18px; color:var(--muted); }
+    .sources { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .source-link { display:block; min-height:112px; padding:20px; border:1px solid var(--line); text-decoration:none; background:rgba(255,255,255,.3); }
+    .source-link:hover { color:var(--ink); border-color:var(--signal); box-shadow:5px 5px 0 var(--signal); transform:translate(-2px,-2px); }
+    .source-link b { display:block; color:var(--signal); margin-bottom:7px; }
+    .foot { padding:45px 0 70px; display:flex; justify-content:space-between; gap:20px; color:var(--muted); font-size:13px; }
+    @media (max-width:880px) {
+      .topbar nav a:not(:first-child) { display:none; }
+      main { width:min(100% - 24px,720px); }
+      .hero { min-height:auto; grid-template-columns:1fr; }
+      .hero-copy { border-right:0; border-bottom:1px solid var(--line); }
+      .hero-rail { padding:32px 24px; }
+      .section { grid-template-columns:1fr; }
+      .section-head { padding:34px 24px 22px; border-right:0; border-bottom:1px solid var(--line); }
+      .section-body { padding:32px 24px 42px; }
+      .terms-grid,.version-strip { grid-template-columns:1fr 1fr; }
+      .term:nth-child(2),.version:nth-child(2) { border-right:0; }
+      .term:nth-child(-n+2),.version:nth-child(-n+2) { border-bottom:1px solid var(--line); }
+      .flow-board { grid-template-columns:1fr; }
+      .lane { min-height:auto; }
+      .method { grid-template-columns:1fr; }
+    }
+    @media (max-width:540px) {
+      .topbar { padding:10px 14px; }
+      main { width:calc(100% - 16px); }
+      .hero-copy { padding:48px 22px 42px; }
+      h1 { font-size:clamp(43px,14vw,65px); }
+      .hero-rail { padding:28px 20px; }
+      .terms-grid,.version-strip,.gate-grid,.sources { grid-template-columns:1fr; }
+      .term,.version { border-right:0; border-bottom:1px solid var(--line); }
+      .term:last-child,.version:last-child { border-bottom:0; }
+      .section-head { padding:30px 20px 20px; }
+      .section-body { padding:28px 20px 38px; }
+      .step { grid-template-columns:48px minmax(0,1fr); }
+      .step-no { grid-row:1 / span 2; padding:22px 8px; }
+      .step-state { border-right:0; padding:17px 15px 8px; }
+      .step-copy { grid-column:2; padding:4px 15px 21px; }
+      .foot { flex-direction:column; }
+    }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } * { transition:none !important; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Agent Teams 的共享任务、消息与结束。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-par-08-agent-teams/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="PAR-08 · Agent Teams 的共享任务、消息与结束">
+  <meta property="og:description" content="Claude Code X-Ray：Agent Teams 的共享任务、消息与结束。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-par-08-agent-teams/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="PAR-08 · Agent Teams 的共享任务、消息与结束">
+  <meta name="twitter:description" content="Claude Code X-Ray：Agent Teams 的共享任务、消息与结束。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>PAR-08</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
+  <header class="topbar">
+    <a href="../index.html">← 返回总索引</a>
+    <nav aria-label="页内导航"><a href="#sequence">时序</a><a href="#flow">文件流</a><a href="#limits">停止门</a><a href="#sources">来源</a></nav>
+  </header>
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div class="hero-copy">
+        <p class="eyebrow">PAR-08 · Claude Code XRY</p>
+        <h1 id="answer-title">一个 team，<span>一张共享工单。</span></h1>
+        <p class="lede">Lead 拉起具名 teammate。大家各有自己的上下文，却看同一批任务，也能直接互发消息。用户决定收尾时，lead 发出关闭请求；会话退出后，运行配置自动清掉，任务记录继续留在本机。</p>
+        <p class="hero-note">这条链只在启用实验开关的交互会话里成立。它没有给 teammate 自动分 worktree，也不会让权限批准在 agent 之间代传。</p>
+      </div>
+      <aside class="hero-rail" aria-label="页面状态与证据">
+        <div class="status-stamp">documented · 已文档化</div>
+        <dl class="mini-ledger"><div><dt>冻结基线</dt><dd>Claude Code 2.1.247</dd></div><div><dt>证据日期</dt><dd>2026-08-30</dd></div><div><dt>真实实验</dt><dd>未运行，避免模型用量与私人状态写入</dd></div><div><dt>核心范围</dt><dd>创建、领任务、消息、移交、关闭</dd></div></dl>
+        <div class="legend" aria-label="O L R I 证据图例"><span><b>O</b>官方契约</span><span><b>L</b>本机静态</span><span class="r"><b>R</b>真实运行</span><span class="i"><b>I</b>研究推断</span></div>
+      </aside>
+    </section>
+
+    <section class="section" data-xray-section="terms" aria-labelledby="terms-title">
+      <header class="section-head"><span class="num">01</span><h2 id="terms-title">四个角色</h2></header>
+      <div class="section-body"><div class="terms-grid">
+        <article class="term"><h3>Lead</h3><p>主会话。拉人、分工、收结果，最后也由它发起关闭。lead 身份不能移交。</p></article>
+        <article class="term"><h3>Teammate</h3><p>独立 Claude Code 实例。拥有自己的上下文窗口和具名地址，只接到项目上下文与拉起时的提示。</p></article>
+        <article class="term"><h3>Task list</h3><p>共享任务表。状态只有待领、进行中和完成，负责人和依赖也记在这里。</p></article>
+        <article class="term"><h3>Mailbox</h3><p>按 agent 分开的本地 JSON 信箱。普通消息、完成通知和关闭协议都经这里送达。</p></article>
+      </div></div>
+    </section>
+
+    <section class="section" id="sequence" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <header class="section-head"><span class="num">02</span><h2 id="sequence-title">一次 team 的时序</h2></header>
+      <div class="section-body"><div class="timeline">
+        <article class="step"><div class="step-no">0</div><div class="step-state">隐式 team</div><div class="step-copy"><span class="evidence-id">O · 2.1.178+</span><p>实验开关为 1 时，交互会话已经带着一个 session 级 team。当前版本没有 TeamCreate，也没有自定义第二个 team。</p></div></article>
+        <article class="step"><div class="step-no">1</div><div class="step-state">拉起成员</div><div class="step-copy"><span class="evidence-id">O</span><p>用户告诉 lead 需要哪些 teammate。lead 用具名 Agent 调用拉起成员。Claude Code 不另弹出建 team 的确认。成员会重新加载常规项目上下文，lead 先前的对话不会跟着过去，分工要求要写进拉起提示或后续消息。</p></div></article>
+        <article class="step"><div class="step-no">2</div><div class="step-state">生成工单</div><div class="step-copy"><span class="evidence-id">O</span><p>Lead 建任务和依赖。任务先处于 pending，领取后改为 in progress。依赖未完成时，领取入口保持阻塞。共享表让其他成员看见谁正在做什么，也让 lead 找到迟迟没有推进的任务。</p></div></article>
+        <article class="step"><div class="step-no">3</div><div class="step-state">领取工作</div><div class="step-copy"><span class="evidence-id">O</span><p>Lead 可以指派，teammate 也能自领一个未分配且未阻塞的任务。文件锁处理同时争抢。</p></div></article>
+        <article class="step"><div class="step-no">4</div><div class="step-state">消息与移交</div><div class="step-copy"><span class="evidence-id">O + I</span><p>成员按名字互发消息。冻结的 2.1.247 会把 idle 通知送到 lead，通知却可能漏掉 teammate 的最终回答。给全组发同一条消息时，发送方仍要逐个投递。官方没有独立 handoff 事务。先用明确消息送出已有发现，确认 mailbox 写入成功，再调整负责人或任务状态，是本页基于现有工具给出的稳妥次序。</p></div></article>
+        <article class="step"><div class="step-no">5</div><div class="step-state">完成与解锁</div><div class="step-copy"><span class="evidence-id">O</span><p>任务进入 completed 后，下游依赖自动解除。TaskCompleted hook 可以拒绝这次完成，并把理由送回执行者。</p></div></article>
+        <article class="step"><div class="step-no">6</div><div class="step-state">关闭与退出</div><div class="step-copy"><span class="evidence-id">O</span><p>Lead 给具名 teammate 发 shutdown request。对方可接受或拒绝。会话结束后 team config 自动删除，task 目录继续保留。</p></div></article>
+      </div></div>
+    </section>
+
+    <section class="section" id="flow" data-xray-section="flow" aria-labelledby="flow-title">
+      <header class="section-head"><span class="num">03</span><h2 id="flow-title">三股本地数据</h2></header>
+      <div class="section-body">
+        <div class="flow-board">
+          <article class="lane"><h3>运行成员</h3><p>config 记录 lead、teammate 名字、agent ID 与 pane 等运行信息。程序会覆盖手工改动。</p><span class="path"><code>teams/{session-name}/config.json</code></span></article>
+          <article class="lane"><h3>定向消息</h3><p>每个收件人有一个 mailbox。写入成功才算发送成功，无法写入会当场返回错误。</p><span class="path"><code>teams/{session-name}/inboxes/{agent}.json</code></span></article>
+          <article class="lane"><h3>共享任务</h3><p>task 目录保存任务与依赖。team config 随会话退出清理；恢复后只有任务还在，in-process 成员需要重新拉起。</p><span class="path"><code>tasks/{session-name}/</code></span></article>
+        </div>
+        <div class="handoff"><strong>I · 移交要分两步看。</strong>消息负责把上下文交给下一位，任务更新负责改责任与状态。交出工作的人应先写清已经查到什么，接手的人还要从哪一步继续。消息写入失败时，责任记录不宜先改，否则共享任务会显示有人接手，真正需要的上下文却留在原成员那里。官方没有承诺两份本地状态跨文件原子提交，所以页面不把它画成一次不可分割的动作。</div>
+      </div>
+    </section>
+
+    <section class="section" id="limits" data-xray-section="limits" aria-labelledby="limits-title">
+      <header class="section-head"><span class="num">04</span><h2 id="limits-title">权限门与停止点</h2></header>
+      <div class="section-body">
+        <div class="gate-grid">
+          <article class="gate"><h3>开关门</h3><p>默认关闭。没有实验环境变量，会话不会建立 team 目录，也不会拉起 teammate。非交互模式仍走普通 subagent。</p></article>
+          <article class="gate"><h3>权限门</h3><p>Teammate 起步时继承 lead 的权限设置，后续请求显示在 lead 会话。来自另一个 agent 的批准说法不能代替用户同意。</p></article>
+          <article class="gate"><h3>质量门</h3><p>TaskCompleted 可阻止任务完成。TeammateIdle 可把反馈送回去，让成员继续工作，也可明确停止该成员。</p></article>
+          <article class="gate"><h3>一致性门</h3><p>任务状态偶尔会滞后，依赖任务随之卡住。Mailbox 无法写入时消息没有送达；两个成员改同一文件还可能互相覆盖。</p></article>
+        </div>
+        <aside class="access-note"><h3>登录与模型用量</h3><p>Agent Teams 沿用当前 Claude Code 会话的凭据。首次运行或 /login 可以进入认证流程。Pro、Max、Team 与 Enterprise 使用 Claude.ai 账户，Console 使用受邀的 Console 凭据；Bedrock、Google Cloud 和 Microsoft Foundry 走各自的云端认证。</p><p>Pro 与 Max 的模型用量包含在订阅中，并受套餐限制。Team 与 Enterprise 从成员席位额度扣用量，这份额度还与 Claude chat 和 Cowork 共用。Console 与云提供商按 token 向组织计费。每个活跃 teammate 都有自己的上下文窗口，用量会随活跃人数和运行时间增长，直到成员退出或会话结束。用 /usage 查看当前口径，完成工作后及时关闭成员。</p></aside>
+        <div class="stopline"><strong>关闭请求不等于立即退出。</strong>Teammate 可以拒绝，也可能先做完当前请求或工具调用。Lead 需要等成员接受关闭，不能把请求发出当成已经退出。主会话的 lead 固定不变，成员不能再建嵌套 team。整个会话退出以后，运行成员配置会被清掉，任务记录仍按本机留存规则保留。</div>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <header class="section-head"><span class="num">05</span><h2 id="experiment-title">本机只读核对</h2></header>
+      <div class="section-body">
+        <div class="method">
+          <div class="terminal" aria-label="本机命令摘要"><pre>2.1.247 frozen binary
+sha256 5086…a8f7
+--help → teammate-mode not listed
+--teammate-mode in-process → accepted
+invalid mode → auto | tmux | iterm2 | in-process</pre></div>
+          <aside class="verdict"><h3>documented</h3><p>O 与 L 已对过。R 缺席，因为拉起 team 会产生新的模型用量并写入私人状态区，本轮没有这两项授权。</p></aside>
+        </div>
+        <p>研究当天默认入口已经升级到 2.1.250。这里单独运行仍在安装目录里的 2.1.247 冻结文件，版本与题设哈希相符。静态参数解析只能证明 CLI 带着这个入口，不能证明 team 已经真实运行。</p>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <header class="section-head"><span class="num">06</span><h2 id="implementation-title">实现与版本断点</h2></header>
+      <div class="section-body">
+        <div class="version-strip"><div class="version"><b>2.1.178</b><span>移除 TeamCreate 与 TeamDelete，切到每会话一个隐式 team。</span></div><div class="version"><b>2.1.198</b><span>API 错误退出的 teammate 会向 lead 报告 failed。</span></div><div class="version"><b>2.1.207</b><span>畸形 mailbox 条目不再造成每秒循环报错。</span></div><div class="version"><b>2.1.224</b><span>Mailbox 写失败不再误报为消息发送成功。</span></div></div>
+        <p>2.1.247 还继承了两处较近变化。2.1.199 调整了 idle teammate 在面板里的保留时间，2.1.234 移除了默认 teammate 模型设置。页面的生命周期结论按这些变更后的契约书写。</p>
+        <p><strong>2.1.247 的最终回答有已知缺陷。</strong>Teammate 进入 idle 时，lead 可能只收到不带内容的可用通知。2.1.251 才把最终回答放进 idle 通知。本页固定在 2.1.247，移交步骤因此要求成员另发一条明确消息。</p>
+        <p><strong>Dynamic workflow 的边界。</strong>它把编排写进 JavaScript 脚本，由 runtime 执行，适合更大的 fan-out。Agent team 仍由固定 lead 按共享任务和消息逐回合协调。本页不展开 workflow 自己的暂停、恢复和脚本状态。</p>
+      </div>
+    </section>
+
+    <section class="section" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <header class="section-head"><span class="num">07</span><h2 id="unknowns-title">还没有证据的地方</h2></header>
+      <div class="section-body">
+        <details open><summary>任务移交有没有原子保证</summary><p>官方分别写了 task 更新和 mailbox 投递，没有承诺两者跨文件原子完成。页面只给出先传发现、再改责任的研究建议。</p></details>
+        <details><summary>拒绝 shutdown 后 lead 怎样重试</summary><p>官方允许 teammate 拒绝并附理由，却没有公开固定的重试次数、等待时间或升级到强停的默认状态机。</p></details>
+        <details><summary>异常退出时先清哪一份状态</summary><p>官方说明正常会话结束会删 team config 并留下 task。崩溃、强停和遗留 tmux pane 的精确清理次序未做真实实验。</p></details>
+        <details><summary>2.1.247 的锁文件长什么样</summary><p>官方承诺领取任务使用文件锁。本轮遵守隐私边界，没有查看个人 team 或 task 目录，也没有建立临时 team 来观察结构。</p></details>
+      </div>
+    </section>
+
+    <section class="section" id="sources" data-xray-section="sources" aria-labelledby="sources-title">
+      <header class="section-head"><span class="num">08</span><h2 id="sources-title">一手来源与复现</h2></header>
+      <div class="section-body">
+        <div class="sources">
+          <a class="source-link" href="https://code.claude.com/docs/en/agent-teams"><b>O · Agent Teams 官方指南</b>证明隐式 team、任务、消息、权限、关闭、存储与限制。</a>
+          <a class="source-link" href="https://code.claude.com/docs/en/agents"><b>O · 并行方式官方对比</b>证明 team 与 subagent、Agent View、worktree 和 workflow 的边界。</a>
+          <a class="source-link" href="https://code.claude.com/docs/en/hooks"><b>O · Hooks 官方参考</b>证明 TaskCompleted 与 TeammateIdle 的阻止和停止语义。</a>
+          <a class="source-link" href="https://code.claude.com/docs/en/workflows"><b>O · Dynamic workflows 官方指南</b>证明脚本编排和共享任务编排的差别。</a>
+          <a class="source-link" href="https://code.claude.com/docs/en/authentication"><b>O · 认证官方指南</b>证明订阅账户、Console 与云提供商的登录路径。</a>
+          <a class="source-link" href="https://code.claude.com/docs/en/costs"><b>O · 用量与费用官方指南</b>证明订阅额度、按 token 计费和 teammate 用量边界。</a>
+          <a class="source-link" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><b>O · 官方仓库 changelog</b>证明 2.1.178 以来与 team 直接相关的版本断点。</a>
+          <span class="xry-evidence-note" title="公开版不携带原始证据文件；证据摘要与来源保留在本页">证据摘要已并入本页</span>
+        </div>
+        <p>安全复现需要固定 2.1.247，使用临时配置目录和空白仓库，先观察隐式 team，再核对争抢、依赖、消息失败和 shutdown。完成后删除整个临时环境。不要对个人 Claude 状态目录做这项实验。</p>
+      </div>
+    </section>
+    <footer class="foot"><span>PAR-08 · 状态 documented · Claude Code 2.1.247</span><a href="../index.html">返回总索引</a></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="xray:feature-id" content="ADM-08">
+  <meta name="xray:status" content="verified">
+  <meta name="xray:claude-code-version" content="2.1.247">
+  <title>ADM-08 · Doctor 检查与本机故障诊断</title>
+  <style>
+    :root {
+      --ink: #e9f0e8;
+      --muted: #9eaca5;
+      --paper: #0c1211;
+      --panel: #121b19;
+      --panel-2: #18221f;
+      --line: #31413b;
+      --green: #a7f46a;
+      --amber: #ffbd59;
+      --red: #ff756f;
+      --cyan: #6edbd0;
+      --shadow: 0 24px 80px rgba(0,0,0,.28);
+      --mono: "SFMono-Regular", "Cascadia Mono", "Liberation Mono", monospace;
+      --serif: "Iowan Old Style", "Songti SC", "STSong", serif;
+      --sans: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(110,219,208,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(110,219,208,.035) 1px, transparent 1px),
+        radial-gradient(circle at 78% 9%, rgba(167,244,106,.08), transparent 30rem),
+        var(--paper);
+      background-size: 28px 28px, 28px 28px, auto, auto;
+      font-family: var(--sans);
+      line-height: 1.72;
+    }
+    a { color: var(--cyan); text-underline-offset: .22em; }
+    a:hover { color: var(--green); }
+    a:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 4px;
+      border-radius: 2px;
+    }
+    code {
+      font-family: var(--mono);
+      color: #d7fbc1;
+      background: #0a100e;
+      border: 1px solid #26342f;
+      padding: .08rem .35rem;
+      border-radius: 3px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .topbar strong { color: var(--green); }
+    main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+    section { scroll-margin-top: 24px; }
+    .hero {
+      min-height: 77vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+      gap: clamp(2rem, 6vw, 6rem);
+      align-items: center;
+      padding: clamp(4rem, 10vh, 8rem) 0 5rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow {
+      margin: 0 0 1rem;
+      color: var(--amber);
+      font: 700 .78rem/1.3 var(--mono);
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { margin: 0; line-height: 1.12; }
+    h1 {
+      max-width: 11ch;
+      font-family: var(--serif);
+      font-size: clamp(3.5rem, 8vw, 7.5rem);
+      font-weight: 700;
+      letter-spacing: -.055em;
+    }
+    h1 .cursor { color: var(--green); }
+    .lede {
+      max-width: 44rem;
+      margin: 2rem 0 0;
+      color: #d1dbd5;
+      font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+    }
+    .truth-strip {
+      display: grid;
+      gap: 1px;
+      padding: 1px;
+      background: var(--line);
+      box-shadow: var(--shadow);
+    }
+    .truth-strip > div { padding: 1.25rem 1.35rem; background: var(--panel); }
+    .truth-strip small {
+      display: block;
+      color: var(--muted);
+      font: .72rem/1.4 var(--mono);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    .truth-strip b { display: block; margin-top: .3rem; font-size: 1.03rem; }
+    .signal { display: inline-flex; align-items: center; gap: .55rem; }
+    .signal::before {
+      content: "";
+      width: .65rem;
+      height: .65rem;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 .22rem rgba(167,244,106,.13);
+    }
+    .caveat { border-left: 4px solid var(--amber); }
+    .caveat b { color: var(--amber); }
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      margin-top: 1px;
+      background: var(--line);
+    }
+    .legend div { background: #0e1614; padding: .8rem; }
+    .legend strong { color: var(--green); font-family: var(--mono); }
+    .section-head {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 2rem;
+      align-items: end;
+      margin-bottom: 2.2rem;
+    }
+    .section-head span { color: var(--amber); font: 700 .76rem var(--mono); letter-spacing: .12em; }
+    h2 { max-width: 17ch; font-family: var(--serif); font-size: clamp(2.1rem, 4.6vw, 4.2rem); letter-spacing: -.035em; }
+    h3 { font-size: 1.05rem; }
+    .block { padding: clamp(4.5rem, 9vw, 8rem) 0; border-bottom: 1px solid var(--line); }
+    .terms-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .term {
+      min-height: 240px;
+      padding: 1.5rem;
+      background: var(--panel);
+      border-top: 3px solid var(--cyan);
+    }
+    .term:nth-child(2) { border-color: var(--green); transform: translateY(1.5rem); }
+    .term:nth-child(3) { border-color: var(--amber); }
+    .term .num { color: var(--muted); font: .75rem var(--mono); }
+    .term h3 { margin: 3.8rem 0 .7rem; font-size: 1.25rem; }
+    .term p { margin: 0; color: var(--muted); }
+    .sequence {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      counter-reset: step;
+    }
+    .step {
+      position: relative;
+      padding: 1.4rem 1.1rem 1.4rem 1.35rem;
+      min-height: 230px;
+      border: 1px solid var(--line);
+      border-right: 0;
+      background: rgba(18,27,25,.78);
+    }
+    .step:last-child { border-right: 1px solid var(--line); }
+    .step::before {
+      counter-increment: step;
+      content: "0" counter(step);
+      display: block;
+      margin-bottom: 3.2rem;
+      color: var(--amber);
+      font: .75rem var(--mono);
+    }
+    .step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      top: 2rem;
+      right: -.32rem;
+      width: .55rem;
+      height: .55rem;
+      rotate: 45deg;
+      background: var(--green);
+    }
+    .step p { margin: .7rem 0 0; color: var(--muted); font-size: .92rem; }
+    .flow-board {
+      display: grid;
+      grid-template-columns: 1fr 70px 1.15fr 70px 1fr;
+      align-items: stretch;
+      gap: 0;
+    }
+    .flow-node {
+      padding: 1.5rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+    .flow-node h3 { color: var(--green); margin-bottom: 1rem; }
+    .flow-node ul { margin: 0; padding-left: 1.1rem; color: var(--muted); }
+    .arrow { display: grid; place-items: center; color: var(--amber); font: 2rem var(--mono); }
+    .write-note {
+      grid-column: 3 / 6;
+      margin-top: 1rem;
+      padding: 1rem 1.25rem;
+      border: 1px dashed var(--amber);
+      color: #f6d7a4;
+      background: rgba(255,189,89,.055);
+    }
+    .result-guide {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      margin-top: 1.2rem;
+      padding: 1px;
+      background: var(--line);
+    }
+    .result-guide article { padding: 1.25rem; background: var(--panel); }
+    .result-guide h3 { color: var(--green); }
+    .result-guide article:nth-child(2) h3 { color: var(--amber); }
+    .result-guide article:nth-child(3) h3 { color: var(--red); }
+    .result-guide p { margin: .6rem 0 0; color: var(--muted); }
+    .stop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .stop-card { padding: 1.5rem; background: var(--panel); border-left: 5px solid var(--red); }
+    .stop-card.ok { border-color: var(--green); }
+    .stop-card.warn { border-color: var(--amber); }
+    .stop-card p { margin-bottom: 0; color: var(--muted); }
+    .experiment {
+      display: grid;
+      grid-template-columns: .82fr 1.18fr;
+      gap: 2rem;
+      align-items: start;
+    }
+    .terminal {
+      overflow: hidden;
+      border: 1px solid #3d4e48;
+      background: #070c0b;
+      box-shadow: var(--shadow);
+      font: .88rem/1.65 var(--mono);
+    }
+    .terminal-bar { padding: .65rem 1rem; background: #1b2522; color: var(--muted); border-bottom: 1px solid #3d4e48; }
+    .terminal pre { margin: 0; padding: 1.2rem; overflow-x: auto; white-space: pre-wrap; color: #d9e8df; }
+    .terminal .good { color: var(--green); }
+    .terminal .warn { color: var(--amber); }
+    .finding { padding: 1.3rem 0; border-top: 1px solid var(--line); }
+    .finding:first-child { border-top: 0; padding-top: 0; }
+    .finding b { color: var(--amber); }
+    .finding p { margin: .45rem 0 0; color: var(--muted); }
+    .impl-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    details { background: var(--panel); border: 1px solid var(--line); }
+    summary { cursor: pointer; padding: 1.15rem 1.25rem; font-weight: 700; color: var(--ink); }
+    details p, details ul { margin: 0; padding: 0 1.25rem 1.25rem; color: var(--muted); }
+    details ul { padding-left: 2.5rem; }
+    .unknown-list { display: grid; gap: 1px; background: var(--line); }
+    .unknown {
+      display: grid;
+      grid-template-columns: 4.5rem 1fr;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: var(--panel);
+    }
+    .unknown b { color: var(--red); font: .8rem var(--mono); }
+    .unknown p { margin: 0; }
+    .sources { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .source {
+      min-height: 150px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.3rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      text-decoration: none;
+    }
+    .source span { color: var(--muted); font: .74rem var(--mono); }
+    .source strong { color: var(--ink); }
+    .source:hover { border-color: var(--green); background: var(--panel-2); }
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 2rem 0 3rem;
+      color: var(--muted);
+      font: .78rem var(--mono);
+    }
+    @media (max-width: 900px) {
+      .hero { min-height: auto; grid-template-columns: 1fr; }
+      .truth-strip { max-width: 620px; }
+      .terms-grid { grid-template-columns: 1fr; }
+      .term { min-height: auto; }
+      .term h3 { margin-top: 2.4rem; }
+      .term:nth-child(2) { transform: none; }
+      .sequence { grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); }
+      .step, .step:last-child { border: 0; }
+      .step:not(:last-child)::after { display: none; }
+      .flow-board { grid-template-columns: 1fr; gap: .7rem; }
+      .arrow { rotate: 90deg; min-height: 40px; }
+      .write-note { grid-column: auto; }
+      .result-guide { grid-template-columns: 1fr; }
+      .experiment { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px) {
+      .topbar, main { width: min(100% - 28px, 1180px); }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .hero { padding-top: 3.3rem; }
+      h1 { font-size: clamp(3.1rem, 16vw, 5rem); }
+      .legend { grid-template-columns: 1fr 1fr; }
+      .section-head { grid-template-columns: 1fr; gap: .8rem; }
+      .sequence, .stop-grid, .impl-grid, .sources { grid-template-columns: 1fr; }
+      .unknown { grid-template-columns: 1fr; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+  <meta name="description" content="Claude Code X-Ray：Doctor 检查与本机故障诊断。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <link rel="canonical" href="http://127.0.0.1:5580/20260827-adm-08-doctor-diagnostics/explainer.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Claude Code X-Ray">
+  <meta property="og:title" content="ADM-08 · Doctor 检查与本机故障诊断">
+  <meta property="og:description" content="Claude Code X-Ray：Doctor 检查与本机故障诊断。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:url" content="http://127.0.0.1:5580/20260827-adm-08-doctor-diagnostics/explainer.html">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ADM-08 · Doctor 检查与本机故障诊断">
+  <meta name="twitter:description" content="Claude Code X-Ray：Doctor 检查与本机故障诊断。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+
+  <style id="xry-public-style">
+    .xry-public-nav{position:relative;z-index:9999;display:flex;align-items:center;gap:.75rem;
+      padding:.65rem max(1rem,calc((100vw - 1180px)/2));background:#0b1212;color:#f3ead7;
+      border-bottom:1px solid #41504c;font:700 12px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .xry-public-nav a{color:#8bd9bc;text-decoration:none}.xry-public-nav a:hover{text-decoration:underline}
+    .xry-public-nav span{color:#9ba8a3}.xry-public-nav .xry-public-spacer{flex:1}
+    .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
+    @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
+  </style>
+</head>
+<body>
+<nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>ADM-08</span><span class="xry-public-spacer"></span><span class="xry-public-status">VERIFIED</span></nav>
+  <header class="topbar">
+    <div><strong>ADM-08</strong> · Claude Code XRY</div>
+    <a href="../index.html">返回总索引</a>
+  </header>
+
+  <main>
+    <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
+      <div>
+        <p class="eyebrow">Doctor diagnostics · verified</p>
+        <h1 id="answer-title">先体检<br>后动手<span class="cursor">_</span></h1>
+        <p class="lede">用户从 shell 启动 doctor 后，Claude Code 把安装、运行环境与配置问题列成状态项，给出建议后退出。会话内 <code>/doctor</code> 在 2.1.247 已是可修复问题的 setup checkup，不属于这条只读主链。隔离实验还写入少量应用状态，因此这里的只读只约束安装诊断，不代表磁盘零写入。</p>
+      </div>
+      <aside class="truth-strip" aria-label="研究状态">
+        <div><small>Feature</small><b>ADM-08 · Doctor 检查与本机故障诊断</b></div>
+        <div><small>Baseline</small><b>Claude Code 2.1.247</b></div>
+        <div><small>Current status</small><b class="signal">verified 已核验</b></div>
+        <div class="caveat"><small>关键例外</small><b>warning 仍可能返回退出码 0</b></div>
+        <div class="legend" aria-label="证据图例">
+          <div><strong>O</strong><br>官方契约</div>
+          <div><strong>L</strong><br>本机静态</div>
+          <div><strong>R</strong><br>真实实验</div>
+          <div><strong>I</strong><br>研究推断</div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="block" data-xray-section="terms" aria-labelledby="terms-title">
+      <div class="section-head"><span>01 · TERMS</span><h2 id="terms-title">先分清三个动作</h2></div>
+      <div class="terms-grid">
+        <article class="term"><span class="num">SHELL / O+L</span><h3><code>claude doctor</code></h3><p>CLI 起不来时也能用。官方称它为不启动会话的只读安装诊断。它读取当前目录设置时不弹信任提示，适合先收集版本、安装方式、运行平台与配置解析结果。</p></article>
+        <article class="term"><span class="num">SESSION / O+L</span><h3><code>/doctor</code></h3><p>2.1.247 的完整 setup checkup。它能诊断并修复问题，也会检查扩展的上下文成本与慢 hooks。这是另一条入口，可能进入模型请求和写入阶段，本轮没有实跑。</p></article>
+        <article class="term"><span class="num">STOP / R</span><h3>Fix 建议</h3><p>shell 结果把恢复动作写成下一条命令，随后退出。用户没有明确执行它，安装就不会改变。建议命令属于新的管理动作，应先核对目标与影响，再另行批准。</p></article>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="sequence" aria-labelledby="sequence-title">
+      <div class="section-head"><span>02 · SEQUENCE</span><h2 id="sequence-title">一次检查怎样走完</h2></div>
+      <div class="sequence">
+        <article class="step"><h3>用户启动</h3><p>从 shell 运行子命令。它不启动 Claude 会话，也没有修复参数。固定版本运行还能避免 PATH 已更新后混入另一版行为。</p></article>
+        <article class="step"><h3>收集信号</h3><p>读取安装身份、版本、运行平台、更新状态与当前目录设置。当前目录不会先弹信任提示。联网条件不足的远端项目仍可能进入结果树。</p></article>
+        <article class="step"><h3>逐项判定</h3><p>能确认的项目显示通过或 warning。缺少远端响应时保留无法验证，不补一个乐观答案。每个状态只覆盖对应检查，不能替整机健康背书。</p></article>
+        <article class="step"><h3>显示建议</h3><p>状态树把问题和 Fix 放在一起。shell 入口停在命令建议，不替用户执行。安装、升级、导入与清理都在这条边界之外。</p></article>
+        <article class="step"><h3>进程退出</h3><p>用户可以手工执行建议，或另开会话运行可修复的 <code>/doctor</code>。两者都需要新的明确动作。退出码只能说明进程怎样结束，不能代替逐项读取。</p></article>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="flow" aria-labelledby="flow-title">
+      <div class="section-head"><span>03 · FLOW</span><h2 id="flow-title">信号汇成一张诊断树</h2></div>
+      <div class="flow-board">
+        <article class="flow-node"><h3>本机输入</h3><ul><li>二进制版本、程序路径与安装方式</li><li>平台、架构、搜索运行时与环境变量</li><li>更新通道、自动更新状态和最近结果</li><li>当前目录里可加载的设置</li></ul></article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="flow-node"><h3>Shell 判定</h3><ul><li>安装健康、残留副本与方式匹配</li><li>当前目录设置能否解析</li><li>搜索运行时和更新条件</li><li>能否拿到部分远端响应</li></ul></article>
+        <div class="arrow" aria-hidden="true">→</div>
+        <article class="flow-node"><h3>用户看到</h3><ul><li>运行版本、commit 与平台摘要</li><li>OK、warning 或无法验证</li><li>问题附近的恢复建议</li><li>退出后的下一步入口</li></ul></article>
+        <div class="write-note"><strong>R 观察</strong>　空白替代配置目录仍出现应用状态 JSON 与备份，共 427 字节。doctor 没有改安装和项目设置，但“零写盘”不成立。这里只核对文件数量、大小与匿名化顶层键，没有读取任何真实用户配置。</div>
+      </div>
+      <div class="result-guide" aria-label="诊断结果读法">
+        <article><h3>看到 OK</h3><p>先读项目名称，再判断它覆盖到哪里。官方给出的 WSL 搜索反例说明，Search 显示 OK 时仍可能漏掉跨文件系统结果。单个绿项不能推出所有相关功能都正常，也不能代替针对眼前故障的复现。</p></article>
+        <article><h3>看到 warning</h3><p>把提示和紧邻的 Fix 一起记录，再停下来核对。隔离实验里的安装方式警告附带了安装命令，doctor 只打印它，没有代替用户执行。进程最后仍返回了 0。记录里还应保留运行版本和平台，免得后来拿另一版结果混用。</p></article>
+        <article><h3>看到无法验证</h3><p>先检查本轮是否关闭网络，或者是否缺少远端响应。证据不足时维持未知，不能把它改写成故障，也不能当作通过。需要联网、登录或读取更多配置时，应先取得新的授权，并把新增检查单独记录。</p></article>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="limits" aria-labelledby="limits-title">
+      <div class="section-head"><span>04 · LIMITS</span><h2 id="limits-title">停在哪里才算安全</h2></div>
+      <div class="stop-grid">
+        <article class="stop-card ok"><h3>建议停住了</h3><p>隔离实验发现安装方式未设置，doctor 显示 <code>claude install</code>，随后退出。安装没有发生。执行这条命令会进入独立的安装机制，本页也不会替它说明写入范围。</p></article>
+        <article class="stop-card warn"><h3>无法确认就保留未知</h3><p>实验关闭非必要流量后，Remote Control 显示未验证。没有 server response 也没有被包装成 OK。恢复网络后会得到什么，本轮没有证据。</p></article>
+        <article class="stop-card"><h3>退出码不等于全绿</h3><p>本轮有一条 warning，shell doctor 仍返回 0。自动化脚本不能只看退出码判断机器健康，还要保存逐项状态和无法验证的原因。</p></article>
+        <article class="stop-card"><h3>会话检查会越过只读边界</h3><p>2.1.247 的 <code>/doctor</code> 能诊断并修复问题。只想收集证据时，停在 shell 输出，不进入这条路径。模型费用、权限提示与具体修复写入都保持未知。</p></article>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="experiment" aria-labelledby="experiment-title">
+      <div class="section-head"><span>05 · EXPERIMENT</span><h2 id="experiment-title">2.1.247 真实跑了一次</h2></div>
+      <div class="experiment">
+        <div class="terminal" aria-label="匿名化实验输出">
+          <div class="terminal-bar">isolated doctor · local only</div>
+          <pre>Claude Code doctor
+
+Running  native 2.1.247
+Platform darwin-arm64
+Search   <span class="good">OK bundled</span>
+Updates  disabled by env
+
+Remote Control
+status   <span class="warn">could not be verified</span>
+
+<span class="warn">1 warning found</span>
+Fix      claude install
+
+exit     0</pre>
+        </div>
+        <div>
+          <div class="finding"><b>R · 没有模型请求</b><p>实验使用 shell 子命令、空白替代配置目录和固定版本二进制，没有登录，也没有进入 Claude 会话。自动更新、遥测与非必要流量同时关闭。</p></div>
+          <div class="finding"><b>R · 没有执行恢复动作</b><p>Fix 行只打印命令。版本与安装文件没有改变，Project purge、配置导入和升级也没有发生。</p></div>
+          <div class="finding"><b>R · 有少量本地状态写入</b><p>运行后多出应用状态文件和备份，共 427 字节。只核对匿名化顶层键，没有展开值。</p></div>
+          <div class="finding"><b>范围</b><p>这次实验只覆盖 macOS arm64 native 的 shell doctor。会话内可修复的 <code>/doctor</code> 只记录官方入口，没有实跑。npm、Homebrew、WinGet、Windows、Linux 与 WSL 仍需各自验证。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="implementation" aria-labelledby="implementation-title">
+      <div class="section-head"><span>06 · IMPLEMENTATION</span><h2 id="implementation-title">实现边界与版本变化</h2></div>
+      <div class="impl-grid">
+        <details open><summary>2.1.247 本机锚点</summary><p>缓存二进制是 Mach-O arm64，SHA-256 与研究基线一致。本机 PATH 已升级到 2.1.248，本页 L 与 R 都绕过 PATH，直接调用固定版本。</p></details>
+        <details><summary>旧界面停在 2.1.205 之前</summary><ul><li>2.1.105 加入状态图标与 <code>f</code></li><li>2.1.178 统一平铺结果树</li><li>2.1.203 接收 broken command 警告</li><li>2.1.205 改成可修复的 setup checkup</li></ul></details>
+        <details><summary>2.1.248 不倒灌</summary><p>基线后的 2.1.248 新增 server-managed settings 诊断。本页不会把这项新能力写进 2.1.247 的结论。</p></details>
+        <details><summary>OK 的含义有限</summary><p>官方给过明确反例。WSL 跨文件系统可能让搜索漏结果，doctor 仍显示 Search 为 OK。状态项说明检查通过，不承诺业务效果穷尽无误。</p></details>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="unknowns" aria-labelledby="unknowns-title">
+      <div class="section-head"><span>07 · UNKNOWNS</span><h2 id="unknowns-title">还不能写死的地方</h2></div>
+      <div class="unknown-list">
+        <div class="unknown"><b>UNKNOWN 01</b><p>闭源二进制内部每项检查的函数顺序、并发方式和超时值没有公开。</p></div>
+        <div class="unknown"><b>UNKNOWN 02</b><p>哪些失败会让 shell doctor 返回非零退出码，官方没有完整矩阵。本轮 warning 返回了 0。</p></div>
+        <div class="unknown"><b>UNKNOWN 03</b><p>进入会话内 <code>/doctor</code> 后送给模型的材料、费用和各类修复的权限提示没有安全实跑。</p></div>
+        <div class="unknown"><b>UNKNOWN 04</b><p>npm、Homebrew、WinGet、Windows、Linux 与 WSL 会产生哪些状态写入，不能从一次 macOS native 实验外推。</p></div>
+        <div class="unknown"><b>UNKNOWN 05</b><p>Search、MCP 与远端可用性检查的 OK 究竟覆盖多深，官方没有给出完整保证，现有反例也不能推导出穷尽范围。</p></div>
+      </div>
+    </section>
+
+    <section class="block" data-xray-section="sources" aria-labelledby="sources-title">
+      <div class="section-head"><span>08 · SOURCES</span><h2 id="sources-title">一手来源与复现入口</h2></div>
+      <div class="sources">
+        <a class="source" href="https://code.claude.com/docs/en/commands"><span>O · COMMANDS</span><strong>证明 shell 只读诊断、会话 checkup 与版本边界</strong></a>
+        <a class="source" href="https://code.claude.com/docs/en/troubleshooting"><span>O · TROUBLESHOOTING</span><strong>证明两种入口、检查范围与 Search 反例</strong></a>
+        <a class="source" href="https://code.claude.com/docs/en/debug-your-config"><span>O · CONFIG DEBUG</span><strong>证明无效键、schema 错误和设置来源边界</strong></a>
+        <a class="source" href="https://code.claude.com/docs/en/settings"><span>O · SETTINGS</span><strong>证明配置作用域与 schema 版本提醒</strong></a>
+        <a class="source" href="https://code.claude.com/docs/en/env-vars"><span>O · ENVIRONMENT</span><strong>证明替代配置目录的公开契约</strong></a>
+        <a class="source" href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md"><span>O · CHANGELOG</span><strong>证明 doctor 的版本演进</strong></a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>ADM-08 · verified · Claude Code 2.1.247</span>
+    <a href="../index.html">返回总索引</a>
+  </footer>
+</body>
+</html>
