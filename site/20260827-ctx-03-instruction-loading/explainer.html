@@ -202,16 +202,16 @@
       .footer-inner { flex-direction: column; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：CLAUDE.md、Rules 与指令加载顺序。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的CLAUDE.md、Rules 与指令加载顺序，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-ctx-03-instruction-loading/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="CTX-03 · CLAUDE.md、Rules 与指令加载顺序">
-  <meta property="og:description" content="Claude Code X-Ray：CLAUDE.md、Rules 与指令加载顺序。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的CLAUDE.md、Rules 与指令加载顺序，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-ctx-03-instruction-loading/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="CTX-03 · CLAUDE.md、Rules 与指令加载顺序">
-  <meta name="twitter:description" content="Claude Code X-Ray：CLAUDE.md、Rules 与指令加载顺序。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的CLAUDE.md、Rules 与指令加载顺序，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -243,7 +243,7 @@
     <section id="answer" class="hero" data-xray-section="answer">
       <div>
         <div class="eyebrow">一次启动，形成一套当下可见的指令</div>
-        <h1>目录决定先读<span>哪几页</span></h1>
+        <h1>Claude Code 会从哪些目录读取指令</h1>
         <p class="dek">用户从一个目录启动 Claude Code。它先收集宽范围指令，再沿这个目录的祖先链向下拼接。等用户或 Claude 要读取具体文件时，子目录 CLAUDE.md 和带路径条件的 Rules 才会按需加入。</p>
         <p class="answer-note">多份文件都会留下。后读到的内容没有客户端强制覆盖前文，冲突时模型可能任选一种解释。需要客户端强制的边界应交给权限，或能阻断目标工具调用的 PreToolUse Hook。</p>
       </div>

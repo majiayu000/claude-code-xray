@@ -275,16 +275,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：上下文窗口、自动压缩与提示缓存。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的上下文窗口、自动压缩与提示缓存，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-ctx-01-context-compaction-cache/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="CTX-01 · 上下文窗口、自动压缩与提示缓存">
-  <meta property="og:description" content="Claude Code X-Ray：上下文窗口、自动压缩与提示缓存。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的上下文窗口、自动压缩与提示缓存，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-ctx-01-context-compaction-cache/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="CTX-01 · 上下文窗口、自动压缩与提示缓存">
-  <meta name="twitter:description" content="Claude Code X-Ray：上下文窗口、自动压缩与提示缓存。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的上下文窗口、自动压缩与提示缓存，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -318,7 +318,7 @@
     <section class="hero" id="answer" data-xray-section="answer">
       <div>
         <p class="eyebrow">Claude Code XRY · 04</p>
-        <h1>会话装满以后，先减重，再改写历史。</h1>
+        <h1>上下文快满时，Claude Code 怎样腾出空间</h1>
         <p class="dek"><span class="answer-line">同一会话会带着旧对话、文件读取和工具结果继续增长。</span>接近窗口上限时，Claude Code 先清理较旧的工具输出，空间仍不够才把较早对话换成摘要。摘要让会话继续，也会改变下一轮的缓存前缀。输入仍塞不下时，请求停止并报错。<sup>O</sup></p>
         <div class="stamp-row" aria-label="页面基线">
           <span class="stamp">Claude Code 2.1.247</span>

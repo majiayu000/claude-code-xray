@@ -322,16 +322,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Doctor 检查与本机故障诊断。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Doctor 检查与本机故障诊断，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-adm-08-doctor-diagnostics/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="ADM-08 · Doctor 检查与本机故障诊断">
-  <meta property="og:description" content="Claude Code X-Ray：Doctor 检查与本机故障诊断。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Doctor 检查与本机故障诊断，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-adm-08-doctor-diagnostics/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="ADM-08 · Doctor 检查与本机故障诊断">
-  <meta name="twitter:description" content="Claude Code X-Ray：Doctor 检查与本机故障诊断。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Doctor 检查与本机故障诊断，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -357,8 +357,8 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
       <div>
         <p class="eyebrow">Doctor diagnostics · verified</p>
-        <h1 id="answer-title">先体检<br>后动手<span class="cursor">_</span></h1>
-        <p class="lede">用户从 shell 启动 doctor 后，Claude Code 把安装、运行环境与配置问题列成状态项，给出建议后退出。会话内 <code>/doctor</code> 在 2.1.247 已是可修复问题的 setup checkup，不属于这条只读主链。隔离实验还写入少量应用状态，因此这里的只读只约束安装诊断，不代表磁盘零写入。</p>
+        <h1 id="answer-title">先用 doctor 检查，再决定怎样修</h1>
+        <p class="lede">用户从 shell 启动 doctor 后，Claude Code 会把安装、运行环境和配置问题列成状态项，给出建议后退出。会话内 <code>/doctor</code> 在 2.1.247 已经变成可以修复问题的 setup checkup，不属于这条只读检查流程。隔离实验还会写入少量应用状态，因此这里的只读只针对安装诊断，不代表磁盘完全没有写入。</p>
       </div>
       <aside class="truth-strip" aria-label="研究状态">
         <div><small>Feature</small><b>ADM-08 · Doctor 检查与本机故障诊断</b></div>

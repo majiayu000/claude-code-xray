@@ -708,16 +708,16 @@
       html { scroll-behavior: auto; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Routines 与云端事件触发。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Routines 与云端事件触发，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-cloud-02-routines-events/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="CLOUD-02 · Routines 与云端事件触发">
-  <meta property="og:description" content="Claude Code X-Ray：Routines 与云端事件触发。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Routines 与云端事件触发，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-cloud-02-routines-events/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="CLOUD-02 · Routines 与云端事件触发">
-  <meta name="twitter:description" content="Claude Code X-Ray：Routines 与云端事件触发。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Routines 与云端事件触发，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -750,7 +750,7 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
       <div>
         <p class="kicker">Claude Code XRY · lifecycle sheet</p>
-        <h1 id="answer-title">事件来了，云里新开一班工。</h1>
+        <h1 id="answer-title">事件触发后，云端新建独立会话</h1>
         <p class="hero-answer">Routine 先保存指令、仓库、环境和可用工具。时间到了，API 请求通过，或者 GitHub 事件匹配后，系统会<strong>为这一次触发新建独立云 session</strong>。它从新鲜 clone 开工，结束后把 run 留在账户里。整次失败自动重跑与内建完成通知，目前没有公开保证。 <span class="evidence o">O</span> <span class="evidence i">I</span></p>
         <div class="hero-meta" aria-label="页面状态">
           <span class="chip status">当前状态 documented</span>

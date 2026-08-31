@@ -170,16 +170,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Headless 模式、流式输入输出与结构化结果。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Headless 模式、流式输入输出与结构化结果，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-auto-04-headless-structured-io/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="AUTO-04 · Headless 模式、流式输入输出与结构化结果">
-  <meta property="og:description" content="Claude Code X-Ray：Headless 模式、流式输入输出与结构化结果。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Headless 模式、流式输入输出与结构化结果，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-auto-04-headless-structured-io/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="AUTO-04 · Headless 模式、流式输入输出与结构化结果">
-  <meta name="twitter:description" content="Claude Code X-Ray：Headless 模式、流式输入输出与结构化结果。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Headless 模式、流式输入输出与结构化结果，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -205,7 +205,7 @@
     <section class="hero" data-xray-section="answer" id="answer">
       <div>
         <div class="eyebrow">Headless · structured I/O · process boundary</div>
-        <h1>一条命令进来，<span>一条可判定结果</span>出去</h1>
+        <h1>一条命令怎样返回可判断的结果</h1>
         <p class="lede">非交互调用把 Claude Code 变成脚本里的一个进程。外部程序送入提示或事件，Claude Code 完成一次 agent 工作流，把文本、JSON 或逐行事件写到标准输出，最后交回退出状态。进程启动前，调用者还要选定加载边界、凭据来源和付费方式。</p>
         <div class="statusline" aria-label="页面状态">
           <span class="chip status">当前状态 documented</span>

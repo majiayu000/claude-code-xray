@@ -494,16 +494,16 @@
       .source-list a:hover { transform: none; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Agent SDK 的工具调用、MCP 与审批拦截。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Agent SDK 的工具调用、MCP 与审批拦截，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-sdk-02-tool-governance/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="SDK-02 · Agent SDK 的工具调用、MCP 与审批拦截">
-  <meta property="og:description" content="Claude Code X-Ray：Agent SDK 的工具调用、MCP 与审批拦截。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Agent SDK 的工具调用、MCP 与审批拦截，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-sdk-02-tool-governance/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="SDK-02 · Agent SDK 的工具调用、MCP 与审批拦截">
-  <meta name="twitter:description" content="Claude Code X-Ray：Agent SDK 的工具调用、MCP 与审批拦截。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Agent SDK 的工具调用、MCP 与审批拦截，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -542,7 +542,7 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
       <div>
         <p class="eyebrow">Agent SDK · Tool governance</p>
-        <h1 id="answer-title">宿主握着<br>工具闸门</h1>
+        <h1 id="answer-title">SDK 宿主决定工具能不能执行</h1>
         <p class="hero-copy">开发者在 SDK 宿主里注册工具与审批回调，再发起 <code>query()</code>。Claude 提出调用以后，前置 Hook 和权限链决定它能否执行；成功或失败的结果随后回到 Claude。</p>
       </div>
       <div class="signal-box" aria-label="工具调用的三种去向">

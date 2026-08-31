@@ -164,16 +164,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Bare Mode 的最小加载面与脚本启动边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Bare Mode 的最小加载面与脚本启动边界，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260829-companion-bare-mode/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="COMP-SAFE-BARE · Bare Mode 的最小加载面与脚本启动边界">
-  <meta property="og:description" content="Claude Code X-Ray：Bare Mode 的最小加载面与脚本启动边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Bare Mode 的最小加载面与脚本启动边界，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260829-companion-bare-mode/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="COMP-SAFE-BARE · Bare Mode 的最小加载面与脚本启动边界">
-  <meta name="twitter:description" content="Claude Code X-Ray：Bare Mode 的最小加载面与脚本启动边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Bare Mode 的最小加载面与脚本启动边界，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -203,8 +203,8 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="kicker">COMP-SAFE-BARE · documented · Claude Code 2.1.247</p>
-        <h1 id="hero-title">把本机习惯留在门外</h1>
-        <p class="lede">脚本加上 <code>--bare -p</code> 后，Claude Code 不再自动找 hooks、LSP、plugins、MCP、Skills、commands、agents、memory 和 CLAUDE.md。它只留下 Bash、读文件、改文件，再接受命令行明示的上下文、模型和权限。直连 Anthropic 时只读 Console API key 或显式 settings 里的 apiKeyHelper，用量记入 Console 账户，不由 Claude 订阅覆盖。</p>
+        <h1 id="hero-title">用 bare 模式排除本机配置影响</h1>
+        <p class="lede">脚本加上 <code>--bare -p</code> 后，Claude Code 不再自动加载本机扩展。hooks、LSP、plugins、MCP、Skills、commands、agents、memory 和 CLAUDE.md 都不会自动进入会话。程序只保留 Bash、读文件和改文件，再接受命令行明确给出的上下文、模型与权限。直连 Anthropic 时，程序只读取 Console API key 或 settings 里明确配置的 apiKeyHelper。用量记入 Console 账户，不会由 Claude 订阅覆盖。</p>
         <div class="meta" aria-label="页面状态">
           <span class="tag hot">状态 documented</span>
           <span class="tag">冻结版本 2.1.247</span>

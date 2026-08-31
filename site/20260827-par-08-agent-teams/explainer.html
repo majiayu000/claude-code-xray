@@ -134,16 +134,16 @@
     }
     @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } * { transition:none !important; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Agent Teams 的共享任务、消息与结束。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Agent Teams 的共享任务、消息与结束，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-par-08-agent-teams/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="PAR-08 · Agent Teams 的共享任务、消息与结束">
-  <meta property="og:description" content="Claude Code X-Ray：Agent Teams 的共享任务、消息与结束。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Agent Teams 的共享任务、消息与结束，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-par-08-agent-teams/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="PAR-08 · Agent Teams 的共享任务、消息与结束">
-  <meta name="twitter:description" content="Claude Code X-Ray：Agent Teams 的共享任务、消息与结束。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Agent Teams 的共享任务、消息与结束，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -168,7 +168,7 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
       <div class="hero-copy">
         <p class="eyebrow">PAR-08 · Claude Code XRY</p>
-        <h1 id="answer-title">一个 team，<span>一张共享工单。</span></h1>
+        <h1 id="answer-title">Agent Team 共用任务列表，各自保留上下文</h1>
         <p class="lede">Lead 拉起具名 teammate。大家各有自己的上下文，却看同一批任务，也能直接互发消息。用户决定收尾时，lead 发出关闭请求；会话退出后，运行配置自动清掉，任务记录继续留在本机。</p>
         <p class="hero-note">这条链只在启用实验开关的交互会话里成立。它没有给 teammate 自动分 worktree，也不会让权限批准在 agent 之间代传。</p>
       </div>

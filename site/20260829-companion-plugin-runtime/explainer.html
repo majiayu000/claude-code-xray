@@ -244,16 +244,16 @@
       .version-rail div:last-child { border-bottom: 0; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Plugin Executables 与 Monitors 的运行时装配。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Plugin Executables 与 Monitors 的运行时装配，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260829-companion-plugin-runtime/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="COMP-EXT-PLUGIN-RUNTIME · Plugin Executables 与 Monitors 的运行时装配">
-  <meta property="og:description" content="Claude Code X-Ray：Plugin Executables 与 Monitors 的运行时装配。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Plugin Executables 与 Monitors 的运行时装配，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260829-companion-plugin-runtime/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="COMP-EXT-PLUGIN-RUNTIME · Plugin Executables 与 Monitors 的运行时装配">
-  <meta name="twitter:description" content="Claude Code X-Ray：Plugin Executables 与 Monitors 的运行时装配。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Plugin Executables 与 Monitors 的运行时装配，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -285,7 +285,7 @@
       <div class="wrap hero-grid">
         <div>
           <div class="eyebrow">Runtime switchboard</div>
-          <h1>插件启用以后，接出两条运行线路。</h1>
+          <h1>插件启用后，程序会准备命令和 monitor</h1>
           <p class="lede">一条把插件根目录里的 <code>bin/</code> 接进 Bash 的 <code>PATH</code>，等 Claude 需要时才调用。另一条启动 monitor，持续把 stdout 逐行送回当前会话。monitor 会出现在任务面板，用户可以要求取消，会话结束也会收走它。</p>
           <div class="verdict"><span class="tag o">O</span>这两条出口都以插件已经启用为前提。中途禁用不会截停已经运行的 monitor。通过 claude.ai 组织设置分发的插件另有一条明确限制，不能携带 <code>bin/</code>。</div>
           <nav class="subnav" aria-label="页内导航">

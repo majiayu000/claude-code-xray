@@ -318,16 +318,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：使用事件、OpenTelemetry 与隐私边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的使用事件、OpenTelemetry 与隐私边界，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-adm-06-otel-usage-events/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="ADM-06 · 使用事件、OpenTelemetry 与隐私边界">
-  <meta property="og:description" content="Claude Code X-Ray：使用事件、OpenTelemetry 与隐私边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的使用事件、OpenTelemetry 与隐私边界，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-adm-06-otel-usage-events/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="ADM-06 · 使用事件、OpenTelemetry 与隐私边界">
-  <meta name="twitter:description" content="Claude Code X-Ray：使用事件、OpenTelemetry 与隐私边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的使用事件、OpenTelemetry 与隐私边界，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -361,8 +361,8 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
       <div>
         <p class="eyebrow">使用事件、OpenTelemetry 与隐私边界</p>
-        <h1 id="answer-title">动作变成记录，出口由你指定</h1>
-        <p class="lede">启用以后，Claude Code 会把会话启动、prompt、API 请求和工具结果等动作变成指标或事件，先按默认规则隐藏正文，再分批送往你配置的观测后端。邮箱、账户标识和终端类型等身份字段仍可能随记录出现。内容开关一旦打开，prompt、命令、路径和工具输出都可能离开本机。</p>
+        <h1 id="answer-title">遥测数据会被送到哪里</h1>
+        <p class="lede">启用遥测以后，Claude Code 会把会话启动、prompt、API 请求和工具结果等动作记录成指标或事件。正文默认会被隐藏，记录则分批送往你配置的观测后端。邮箱、账户标识和终端类型等身份字段仍可能随记录出现。内容开关一旦打开，prompt、命令、路径和工具输出都可能离开本机。</p>
         <div class="statusline" aria-label="页面状态">
           <span class="pill live">状态 documented</span>
           <span class="pill">Claude Code 2.1.247</span>

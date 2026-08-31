@@ -165,16 +165,16 @@
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
     @media print { body { background: white; } .topbar { position: static; } .docket, .flow-node { box-shadow: none; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：本地 Code Review 的差异读取与发现输出。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的本地 Code Review 的差异读取与发现输出，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-par-05-local-code-review/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="PAR-05 · 本地 Code Review 的差异读取与发现输出">
-  <meta property="og:description" content="Claude Code X-Ray：本地 Code Review 的差异读取与发现输出。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的本地 Code Review 的差异读取与发现输出，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-par-05-local-code-review/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="PAR-05 · 本地 Code Review 的差异读取与发现输出">
-  <meta name="twitter:description" content="Claude Code X-Ray：本地 Code Review 的差异读取与发现输出。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的本地 Code Review 的差异读取与发现输出，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -200,8 +200,8 @@
   <main>
     <section class="hero" data-xray-section="answer" aria-labelledby="page-title">
   <div><p class="kicker">18 / LOCAL REVIEW DOSSIER</p>
-    <h1 id="page-title">先圈定改动，<span>再判断问题。</span></h1>
-    <p class="lede">用户启动本地 Code Review 后，Claude Code 按公开契约确定默认 diff 或显式 target，并在独立审阅上下文中寻找能够落到文件位置、说明影响且值得修复的问题。无可靠发现也是有效终点。<span class="evidence">O</span></p>
+    <h1 id="page-title">先确定改动范围，<span>再开始审查</span></h1>
+    <p class="lede">用户启动本地 Code Review 后，Claude Code 会先确定默认 diff 或采用用户给出的 target。随后，它在独立审阅上下文中寻找能够落到文件位置、说清影响并且值得修复的问题。没有找到可靠问题也是有效结果。<span class="evidence">O</span></p>
   </div>
   <aside class="docket" aria-label="研究档案"><dl>
     <div><dt>Feature</dt><dd>PAR-05</dd></div><div><dt>Status</dt><dd>documented</dd></div>

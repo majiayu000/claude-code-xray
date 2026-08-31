@@ -240,16 +240,16 @@
       .source:hover { transform: none; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Desktop PR Monitor 的远端状态跟踪。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Desktop PR Monitor 的远端状态跟踪，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260829-companion-desktop-pr-monitor/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="COMP-UI-DESKTOP-PRMON · Desktop PR Monitor 的远端状态跟踪">
-  <meta property="og:description" content="Claude Code X-Ray：Desktop PR Monitor 的远端状态跟踪。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Desktop PR Monitor 的远端状态跟踪，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260829-companion-desktop-pr-monitor/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="COMP-UI-DESKTOP-PRMON · Desktop PR Monitor 的远端状态跟踪">
-  <meta name="twitter:description" content="Claude Code X-Ray：Desktop PR Monitor 的远端状态跟踪。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Desktop PR Monitor 的远端状态跟踪，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -288,7 +288,7 @@
           <span class="chip">Claude Code 2.1.247</span>
           <span class="chip">伴页</span>
         </p>
-        <h1>PR 开出以后<br><span>会话继续看守</span></h1>
+        <h1>PR 创建后，Desktop 继续查看 CI 状态</h1>
         <p class="lead">打开 GitHub PR 后，Desktop 会在会话里显示 CI 状态条，用本机 <code>gh</code> 轮询 checks，并把失败送回界面。用户可以让 Claude 自动修失败项，也可以等全部 checks 通过后 squash 合并。CI 结束会发桌面通知；PR 合并或关闭后，本地且已经停下的会话还能自动归档。<span class="tag">O</span></p>
         <p class="proof-note">官方没有说明 Desktop 怎样判定 PR 属于当前会话，也没有公布关联键、轮询间隔或 review 展示。本页把 CLI 已知行为单独标出，不把它挪成 Desktop 运行事实。没有真实登录实验，状态保持 documented。</p>
         <p><a href="../20260827-ui-05-desktop-workspace/explainer.html">回到主页面 UI-05 Desktop 项目会话与隔离工作区</a></p>

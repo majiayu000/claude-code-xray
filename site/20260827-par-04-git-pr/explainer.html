@@ -210,16 +210,16 @@
       .source:hover { transform: none; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Git 操作、提交、分支与 Pull Request。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Git 操作、提交、分支与 Pull Request，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-par-04-git-pr/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="PAR-04 · Git 操作、提交、分支与 Pull Request">
-  <meta property="og:description" content="Claude Code X-Ray：Git 操作、提交、分支与 Pull Request。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Git 操作、提交、分支与 Pull Request，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-par-04-git-pr/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="PAR-04 · Git 操作、提交、分支与 Pull Request">
-  <meta name="twitter:description" content="Claude Code X-Ray：Git 操作、提交、分支与 Pull Request。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Git 操作、提交、分支与 Pull Request，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -254,7 +254,7 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="page-title">
       <div>
         <p class="eyebrow">CLAUDE CODE XRY · 2026-08-27 基线</p>
-        <h1 id="page-title">改动要过<span>两道闸</span></h1>
+        <h1 id="page-title">本地提交和创建 PR 是两步</h1>
         <p class="lede">Claude Code 可以看 Git 状态、改文件、跑测试并做本地提交。提交还留在你的机器上。推送分支和创建 PR 会碰到第二道闸，远端认证、仓库写权限和服务端规则都得放行。</p>
         <div class="status-row" aria-label="页面状态">
           <span class="chip status">当前状态 documented</span>

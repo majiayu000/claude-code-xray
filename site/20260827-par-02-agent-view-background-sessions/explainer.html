@@ -387,16 +387,16 @@
       section { break-inside: avoid; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Agent View 与后台会话生命周期。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Agent View 与后台会话生命周期，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-par-02-agent-view-background-sessions/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="PAR-02 · Agent View 与后台会话生命周期">
-  <meta property="og:description" content="Claude Code X-Ray：Agent View 与后台会话生命周期。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Agent View 与后台会话生命周期，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-par-02-agent-view-background-sessions/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="PAR-02 · Agent View 与后台会话生命周期">
-  <meta name="twitter:description" content="Claude Code X-Ray：Agent View 与后台会话生命周期。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Agent View 与后台会话生命周期，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -432,7 +432,7 @@
           <span class="chip">Claude Code 2.1.247</span>
           <span class="chip">研究基线 · 2026-08-27</span>
         </div>
-        <h1>会话离开终端，<span>工作没有离开。</span></h1>
+        <h1>后台会话怎样离开终端继续运行</h1>
         <p class="hero-answer">每条普通任务 prompt 都会新建一条独立后台会话。用户级 supervisor 接住它，roster 显示它在工作、等你、完成、失败或停止。你可以在列表里回复，也可以附着进去继续对话。<strong>停止会保留 conversation，符合安全条件的删除才会把它移出 roster。</strong> <span class="badge o">O</span></p>
         <p class="proof-note">我对过官方流程和本机 2.1.247 归档二进制的静态帮助。本轮没有启动付费会话，因此状态保持 documented。</p>
       </div>

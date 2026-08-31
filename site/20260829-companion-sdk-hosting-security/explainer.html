@@ -14,16 +14,16 @@
     @media(max-width:590px){.mast{align-items:flex-start}.flags{max-width:160px}.heading{grid-template-columns:1fr;gap:10px}.terms,.legend,.sequence,.impl,.sources{grid-template-columns:1fr}.term{min-height:0;border-right:0;border-bottom:1px solid var(--line)}.legend div{border-right:0;border-bottom:1px solid var(--line)}.step{min-height:0;border-left:0!important;border-bottom:1px solid var(--line)}.step .n{margin-bottom:22px}.step:after{top:auto;right:28px;bottom:-7px}.card.wide{grid-column:auto}.bar{grid-template-columns:1fr;gap:5px}.foot{display:block}.foot p{margin-bottom:12px}h1{font-size:clamp(2.8rem,16vw,4.7rem)}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.sources a:hover{transform:none}}
   </style>
-  <meta name="description" content="Claude Code X-Ray：Agent SDK Hosting 与安全部署矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Agent SDK Hosting 与安全部署矩阵，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260829-companion-sdk-hosting-security/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="COMP-SDK-HOSTING · Agent SDK Hosting 与安全部署矩阵">
-  <meta property="og:description" content="Claude Code X-Ray：Agent SDK Hosting 与安全部署矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Agent SDK Hosting 与安全部署矩阵，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260829-companion-sdk-hosting-security/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="COMP-SDK-HOSTING · Agent SDK Hosting 与安全部署矩阵">
-  <meta name="twitter:description" content="Claude Code X-Ray：Agent SDK Hosting 与安全部署矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Agent SDK Hosting 与安全部署矩阵，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -47,7 +47,7 @@
   <nav class="rail" aria-label="页内导航"><a href="#terms">角色</a><a href="#sequence">顺序</a><a href="#flow">矩阵</a><a href="#limits">停止</a><a href="#experiment">核对</a><a href="#implementation">部署</a><a href="#unknowns">未知</a><a href="#sources">来源</a></nav>
   <main>
     <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
-      <div><p class="kicker">Agent SDK hosting matrix</p><h1 id="answer-title">先选状态<br>住在哪里</h1><p class="lead">每个 SDK session 都落到一个 <code>claude</code> 子进程。小规模单机可以直接跑，生产环境通常把它放进隔离容器。要跨重启恢复，就把 transcript 接到持久存储，并另存工作目录。多租户再加入口认证、按 session 路由和受控出站。</p></div>
+      <div><p class="kicker">Agent SDK hosting matrix</p><h1 id="answer-title">SDK 会话状态应该存在哪里</h1><p class="lead">每个 SDK session 都落到一个 <code>claude</code> 子进程。小规模单机可以直接跑，生产环境通常把它放进隔离容器。要跨重启恢复，就把 transcript 接到持久存储，并另存工作目录。多租户再加入口认证、按 session 路由和受控出站。</p></div>
       <div class="rack" aria-label="四层部署机架"><div class="rack-title"><span>HOSTING RACK 04</span><span>STATE ROUTE</span></div><div class="unit"><i class="lamp"></i><span><b>subprocess</b><small>　单 session 运行单元</small></span><em>BASE</em></div><div class="unit"><i class="lamp"></i><span><b>container</b><small>　文件、进程与资源边界</small></span><em>WRAP</em></div><div class="unit"><i class="lamp"></i><span><b>Kubernetes</b><small>　租户路由与编排</small></span><em>FLEET</em></div><div class="unit"><i class="lamp"></i><span><b>sandbox host</b><small>　托管隔离与弹性</small></span><em>LEASE</em></div></div>
     </section>
 

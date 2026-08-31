@@ -12,7 +12,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-223500-claude-code-agent-loop/explainer.html",
-      "sha256": "588d3f791103d056fc77b9fec70049af7844f7161c62dbe79dd943f8a3d6ea3b"
+      "sha256": "3c836c7c62dd38161cfa6cca117b6713b2fd58cfeba71cd3d668b7125aa676d4"
     },
     {
       "id": "CORE-02",
@@ -20,7 +20,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-core-02-built-in-tools/explainer.html",
-      "sha256": "71bb4d30d5275814e561c49e8dc6732ef1f007d2ffe287abee52950cbfa289ae"
+      "sha256": "ceff8b3bd954b62966cc2131bd78c688b1679cf7764858c58da4593bf9f37368"
     },
     {
       "id": "PLAN-01",
@@ -28,7 +28,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-plan-01-plan-mode/explainer.html",
-      "sha256": "6c2cceca10fbbae7b431fa5366498297019210ce8c942a52746a7b2a96eaa907"
+      "sha256": "060a31828faa52d886d7abc0d62322572423376b491017d3fd53817472960607"
     },
     {
       "id": "CTX-01",
@@ -36,7 +36,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ctx-01-context-compaction-cache/explainer.html",
-      "sha256": "790af2972040200ea1cc7c847ca9a861ea8d4e9643003ef7c182a8aeadd8f490"
+      "sha256": "aa081808462800a3d92f2532808d96b7dbb442a55094a2af3a0cba401ee386f6"
     },
     {
       "id": "CTX-02",
@@ -44,7 +44,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-223501-claude-code-sessions-checkpointing/explainer.html",
-      "sha256": "6ee7cb4df96ab570e0c6ef9cf9d12273e856665bf6ed8b09dd9e4f80c0d90b07"
+      "sha256": "9aadb4dea9b8dc1e64e20e1b98422fc2c65d6483d118526db8030f8c2db47252"
     },
     {
       "id": "CTX-03",
@@ -52,7 +52,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ctx-03-instruction-loading/explainer.html",
-      "sha256": "e00368072dc6e7b5f7d217c99456aeae73757298c26be4e9d810674cb2da2923"
+      "sha256": "0fcc06c3ce7f29081fc0ef3144928f1c1c0285cd377175e22d0144b047f2e884"
     },
     {
       "id": "CTX-04",
@@ -60,7 +60,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ctx-04-auto-memory/explainer.html",
-      "sha256": "1da6883b47ec2b7df3c17d6bef0d94ce1f369c012bee4d9d75d2625a9ca1412f"
+      "sha256": "326e13e8101ae42192082edd8c29781aecf01ce37eb7525d1a69c5b292a6cdd8"
     },
     {
       "id": "CTX-05",
@@ -68,7 +68,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ctx-05-model-effort/explainer.html",
-      "sha256": "d186df24971b4c85935b72101992ca39744272e6c4efb8b993915bed8f5e0e27"
+      "sha256": "d27ab334eb9bfbf897c6808abf3ee70697fcd90a936c581b2b3bf87db3855a36"
     },
     {
       "id": "CTX-06",
@@ -76,7 +76,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ctx-06-fast-mode/explainer.html",
-      "sha256": "93c83087743c5c68c164334895fe2ed84445a9ebd3e6beb316a88d12a18049c9"
+      "sha256": "84ad1397d31113f4d4a7a9137d94461c839a14ede7a3a4303859180fc61531b6"
     },
     {
       "id": "CTX-07",
@@ -84,7 +84,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ctx-07-output-styles/explainer.html",
-      "sha256": "8bab658be262a46b655d1adae52d05bce98e9d50ce84047d18da73da5e6a1804"
+      "sha256": "8830f89b5a5830becd8edc9048f41b1ae4a9e8c70963f00533de9c1c65dffb51"
     },
     {
       "id": "CTX-08",
@@ -92,7 +92,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ctx-08-checkpoints-rewind/explainer.html",
-      "sha256": "b90a244744b0ae67599cfa2579ff95b648f7febee20cbd1fa0c96a7cc81bbab0"
+      "sha256": "776314caa23adae7edbcb6d3da222050735f3382d0958f3bb5e3548750ed3ce7"
     },
     {
       "id": "SAFE-01",
@@ -100,7 +100,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-safe-01-permissions-approval/explainer.html",
-      "sha256": "1db448d748ae57ecee2cefe35657fee971721145252be82792f4bb1cacb0a9b7"
+      "sha256": "fa2ddeefe4b5bf567024b7f993a9dad83e6b9dbbcc67e1ba55e48dce45078103"
     },
     {
       "id": "SAFE-02",
@@ -108,7 +108,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-safe-02-sandbox-network-filesystem/explainer.html",
-      "sha256": "d08d4c599a442579c060451d0c0e0e08ae2d64099a169ea9aabd29c5b1079411"
+      "sha256": "1e246a191f8f4c8b73dedd3ea65b0f93a21b495e47f8521850a6b30a2f3a1fb2"
     },
     {
       "id": "SAFE-03",
@@ -116,7 +116,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-safe-03-safe-clean-diagnostics/explainer.html",
-      "sha256": "6ef7ae63cf8af2327a7462714f719fe4253f497614319e525efc7792d2179de7"
+      "sha256": "7271dd0fc4e274a94ce3cee15dac87fb7780dbd3ab8d56916524ac5636c62e5b"
     },
     {
       "id": "PAR-02",
@@ -124,7 +124,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-par-02-agent-view-background-sessions/explainer.html",
-      "sha256": "faeb9e703c634c5ad5d6b04fb420f3298fb6c735007283d375cfc4c6c4ac9f40"
+      "sha256": "b2bdc4075b053fc681e2c755b0e18c1e4a7a7080ced01ee3636157910e321416"
     },
     {
       "id": "PAR-03",
@@ -132,7 +132,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-par-03-worktree-isolation/explainer.html",
-      "sha256": "ea4315aadc0bc1fd194b159d57bdc1092002737b8c6b5e92b0ee2adc3808e783"
+      "sha256": "13b5f4e204480275ee0a591835a85bf89d2c0ab1b10f1f40228eac33005fc16a"
     },
     {
       "id": "PAR-04",
@@ -140,7 +140,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-par-04-git-pr/explainer.html",
-      "sha256": "a888720bd277596632ed71683fbb7bea63a6d549388cdb1c553ffc05ad1fde9a"
+      "sha256": "4f1cf4caf7e01cef0d0482205c3494e062d07eea423a563a4ecb562acaa77708"
     },
     {
       "id": "PAR-05",
@@ -148,7 +148,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-par-05-local-code-review/explainer.html",
-      "sha256": "a1d58165b9caf578d34696883457cfdb1916cc3a71f5c5a279cb1a71f2cba0dc"
+      "sha256": "772cd253222d1a8b3cd922cc5c27503e2b14acc6a910224e2959044e9e5ff647"
     },
     {
       "id": "PAR-06",
@@ -156,7 +156,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-par-06-batch-current/explainer.html",
-      "sha256": "fdf87c88dc0eb028e33274e79575a498765274e0dea3a44c747a6004104753ac"
+      "sha256": "86615495e81dd766184107f7a32744c9c243af38cca662132b9de3e52609986e"
     },
     {
       "id": "PAR-07",
@@ -164,7 +164,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-par-07-subagent-core-lifecycle/explainer.html",
-      "sha256": "c6f90ff771fd12df9f8944e9bec4b851cb98c970a9a13ca67dce086a9757a697"
+      "sha256": "c5ebadc64e7332c8c0059956988cea681d25371988b5b14981810f1d2806287b"
     },
     {
       "id": "PAR-08",
@@ -172,7 +172,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-par-08-agent-teams/explainer.html",
-      "sha256": "723dd3ef8322918064230ae3818c50c398dd2e0f061a24c3b0edc457cff3fd3e"
+      "sha256": "a91e1c7062a6049545af2f2b6cd6b47e9ddfd4a80d4cabe916a2b803664c043d"
     },
     {
       "id": "EXT-01",
@@ -180,7 +180,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ext-01-skills/explainer.html",
-      "sha256": "2377c7a5b9d60951e4b87539c4882bfffe1e116fd333c5ce6eae123357dd69fd"
+      "sha256": "f72979a6c3a88b1b9badcfbc5e770333fea9b44e5bc40f7b6bdd9379e35ebcc7"
     },
     {
       "id": "EXT-02",
@@ -188,7 +188,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ext-02-commands/explainer.html",
-      "sha256": "497dbb9f057b4c40d7b821c1ebb08afd9553b43b6186324f9f6aae39a4b139c8"
+      "sha256": "c604cd28f88e07d584c871d318cb2a2284cf59c25d6d5281f51b06884a6e1d9d"
     },
     {
       "id": "EXT-03",
@@ -196,7 +196,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ext-03-hooks/explainer.html",
-      "sha256": "9aff64d5e932a8e532d251c506f215ed5de42438bc142f7f9ffce3b71dbc2814"
+      "sha256": "eca1669fdc6708b504899e0c30b466b222f3c61d5ac3dea68541c9d6b74facc6"
     },
     {
       "id": "EXT-04",
@@ -204,7 +204,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ext-04-mcp-tool-search/explainer.html",
-      "sha256": "2285784eb4f7623089f1aa8d3ca645737ad05831ba3c70adb32d9979adc3fd43"
+      "sha256": "a99215baaeb982b25dfb12a44320f515473692bb0482f2714e35f4c2fdfd3e6a"
     },
     {
       "id": "EXT-05",
@@ -212,7 +212,7 @@
       "kind": "core",
       "evidence_status": "verified",
       "path": "20260827-ext-05-plugin-lifecycle/explainer.html",
-      "sha256": "fd2f117c23670559da973a035a93bde8569f6706d234d92aa1a59ec53486d0e6"
+      "sha256": "e5e4ff4deab73b903dd31989a909633facf19dfd4d70f578679c6751ac1eebf1"
     },
     {
       "id": "EXT-06",
@@ -220,7 +220,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ext-06-lsp-code-intelligence/explainer.html",
-      "sha256": "8b755a8197021b843c77f752bef9c461fe5c7b813cf91c3d2cee90a8168a60d0"
+      "sha256": "b7d77f4986ef6ebfadceaafd69c5ef78416d5ddba4d503d3b45a79bc01eff881"
     },
     {
       "id": "AUTO-01",
@@ -228,7 +228,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-auto-01-loop/explainer.html",
-      "sha256": "276ca7f0158c1def40e81fc546833918a882610de7f764536457e23c789040d7"
+      "sha256": "4b0557d17581f71c65605ef801ccc2dd08e6fc5d194689468173beb66fa4334e"
     },
     {
       "id": "AUTO-02",
@@ -236,7 +236,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-auto-02-goal/explainer.html",
-      "sha256": "75c57f49ff1d7a4f73de778ababf1eb211c37dda5e87ec4bc54d1218516708e2"
+      "sha256": "46fa54ed9571aa6808a6d02a3458d3f3f07e5846f27b7b579a7edd1bddb8c1d6"
     },
     {
       "id": "AUTO-03",
@@ -244,7 +244,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-auto-03-desktop-scheduled-tasks/explainer.html",
-      "sha256": "178613def0a305c017902e69ac05c22d438360693002a4cea7e92752d4b35c7d"
+      "sha256": "fca2963d2f819fb2950a87d8a37923069e636cf3d7e5b575adaf40e922ae7b4c"
     },
     {
       "id": "AUTO-04",
@@ -252,7 +252,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-auto-04-headless-structured-io/explainer.html",
-      "sha256": "74c3fc9d31bfbb173e4121754bdfccecfff4e7277413930490bd5036e2d3666a"
+      "sha256": "613dcf5c0388f1c46c0603de20bbc0c01907cb69f40c54af7cba031f990de2b9"
     },
     {
       "id": "CLOUD-01",
@@ -260,7 +260,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-cloud-01-session-handoff-teleport/explainer.html",
-      "sha256": "357ab02f25b86b7bfed4ce8e2c20e62b42085d8c1f19679dddab3a4e32c377d3"
+      "sha256": "1846987051ae92f9f5d3a2409b8b62a16adfc424b1a915a0e9d19a6135b14c17"
     },
     {
       "id": "CLOUD-02",
@@ -268,7 +268,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-cloud-02-routines-events/explainer.html",
-      "sha256": "d33a9aad237367f03309989858ce05cf687e3f676df542c493f489883f23504a"
+      "sha256": "2282ca3d57fc4a6912d45303e94f9cfa7a5cf6a80596a55e89ba03023eb61307"
     },
     {
       "id": "CLOUD-03",
@@ -276,7 +276,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-cloud-03-ci-event-execution/explainer.html",
-      "sha256": "025b21b8a7640ee8a951d4c30de87eb6eecf4074b5a1d82619b813568091af17"
+      "sha256": "5f24de42536c66e72c11673e035682eba1525e64a059cd8769ba0d798227a3e9"
     },
     {
       "id": "UI-01",
@@ -284,7 +284,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ui-01-cli-input-scheduling/explainer.html",
-      "sha256": "237c1ffd10cc54ed97b2908655657b3ff722f1b5c305c5d040f19959a0a48a39"
+      "sha256": "02e21ee90132228aed9eb159ff29852c3587547795645b9d409ff3c6c2d131d5"
     },
     {
       "id": "UI-02",
@@ -292,7 +292,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ui-02-terminal-rendering-accessibility/explainer.html",
-      "sha256": "5795bee83eb9dcdc8ca2f46f1c40069be7f520b12a9e85e8373a19171dea45a0"
+      "sha256": "ee53b3d22f7aeafcecb847bce7ae08f19e44811fd9258658ba7ccae03e0ead50"
     },
     {
       "id": "UI-04",
@@ -300,7 +300,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ui-04-ide-session-bridge/explainer.html",
-      "sha256": "73d155691329c149cc2750a6bccb56bf6c9c27f91542731e03c644e55c1b2345"
+      "sha256": "834cb510f27739bbe41fccb05f9cf4cc6f1cc95f6fabc2c31437984ffd717d64"
     },
     {
       "id": "UI-05",
@@ -308,7 +308,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ui-05-desktop-workspace/explainer.html",
-      "sha256": "a03d39478c65f023c22fb21d1814f8e113487653a9536a54cd7235acabd4ea14"
+      "sha256": "df244a566827ba11253095a32cc07040266a4ac417f2fca68c46b66df7aba1e6"
     },
     {
       "id": "UI-06",
@@ -316,7 +316,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ui-06-claude-in-chrome/explainer.html",
-      "sha256": "556d70574a07a05462f99d3911b8e5b4809126c64b1cc218489afd686da46bfa"
+      "sha256": "c3af3ca8bf681bde06c082dd78119d9151aa86774e1f7df940d1a71893e6e1b4"
     },
     {
       "id": "UI-07",
@@ -324,7 +324,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ui-07-remote-control-mobile/explainer.html",
-      "sha256": "21456f16ef681d93cd06eb6375f0f0fd93ae24861bd7cd7ea8d8a31a80309076"
+      "sha256": "8fd516e90a6514a9ac441a001997b644fc4f6218c4007a2bc67e29f948327558"
     },
     {
       "id": "UI-08",
@@ -332,7 +332,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-ui-08-channels-runtime-injection/explainer.html",
-      "sha256": "68d45f51bb82eb771c5de08bc904a7562e345d9856fa58122f14b1813d3153e9"
+      "sha256": "723192362021bf39fb1360ff5c24291a1e4d8537c03bcb991514b3d2782028a9"
     },
     {
       "id": "ADM-01",
@@ -340,7 +340,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-adm-01-settings-scopes/explainer.html",
-      "sha256": "10bf6b5bff79410088523ea7b4308ddd7001e566ce8b52f331f16b94674e52ac"
+      "sha256": "c6850b21ec18ead89acd6ac1a4afac66b3185c48a33701c71a60e8d42d17f1ab"
     },
     {
       "id": "ADM-02",
@@ -348,7 +348,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-adm-02-auth-source-selection/explainer.html",
-      "sha256": "8bd11d72c6e90f01f06f2ddd24e725af10c1827731c9bb9d730c6c0b7f697967"
+      "sha256": "5706da61a62d77bf2bd84ce75001595ac75189555d9f0d3c75cb70cbf0ec369f"
     },
     {
       "id": "ADM-03",
@@ -356,7 +356,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-adm-03-enterprise-network/explainer.html",
-      "sha256": "e481c5ddd9b53d9d31577035df593a859bc42fa73f8ac46d241ccff680f7e4aa"
+      "sha256": "6da2fce141889afff011242584f02391ebdae83e39de5b678c04eff66a7dfd4c"
     },
     {
       "id": "ADM-04",
@@ -364,7 +364,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-adm-04-cloud-session-runner/explainer.html",
-      "sha256": "3dd4915c640e4aad0b343b26d1542e8d981c53d0ca6d53593dfe7707fc4a9e0d"
+      "sha256": "d72cc86a4aa51867fadd09fc17f6c4885a119c7fd070420f17ff65a363aa0544"
     },
     {
       "id": "ADM-05",
@@ -372,7 +372,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-adm-05-gateway-routing/explainer.html",
-      "sha256": "b4bdb54b47ecd08cc7dad4c4b13ba9fcb61edb2d95f3c7e3599d1792c9251d75"
+      "sha256": "c7fd17951548c7be4514cede008c680f342abb3b167423bd4652c9ac8c75921c"
     },
     {
       "id": "ADM-06",
@@ -380,7 +380,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-adm-06-otel-usage-events/explainer.html",
-      "sha256": "3bb3da3c8a0230610e02de89286a7f261f26bf7cbcbf481081e173000deddbc3"
+      "sha256": "90c9e2fa08f2ce367991c0f2b0e053ec9185b0a21627b8826c9263eb14d1b6fe"
     },
     {
       "id": "ADM-08",
@@ -388,7 +388,7 @@
       "kind": "core",
       "evidence_status": "verified",
       "path": "20260827-adm-08-doctor-diagnostics/explainer.html",
-      "sha256": "4fa643859503a789b3b5aca8717437188b29e1cebdd8c5b18876828e5b4b98eb"
+      "sha256": "0701660736a26602ef78a0db18efcfb89668c7b963567b39239cf4cad35a25e3"
     },
     {
       "id": "SDK-01",
@@ -396,7 +396,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-sdk-01-runtime-session-loop/explainer.html",
-      "sha256": "467d10d9c462b78dfc6f88861f0867e2dae127cae30f0c5f15a6a456403af3c0"
+      "sha256": "d77d07e482a4ac026361488ad5e01571ba70f9cfcc5c747191ea21f6e8a2b7d9"
     },
     {
       "id": "SDK-02",
@@ -404,7 +404,7 @@
       "kind": "core",
       "evidence_status": "documented",
       "path": "20260827-sdk-02-tool-governance/explainer.html",
-      "sha256": "d01cc2973ed36eba0098f943c853608d24c66efe36732019f193a0985548140d"
+      "sha256": "df7717cf8a0df32b1d709e0c76958a5160a1c012f3be0ccb0761906988285d8b"
     },
     {
       "id": "COMP-CTX-ADVISOR",
@@ -412,7 +412,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-advisor-tool/explainer.html",
-      "sha256": "2f9c87c2f973167350f4dee8c9706eb93deb5404c0dc758523248c0292c5c338"
+      "sha256": "e2e5e4e457c340422eeedac1f39190b18e65a7ef484ae7defbef203fef67da02"
     },
     {
       "id": "COMP-SAFE-BARE",
@@ -420,7 +420,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-bare-mode/explainer.html",
-      "sha256": "9ef5041fd727e6eba30b46efebcc7f03e61a3ee101b3ff7e0ead6cf5ba3c4eea"
+      "sha256": "ef8ea52c2d7acc71493cccf0a8bea5020f07ed11716f44758791d226782d5af9"
     },
     {
       "id": "COMP-PAR-RECAP",
@@ -428,7 +428,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-session-recap/explainer.html",
-      "sha256": "97f310c7fd74226a38479d6d3211f9f6a53edf3dc31e25675d04d576fb578cd8"
+      "sha256": "d9e8ec48765a58f6dfd7dc2156d8e907ea583e804cb4ba0b5222818eb799c270"
     },
     {
       "id": "COMP-PAR-WORKFLOW",
@@ -436,7 +436,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-dynamic-workflows/explainer.html",
-      "sha256": "5146d980beebd38e94a3e3bcc48cb79b1a6633b970e217e0c6571128a0d92631"
+      "sha256": "5413c4b80a064ddbd7724d076daa72f7f3b1e51ccec845e9e02a2bd5d1b5cf87"
     },
     {
       "id": "COMP-EXT-PLUGIN-RUNTIME",
@@ -444,7 +444,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-plugin-runtime/explainer.html",
-      "sha256": "420f6b1278543e8675d3c174a38d3bc93a0b9ad9f3359bfdfe2dd96a4e737d70"
+      "sha256": "fff5f1f11fe73c85bf215e212f3a60acceaea481ad25bc841dea05d0133637f9"
     },
     {
       "id": "COMP-EXT-MARKETPLACE-PUBLISH",
@@ -452,7 +452,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-plugin-distribution/explainer.html",
-      "sha256": "8273e812c78f4fed71a52c3ba6a9f7f30137a1ae6a3e866244e52909eac3723b"
+      "sha256": "e5a1299ec60d5307b648c144afc02d6bcbf232c7318ece82ebff681d4b1c8888"
     },
     {
       "id": "AUTO-05",
@@ -460,7 +460,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260827-auto-05-deep-links/explainer.html",
-      "sha256": "db3e870f72a8ecc1b671fdc1521630c0ba2ab1d6da69976274e28c3211461005"
+      "sha256": "4b436513a8a8f142105e82e2745024e3ca245ecafff142a66fbf14b40722ec5a"
     },
     {
       "id": "EXT-07",
@@ -468,7 +468,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260827-ext-07-artifacts/explainer.html",
-      "sha256": "b011c19f2fa0e76dc1131d1831fbb691321d8b8c41616ee3670fb785f81a0871"
+      "sha256": "6d9ae0dd626e0f9e47d06bf9bf2dfd7f3beb8b3b568a757a038602cdd4d28dae"
     },
     {
       "id": "COMP-CLOUD-CI-PROVIDERS",
@@ -476,7 +476,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-ci-provider-matrix/explainer.html",
-      "sha256": "288eb9427e9d1ff57b38988fd188af190301a8c939aa003c5fed41f02ac1e653"
+      "sha256": "39c425b586a9631b43d2ed00e75207c83bd0a69025f4fdb4781474c318ed8a4d"
     },
     {
       "id": "COMP-UI-KEYMAP",
@@ -484,7 +484,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-terminal-keymap-vim/explainer.html",
-      "sha256": "6d9d7042802a9ff2e9934d3aefd0124a221c26704906562aa36264000a06bc0f"
+      "sha256": "4db9b7d0c7f366cc7d70ffc2c2be2878130c4ea2f6e2138cacfc2d644b5daa11"
     },
     {
       "id": "COMP-UI-STATUSLINE",
@@ -492,7 +492,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-custom-statusline/explainer.html",
-      "sha256": "916dc7cb223dee4fd413a8359894d9d36c737b11cd640cfaba1094ce4d498ca5"
+      "sha256": "92a8292b0437bd9cc158dbe2693d46303a30a2d0194dbb5ee1fcb4571de31c15"
     },
     {
       "id": "COMP-UI-IDE-MATRIX",
@@ -500,7 +500,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-ide-platform-matrix/explainer.html",
-      "sha256": "7aad671d726dcad042168ecc0be8648ff6c4379045fef9d9b5074080f528e91c"
+      "sha256": "ba97369d4229eb0f84f7306efb781939051d4a930ba3f95d86db07bd2199e2af"
     },
     {
       "id": "COMP-UI-DESKTOP-PREVIEW",
@@ -508,7 +508,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-desktop-app-preview/explainer.html",
-      "sha256": "8f4766f4e5b7ad6aecfe9650ead3042d2e0739c344521e973295b5a9816d3b4f"
+      "sha256": "bb684ac97a91e7cb1ddaef38563906cdee14cca52ea5811502842434f8baa364"
     },
     {
       "id": "COMP-UI-DESKTOP-PRMON",
@@ -516,7 +516,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-desktop-pr-monitor/explainer.html",
-      "sha256": "06b90bd27785d4e89518905d45ef456a5de92dfa8eefb76d5b0096243deb5387"
+      "sha256": "529b7914b089eb0451a60eafd31a7fbc1e64c4764070dc4c2f030f24daf7d6ea"
     },
     {
       "id": "COMP-UI-COMPUTER-USE",
@@ -524,7 +524,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-cli-computer-use/explainer.html",
-      "sha256": "30c5f1cb15cf21c28ecf5e904732bf9b0859ceac05b956223f8c646a0680beb7"
+      "sha256": "e961bc132632ad1f01568d495f06fec29d8b87b54c22b9a1955243bda490d5f2"
     },
     {
       "id": "COMP-UI-CHAT-DELEGATION",
@@ -532,7 +532,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-slack-claude-tag/explainer.html",
-      "sha256": "5ecf61f9e262ae4a25ebe42f0c19e53948daa8911f10ae7e3eb47e5e4f3cdd52"
+      "sha256": "ae42282342ff1bc9c1b03a4f57211032b8e0f8216299de551f6934a164a52418"
     },
     {
       "id": "COMP-ADM-AUTH-MATRIX",
@@ -540,7 +540,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-auth-provider-matrix/explainer.html",
-      "sha256": "cfc1c458cd1f59429881d92496ef5df0bbfb71e8e8acf3dbe449d14f13710750"
+      "sha256": "370475df2c9967a13c56d3431584bccae28da2c42095dde8a301ab5e02fe8fcb"
     },
     {
       "id": "COMP-ADM-DEVCONTAINER",
@@ -548,7 +548,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-devcontainer/explainer.html",
-      "sha256": "3c5b24c4129bdf8058ee1a1a424e1ba0df44807c7085ff39f1a9a1556fdbe2ab"
+      "sha256": "3773424bf76a11b284ba321fd0da6139435a95b67733bec5997a9f0cbc0e3a14"
     },
     {
       "id": "COMP-ADM-PROCESS-WRAPPER",
@@ -556,7 +556,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-process-wrapper/explainer.html",
-      "sha256": "64a4806467d42be7db7f4cdd02e11454d23d3c4ceccefcab2dc9506fdd30788f"
+      "sha256": "e922eb0c9c4b8c7e4790bab19eb1e56cc6a320412bf1cdddd18e85abcc58cb0e"
     },
     {
       "id": "COMP-ADM-CLOUD-ENV-AUTHOR",
@@ -564,7 +564,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-cloud-environment-authoring/explainer.html",
-      "sha256": "8f5e5346108298dddc2ae32fefea3dedc2555dae615a1639f36ec21aace50ba6"
+      "sha256": "36bf6f23f3f528392fbe9a8915be1d7821e459cd37ad66eafbe6709365cbd426"
     },
     {
       "id": "COMP-ADM-RUNNER-OPS",
@@ -572,7 +572,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-self-hosted-runner-ops/explainer.html",
-      "sha256": "17fff7416dc0f569eba19559e689c56d0ac99d5ea9fd54ed1a83bcd042791d81"
+      "sha256": "689b15d02203551bd05204409949c4ebac066717a0cce3516ca943a5316efc56"
     },
     {
       "id": "COMP-ADM-USAGE-CONSUMERS",
@@ -580,7 +580,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-usage-consumers-data-policy/explainer.html",
-      "sha256": "b5fd0ef8fd27b5aa15f66631c4570da17874aad45860d4d364eebfb437d696b7"
+      "sha256": "87d3ac2dfada05ff7bce233c201fbd66b4703de612b1bdce1ce548ea1a88fe69"
     },
     {
       "id": "COMP-SDK-STRUCTURED-OUTPUT",
@@ -588,7 +588,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-sdk-structured-output/explainer.html",
-      "sha256": "bc791266e92212da75c244d94aaa56deb3f1e2cbbc192835c7651c4f34fda0eb"
+      "sha256": "2d31f8e28d2c74dc130f0f8ad539a516466d55ad305b358d88ea4b5893755e13"
     },
     {
       "id": "COMP-SDK-SESSION-STORAGE",
@@ -596,7 +596,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-sdk-session-storage/explainer.html",
-      "sha256": "c94627bd673885a8ef4548e11ff772016d8556b6a6744fddeafd608b4c4dac03"
+      "sha256": "325d8362e08863e46b0269fee1f32280fc02ce0d290896f5ef777fed84d73d7a"
     },
     {
       "id": "COMP-SDK-OBSERVABILITY",
@@ -604,7 +604,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-sdk-observability/explainer.html",
-      "sha256": "f94f3590b123ff3fe32a6a2bff19c3f267e54200a6131e572854d5371066bb66"
+      "sha256": "fdadbbeb0f57c33269bd617c4bd83b00ca6ab970901e69364feef8615167ce1a"
     },
     {
       "id": "COMP-SDK-HOSTING",
@@ -612,7 +612,7 @@
       "kind": "companion",
       "evidence_status": "documented",
       "path": "20260829-companion-sdk-hosting-security/explainer.html",
-      "sha256": "6ee5a1e87430dc2231d2638acdeea72aa3b0b889dc42941cc2c7b5d93b11459f"
+      "sha256": "9d6436959e3f451e297f0c6315fb40b50dad7bcab920d6ff1f8232279a2d83d0"
     }
   ]
 }

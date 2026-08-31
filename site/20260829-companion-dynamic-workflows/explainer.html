@@ -34,16 +34,16 @@
     @media(max-width:560px){.topline{padding:9px 12px}.topline nav a:not(:first-child){display:none}main{width:calc(100% - 14px)}.hero-copy{padding:50px 21px 42px}h1{font-size:clamp(44px,14.5vw,66px)}.hero-panel{padding:30px 20px}.legend{grid-template-columns:1fr 1fr}.terms,.versions,.gates,.replay,.sources{grid-template-columns:1fr}.term,.version{border-right:0;border-bottom:1px solid var(--line)}.term:last-child,.version:last-child{border-bottom:0}.step{grid-template-columns:50px minmax(0,1fr)}.timeline:before{left:24px}.step-no{grid-row:1 / span 2;margin:20px 6px}.step-state{padding:18px 15px 7px;border-right:0}.step-copy{grid-column:2;padding:5px 15px 22px}.file-note{grid-template-columns:1fr}.surface-table,.surface-table tbody,.surface-table tr,.surface-table th,.surface-table td{display:block}.surface-table thead{display:none}.surface-table tr{border:1px solid var(--line);border-bottom:0}.surface-table tr:last-child{border-bottom:1px solid var(--line)}.surface-table td{border:0}.surface-table td:first-child{width:auto;padding-bottom:3px;color:#8d351c}.surface-table td:last-child{padding-top:3px}.foot{flex-direction:column}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
   </style>
-  <meta name="description" content="Claude Code X-Ray：Dynamic Workflows 的脚本生成、阶段调度与重跑。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Dynamic Workflows 的脚本生成、阶段调度与重跑，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260829-companion-dynamic-workflows/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="COMP-PAR-WORKFLOW · Dynamic Workflows 的脚本生成、阶段调度与重跑">
-  <meta property="og:description" content="Claude Code X-Ray：Dynamic Workflows 的脚本生成、阶段调度与重跑。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Dynamic Workflows 的脚本生成、阶段调度与重跑，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260829-companion-dynamic-workflows/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="COMP-PAR-WORKFLOW · Dynamic Workflows 的脚本生成、阶段调度与重跑">
-  <meta name="twitter:description" content="Claude Code X-Ray：Dynamic Workflows 的脚本生成、阶段调度与重跑。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Dynamic Workflows 的脚本生成、阶段调度与重跑，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -68,7 +68,7 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
       <div class="hero-copy">
         <p class="kicker">COMP-PAR-WORKFLOW · CLAUDE CODE XRY 伴页</p>
-        <h1 id="answer-title">一段脚本，<em>决定下一拨谁上场。</em></h1>
+        <h1 id="answer-title">脚本根据上一阶段结果创建下一批 subagent</h1>
         <p class="lede">上一阶段的 subagent 返回结果，脚本先把它留在变量里。<strong>等结果到齐以后</strong>，后面的调用才按这些结果创建新 subagent。失败和停止会改变下次重放的起点。</p>
         <p class="hero-boundary">阶段标题只负责进度展示。等待关系来自脚本顺序与 <code>await</code>。同一会话重放可以复用未变化的结果，未来新会话运行保存脚本会从头开始。<span class="eid"> O + I</span></p>
       </div>

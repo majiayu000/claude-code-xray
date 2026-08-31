@@ -265,16 +265,16 @@
       .sources a:hover { transform: none; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Agent SDK 成本、Tracing 与 OpenTelemetry。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Agent SDK 成本、Tracing 与 OpenTelemetry，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260829-companion-sdk-observability/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="COMP-SDK-OBSERVABILITY · Agent SDK 成本、Tracing 与 OpenTelemetry">
-  <meta property="og:description" content="Claude Code X-Ray：Agent SDK 成本、Tracing 与 OpenTelemetry。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Agent SDK 成本、Tracing 与 OpenTelemetry，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260829-companion-sdk-observability/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="COMP-SDK-OBSERVABILITY · Agent SDK 成本、Tracing 与 OpenTelemetry">
-  <meta name="twitter:description" content="Claude Code X-Ray：Agent SDK 成本、Tracing 与 OpenTelemetry。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Agent SDK 成本、Tracing 与 OpenTelemetry，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -313,8 +313,8 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
       <div>
         <p class="kicker">Agent SDK · Cost · Trace · OTel</p>
-        <h1 id="answer-title">一条运行<br>两路记账</h1>
-        <p class="hero-copy">宿主从 SDK 消息流读取 usage 和每次 query 的估算成本。与此同时，Claude Code 子进程生成 metrics、events 与 traces，再用会话、提示和工具调用身份把记录送往 OpenTelemetry 收集端。导出失败默认只丢遥测，Agent 任务仍可继续。 <span class="mark">O</span></p>
+        <h1 id="answer-title">一次 SDK 运行会产生两类记录</h1>
+        <p class="hero-copy">宿主从 SDK 消息流读取 usage 和每次 query 的估算成本。Claude Code 子进程还会生成 metrics、events 与 traces。这些记录会带上会话、提示和工具调用身份，再送往 OpenTelemetry 收集端。导出失败时，默认只会丢失遥测数据，Agent 任务仍可继续。 <span class="mark">O</span></p>
         <p class="hero-note">成本字段用于开发观察和近似预算。权威账单仍要查 Usage and Cost API 或 Console。本页没有付费运行证据，状态保持 documented。</p>
         <a class="scope-link" href="../20260827-sdk-02-tool-governance/explainer.html">回到 SDK-02 工具治理主页面</a>
       </div>

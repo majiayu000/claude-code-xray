@@ -206,16 +206,23 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Channels 的运行中消息注入与回复路由。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+
+<style id="xry-public-mobile-overflow-fix">
+  @media (max-width: 650px) {
+    .section > * { min-width: 0; }
+    .table-wrap, .matrix-wrap, .lane-board { max-width: 100%; }
+  }
+</style>
+  <meta name="description" content="这页拆解 Claude Code 的Channels 的运行中消息注入与回复路由，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-ui-08-channels-runtime-injection/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="UI-08 · Channels 的运行中消息注入与回复路由">
-  <meta property="og:description" content="Claude Code X-Ray：Channels 的运行中消息注入与回复路由。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Channels 的运行中消息注入与回复路由，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-ui-08-channels-runtime-injection/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="UI-08 · Channels 的运行中消息注入与回复路由">
-  <meta name="twitter:description" content="Claude Code X-Ray：Channels 的运行中消息注入与回复路由。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Channels 的运行中消息注入与回复路由，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -247,7 +254,7 @@
     <section class="hero shell" data-xray-section="answer" id="answer">
       <div>
         <div class="eyebrow">RUNNING SESSION INGRESS</div>
-        <h1>外部消息<span>插进正在跑的会话</span></h1>
+        <h1>外部消息进入正在运行的会话</h1>
         <p class="answer">获准的 Channel 服务器把外部事件排进已经打开的 Claude Code 会话。入口连着聊天平台或公开端点时，服务器应先核发送者。Claude 处理后，按事件带来的路由字段调用普通 MCP 回复工具；工具若卡在批准框，受信通道还可以带着一次性请求号把允许或拒绝送回来。</p>
         <p class="hero-note">它依赖一条仍在运行的本地会话。会话关掉，入口也随之消失。 <b>[O]</b></p>
       </div>

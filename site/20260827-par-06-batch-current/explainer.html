@@ -359,16 +359,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：/batch 大规模迁移编排。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的/batch 大规模迁移编排，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-par-06-batch-current/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="PAR-06 · /batch 大规模迁移编排">
-  <meta property="og:description" content="Claude Code X-Ray：/batch 大规模迁移编排。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的/batch 大规模迁移编排，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-par-06-batch-current/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="PAR-06 · /batch 大规模迁移编排">
-  <meta name="twitter:description" content="Claude Code X-Ray：/batch 大规模迁移编排。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的/batch 大规模迁移编排，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -395,7 +395,7 @@
     <div>
       <p class="kicker">Large migration dispatch</p>
       <h1 id="page-title"><code>/batch</code> 把一次大改动拆成一排独立 PR</h1>
-      <p class="answer"><strong>它先停在计划和验收。</strong>用户批准以后，主 Claude 才把 5 到 30 个能单独合入的工作单元一次发给后台 worker。每个 worker 在自己的 git worktree 里改、查、测，随后各开一份 PR。主会话收回网址和失败原因，最后停在汇总表。<span class="ev o">O</span><span class="ev l">L</span></p>
+      <p class="answer"><strong>它先停在计划和验收。</strong>用户批准以后，主 Claude 才把 5 到 30 个能单独合入的工作单元一次发给后台 worker。每个 worker 在自己的 git worktree 里修改和测试，随后各开一份 PR。主会话收回网址和失败原因，最后整理成汇总表。<span class="ev o">O</span><span class="ev l">L</span></p>
       <div class="meta-line" aria-label="页面元数据">
         <span class="badge">PAR-06</span>
         <span class="badge status">当前状态 documented</span>
@@ -449,7 +449,7 @@
 
   <section id="flow" data-xray-section="flow" aria-labelledby="flow-title">
   <div class="section-head"><div class="meta">03 · FLOW</div><div><h2 id="flow-title">一个计划，多个隔离结果</h2><p>主会话负责计划和汇总；worker 有独立上下文与独立 worktree。公开文档没有把内部任务信封或输出令牌定义为稳定接口。<span class="ev o">O</span></p></div></div>
-  <div class="flow-shell"><div class="flow-line"><div class="flow-node"><b>用户说明</b><span>目标和范围</span></div><div class="flow-node"><b>主会话计划</b><span>5–30 个独立单元</span></div><div class="flow-node"><b>隔离 worktree</b><span>各自实现和测试</span></div><div class="flow-node"><b>独立 PR</b><span>分别供审查与合入</span></div><div class="flow-node"><b>结果汇总</b><span>成功或失败状态</span></div></div></div>
+    <div class="flow-shell"><div class="flow-line"><div class="flow-node"><b>用户说明</b><span>目标和范围</span></div><div class="flow-node"><b>主会话计划</b><span>5 到 30 个独立单元</span></div><div class="flow-node"><b>隔离 worktree</b><span>各自实现和测试</span></div><div class="flow-node"><b>独立 PR</b><span>分别供审查与合入</span></div><div class="flow-node"><b>结果汇总</b><span>成功或失败状态</span></div></div></div>
 </section>
 
   <section id="limits" data-xray-section="limits" aria-labelledby="limits-title">
@@ -468,7 +468,7 @@
 </section>
 
   <section id="implementation" data-xray-section="implementation" aria-labelledby="implementation-title">
-  <div class="section-head"><div class="meta">06 · VERSION</div><div><h2 id="implementation-title">版本化阅读，不把内部格式当 API</h2><p>官方 2.1.247 changelog 没有宣布 <code>/batch</code> 主流程变化。可以依赖的是调研、5–30 个单元、计划批准、后台 subagent、worktree 隔离和分别创建 PR；内部提示措辞与输出格式不属于稳定公开契约。<span class="ev o">O</span></p></div></div>
+  <div class="section-head"><div class="meta">06 · VERSION</div><div><h2 id="implementation-title">版本化阅读，不把内部格式当 API</h2><p>官方 2.1.247 changelog 没有宣布 <code>/batch</code> 主流程变化。可以依赖的是调研、5 到 30 个单元、计划批准、后台 subagent、worktree 隔离和分别创建 PR。内部提示措辞与输出格式不属于稳定公开契约。<span class="ev o">O</span></p></div></div>
 </section>
 
   <section id="unknowns" data-xray-section="unknowns" aria-labelledby="unknowns-title">

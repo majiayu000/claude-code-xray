@@ -228,16 +228,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Desktop 项目会话与隔离工作区。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Desktop 项目会话与隔离工作区，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-ui-05-desktop-workspace/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="UI-05 · Desktop 项目会话与隔离工作区">
-  <meta property="og:description" content="Claude Code X-Ray：Desktop 项目会话与隔离工作区。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Desktop 项目会话与隔离工作区，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-ui-05-desktop-workspace/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="UI-05 · Desktop 项目会话与隔离工作区">
-  <meta name="twitter:description" content="Claude Code X-Ray：Desktop 项目会话与隔离工作区。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Desktop 项目会话与隔离工作区，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -276,7 +276,7 @@
           <span class="chip">Claude Code 2.1.247</span>
           <span class="chip">基线 2026-08-27</span>
         </p>
-        <h1>一次任务<br>共用一份工作现场</h1>
+        <h1>一次任务共用一份工作目录</h1>
         <p class="lead">用户先选环境和项目。Desktop 随后把会话绑定到一份工作目录。Claude 与 editor 写文件，terminal 从这份目录执行命令，diff 把修改送回用户审阅。Git 项目里的并行会话各自进入 worktree，面板仍然围绕各自那份目录工作。<span class="evidence-tag">O＋I</span></p>
         <p class="status-note">本页有官方契约与本机静态证据，没有启动付费会话的真实运行证据，所以状态保持 documented。</p>
       </div>

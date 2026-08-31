@@ -451,16 +451,16 @@
       .hero::before { top: 120px; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Plugin 包的发现、依赖解析、启用与卸载。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Plugin 包的发现、依赖解析、启用与卸载，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-ext-05-plugin-lifecycle/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="EXT-05 · Plugin 包的发现、依赖解析、启用与卸载">
-  <meta property="og:description" content="Claude Code X-Ray：Plugin 包的发现、依赖解析、启用与卸载。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Plugin 包的发现、依赖解析、启用与卸载，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-ext-05-plugin-lifecycle/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="EXT-05 · Plugin 包的发现、依赖解析、启用与卸载">
-  <meta name="twitter:description" content="Claude Code X-Ray：Plugin 包的发现、依赖解析、启用与卸载。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Plugin 包的发现、依赖解析、启用与卸载，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -492,8 +492,8 @@
       <div class="shell hero-grid">
         <div>
           <div class="kicker">Plugin lifecycle</div>
-          <h1>加进目录，只能看见。选中一个包，安装才开始。</h1>
-          <p class="lede">Claude Code 先在 marketplace 的本地目录里找包，再确定 scope 和版本，沿依赖关系补齐其他插件，最后把 Skills、Hooks、MCP 等组件装配进可用集合。停用会留下安装，卸载才撤掉它。自动依赖要等到没人再需要，才会被 prune 清走。</p>
+          <h1>插件被选中以后，安装才开始</h1>
+          <p class="lede">Claude Code 先在 marketplace 的本地目录里找包，再确定 scope 和版本。需要的依赖会一起补齐，Skills、Hooks 和 MCP 等组件随后进入可用集合。停用会保留已经安装的文件，卸载才会移除插件。自动依赖要等到没有其他插件需要时，才会被 prune 清走。</p>
           <div class="claim-strip"><span class="badge o">O</span><span class="badge l">L</span><span class="badge r">R</span>官方契约、2.1.247 帮助和一次隔离本地实验已经对上。真实组件执行没有进入本页。</div>
           <nav class="subnav" aria-label="页内导航">
             <a href="#sequence">一次安装</a>

@@ -271,16 +271,16 @@
       .version { border-right: 0; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：模型选择、Effort 与会话中切换。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的模型选择、Effort 与会话中切换，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-ctx-05-model-effort/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="CTX-05 · 模型选择、Effort 与会话中切换">
-  <meta property="og:description" content="Claude Code X-Ray：模型选择、Effort 与会话中切换。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的模型选择、Effort 与会话中切换，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-ctx-05-model-effort/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="CTX-05 · 模型选择、Effort 与会话中切换">
-  <meta name="twitter:description" content="Claude Code X-Ray：模型选择、Effort 与会话中切换。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的模型选择、Effort 与会话中切换，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -308,7 +308,7 @@
     <section class="hero" data-xray-section="answer" id="answer">
       <div>
         <span class="eyebrow">模型选择与 effort</span>
-        <h1>切换改的是下一次请求。</h1>
+        <h1>切换模型或 effort 后，下一次请求才生效</h1>
         <p class="lede">Claude Code 先确定会话当前使用的模型，再确定这个模型能接受的 effort。你在会话里改动其中一项，<strong>旧消息仍然保留，下一次请求采用新组合，并重新处理整段对话缓存。</strong><span class="evidence-tag tag-o">O</span></p>
         <p class="hero-note">选择还要穿过账户资格、组织 allowlist 与 provider 部署三道门。套餐会改变默认模型和 1M 上下文的付费方式，第三方 provider 缺少默认部署时，有的会回退，有的直接报错。</p>
         <nav class="mini-nav" aria-label="本页导航">

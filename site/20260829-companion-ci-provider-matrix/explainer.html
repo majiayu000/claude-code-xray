@@ -303,16 +303,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：CI 与云 Provider 配置差异矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的CI 与云 Provider 配置差异矩阵，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260829-companion-ci-provider-matrix/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="COMP-CLOUD-CI-PROVIDERS · CI 与云 Provider 配置差异矩阵">
-  <meta property="og:description" content="Claude Code X-Ray：CI 与云 Provider 配置差异矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的CI 与云 Provider 配置差异矩阵，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260829-companion-ci-provider-matrix/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="COMP-CLOUD-CI-PROVIDERS · CI 与云 Provider 配置差异矩阵">
-  <meta name="twitter:description" content="Claude Code X-Ray：CI 与云 Provider 配置差异矩阵。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的CI 与云 Provider 配置差异矩阵，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -345,7 +345,7 @@
       <div class="wrap hero-grid">
         <div>
           <div class="eyebrow">最短答案</div>
-          <h1>两套身份，四种 Provider。</h1>
+          <h1>CI 作业需要模型和仓库两套身份</h1>
           <p class="lede">CI 作业分别取得模型访问权和仓库回写权。GitHub Action 的官方云配方覆盖 Bedrock、Google Cloud 和 Foundry。GitLab CI/CD 的官方页只覆盖 Bedrock 与 Google Cloud，Foundry 组合仍是文档缺口。Provider 选择不改变仓库 token 的权限。<span class="e">O</span></p>
           <div class="status" aria-label="页面状态">
             <span class="tag">状态 documented</span>

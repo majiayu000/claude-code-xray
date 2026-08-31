@@ -198,16 +198,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Safe Mode、Clean 诊断与错误恢复。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Safe Mode、Clean 诊断与错误恢复，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-safe-03-safe-clean-diagnostics/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="SAFE-03 · Safe Mode、Clean 诊断与错误恢复">
-  <meta property="og:description" content="Claude Code X-Ray：Safe Mode、Clean 诊断与错误恢复。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Safe Mode、Clean 诊断与错误恢复，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-safe-03-safe-clean-diagnostics/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="SAFE-03 · Safe Mode、Clean 诊断与错误恢复">
-  <meta name="twitter:description" content="Claude Code X-Ray：Safe Mode、Clean 诊断与错误恢复。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Safe Mode、Clean 诊断与错误恢复，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -237,8 +237,8 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="eyebrow">SAFE-03 · documented · Claude Code 2.1.247</p>
-        <h1 id="hero-title">先减载，再一件件装回去</h1>
-        <p class="lede">交互式 Claude Code 启动异常时，先用 safe mode 关闭本次会话的自定义项，故障仍在，再用空配置目录和无项目配置的启动目录做 clean 比较，随后每次只恢复一件，重复同一个触发动作，故障第一次回来就停。</p>
+        <h1 id="hero-title">启动异常时，逐项排查自定义配置</h1>
+        <p class="lede">Claude Code 启动异常时，可以先用 safe mode 暂时关闭本次会话的自定义项。如果故障还在，再换到空配置目录和不加载项目配置的目录做一次 clean 对照。随后每次只恢复一项，并重复原来的触发动作。故障再次出现时，就能停下来检查刚恢复的那一项。</p>
         <div class="hero-meta" aria-label="页面状态">
           <span class="chip status">状态 documented</span>
           <span class="chip">冻结版本 2.1.247</span>

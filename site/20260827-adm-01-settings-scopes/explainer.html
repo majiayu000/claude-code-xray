@@ -147,16 +147,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：配置作用域、优先级、Managed Settings 与功能可用性。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的配置作用域、优先级、Managed Settings 与功能可用性，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-adm-01-settings-scopes/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="ADM-01 · 配置作用域、优先级、Managed Settings 与功能可用性">
-  <meta property="og:description" content="Claude Code X-Ray：配置作用域、优先级、Managed Settings 与功能可用性。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的配置作用域、优先级、Managed Settings 与功能可用性，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-adm-01-settings-scopes/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="ADM-01 · 配置作用域、优先级、Managed Settings 与功能可用性">
-  <meta name="twitter:description" content="Claude Code X-Ray：配置作用域、优先级、Managed Settings 与功能可用性。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的配置作用域、优先级、Managed Settings 与功能可用性，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -198,7 +198,7 @@
     <main>
       <section class="hero" id="answer" data-xray-section="answer">
         <p class="eyebrow">配置裁决记录 · 基线 2026-08-27</p>
-        <h1>同一个设置，组织策略先裁决。</h1>
+        <h1>组织策略怎样决定最终设置</h1>
         <p class="lede">Claude Code 先收集能到达这次会话的设置，再按 managed、命令行、local、项目、用户的顺序选值。组织层还能收窄选择范围，功能可能因而从界面消失，或在执行前被拦下。</p>
         <p class="one-line">候选设置先进入加载与校验，随后变成当前会话实际可用的功能。 <span class="badge">O</span></p>
         <div class="priority" aria-label="普通单值设置优先级，从高到低">

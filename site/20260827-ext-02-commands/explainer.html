@@ -407,16 +407,16 @@
       a { color: black; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：自定义斜杠命令与内置 Commands。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的自定义斜杠命令与内置 Commands，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-ext-02-commands/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="EXT-02 · 自定义斜杠命令与内置 Commands">
-  <meta property="og:description" content="Claude Code X-Ray：自定义斜杠命令与内置 Commands。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的自定义斜杠命令与内置 Commands，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-ext-02-commands/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="EXT-02 · 自定义斜杠命令与内置 Commands">
-  <meta name="twitter:description" content="Claude Code X-Ray：自定义斜杠命令与内置 Commands。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的自定义斜杠命令与内置 Commands，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -449,7 +449,7 @@
     <section class="hero" id="answer" data-xray-section="answer">
       <div>
         <div class="eyebrow">Input dispatch / 23</div>
-        <h1><span class="slash">/</span> 输入以后<br>走哪条路<small>自定义斜杠命令与内置 Commands</small></h1>
+        <h1>输入斜杠命令以后，Claude Code 怎样分派<small>自定义斜杠命令与内置 Commands</small></h1>
         <p class="hero-answer">
           Claude Code 只在消息开头认斜杠命令。菜单会随输入过滤候选，CLI 随后按提交的名字选择当前可用命令。内置命令进入固定处理逻辑。旧式文件命令会读取 Markdown，替换参数及获准的动态片段。默认分支把渲染结果放进当前会话；写了 <code>context: fork</code> 的文件命令会把它交给一个子 Agent。名字未命中时，CLI 报告未知命令；动态注入失败时，正文不会交给 Claude。<sup class="ev o">O</sup><sup class="ev l">L</sup>
         </p>

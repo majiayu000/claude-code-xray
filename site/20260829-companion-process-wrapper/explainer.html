@@ -126,16 +126,16 @@
     @media (max-width:540px){.mast{align-items:flex-start;flex-direction:column}.hero{padding-top:3rem}.machine{box-shadow:6px 6px 0 rgba(23,24,21,.2)}.socket{grid-template-columns:1fr}.section{padding-top:4rem;padding-bottom:4rem}.terms,.timeline,.legend{grid-template-columns:1fr}.term,.term:nth-child(2){border-right:0;border-bottom:1px solid var(--line)}.term:last-child{border-bottom:0}.step{min-height:auto;border-right:0}.wire-row{grid-template-columns:1fr 1.5rem}.wire-row span{grid-column:1/-1}.verdict{grid-template-columns:1fr}.source-list li{grid-template-columns:3rem 1fr}footer{align-items:flex-start;flex-direction:column}}
     @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   </style>
-  <meta name="description" content="Claude Code X-Ray：Corporate Launcher 与 Process Wrapper。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Corporate Launcher 与 Process Wrapper，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260829-companion-process-wrapper/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="COMP-ADM-PROCESS-WRAPPER · Corporate Launcher 与 Process Wrapper">
-  <meta property="og:description" content="Claude Code X-Ray：Corporate Launcher 与 Process Wrapper。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Corporate Launcher 与 Process Wrapper，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260829-companion-process-wrapper/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="COMP-ADM-PROCESS-WRAPPER · Corporate Launcher 与 Process Wrapper">
-  <meta name="twitter:description" content="Claude Code X-Ray：Corporate Launcher 与 Process Wrapper。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Corporate Launcher 与 Process Wrapper，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -163,8 +163,8 @@
     <section class="hero" data-xray-section="answer" id="answer">
       <div class="hero-copy">
         <div class="kicker">COMP-ADM-PROCESS-WRAPPER</div>
-        <h1>先过组织入口，再成为 Claude 进程</h1>
-        <p class="lede">管理员配置 launcher 后，Claude Code 把自己派生的后台服务、Agent View host 与会话交给它启动。launcher 满足 argv 与 exec 契约，目标进程接管；路径无效或脚本提前退出，相关进程停在启动处，原因回到 Agent View 或后台服务错误。<span class="mono">O</span></p>
+        <h1>组织 launcher 怎样启动 Claude 进程</h1>
+        <p class="lede">管理员配置 launcher 后，Claude Code 会把后台服务、Agent View host 和会话交给它启动。launcher 满足 argv 与 exec 契约时，目标进程接管。路径无效或脚本提前退出时，相关进程会停在启动阶段，原因显示在 Agent View 或后台服务错误里。<span class="mono">O</span></p>
         <div class="evidence" aria-label="页面状态">
           <span>状态 DOCUMENTED</span><span>Claude Code 2.1.247</span><span>R 本轮缺席</span>
         </div>

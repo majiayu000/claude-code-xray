@@ -375,16 +375,16 @@
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
     @media print { nav.page-nav { display: none; } .hero { min-height: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Plan Mode 的调研、提问、批准与执行边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Plan Mode 的调研、提问、批准与执行边界，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-plan-01-plan-mode/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="PLAN-01 · Plan Mode 的调研、提问、批准与执行边界">
-  <meta property="og:description" content="Claude Code X-Ray：Plan Mode 的调研、提问、批准与执行边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Plan Mode 的调研、提问、批准与执行边界，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-plan-01-plan-mode/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="PLAN-01 · Plan Mode 的调研、提问、批准与执行边界">
-  <meta name="twitter:description" content="Claude Code X-Ray：Plan Mode 的调研、提问、批准与执行边界。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Plan Mode 的调研、提问、批准与执行边界，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -416,7 +416,7 @@
     <section class="wrap hero" data-xray-section="answer" id="answer">
       <div>
         <div class="eyebrow">Plan Mode control trace</div>
-        <h1>先查清楚<span>再放行写入</span></h1>
+        <h1>先查清楚<span>再开始改代码</span></h1>
         <p class="lead">进入 Plan Mode 后，Claude 可以读项目、跑探索命令、向你补问并写下计划。<strong>源码修改停在批准之前。</strong>你批准后，会话才切到所选执行权限模式并开始改文件。<sup>O</sup></p>
       </div>
       <div class="gate" aria-label="Plan Mode 写入边界示意">

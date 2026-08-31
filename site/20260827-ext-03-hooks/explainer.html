@@ -323,16 +323,16 @@
       html { scroll-behavior: auto; }
     }
   </style>
-  <meta name="description" content="Claude Code X-Ray：Hooks 事件、决策与生命周期。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的Hooks 事件、决策与生命周期，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-ext-03-hooks/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="EXT-03 · Hooks 事件、决策与生命周期">
-  <meta property="og:description" content="Claude Code X-Ray：Hooks 事件、决策与生命周期。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的Hooks 事件、决策与生命周期，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-ext-03-hooks/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="EXT-03 · Hooks 事件、决策与生命周期">
-  <meta name="twitter:description" content="Claude Code X-Ray：Hooks 事件、决策与生命周期。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的Hooks 事件、决策与生命周期，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -363,7 +363,7 @@
     <section class="hero" data-xray-section="answer" aria-labelledby="answer-title">
       <div>
         <span class="kicker">EXT-03 · documented</span>
-        <h1 id="answer-title">Claude Code 先发出事件，再等 hook 交回决定。</h1>
+        <h1 id="answer-title">Claude Code 触发事件，hook 返回处理结果</h1>
         <p class="lead">会话开始、用户送出提示、工具准备执行、工具结束和本轮收尾，都会落到各自的生命周期点。交互会话先检查 workspace trust，随后才会放行 settings hooks。事件命中配置后，handler 收到 JSON。同步 handler 跑完以后，Claude Code 合并结果，随后继续、询问、拒绝，或者把补充信息交给下一次模型请求。</p>
         <p class="hero-note"><span class="evidence-chip">O</span>这条链来自 Anthropic Hooks 参考与权限文档。<span class="evidence-chip">I</span>页面把它压成一次裁决链，方便看清先后。当前机器已升级到 2.1.248，本页仍以指定的 Claude Code 2.1.247 为版本基线，因此状态保持 documented。</p>
       </div>

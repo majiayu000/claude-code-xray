@@ -164,16 +164,16 @@
     }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   </style>
-  <meta name="description" content="Claude Code X-Ray：MCP 连接、工具发现与 Tool Search。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="description" content="这页拆解 Claude Code 的MCP 连接、工具发现与 Tool Search，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-ext-04-mcp-tool-search/explainer.html">
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Claude Code X-Ray">
   <meta property="og:title" content="EXT-04 · MCP 连接、工具发现与 Tool Search">
-  <meta property="og:description" content="Claude Code X-Ray：MCP 连接、工具发现与 Tool Search。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta property="og:description" content="这页拆解 Claude Code 的MCP 连接、工具发现与 Tool Search，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-ext-04-mcp-tool-search/explainer.html">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="EXT-04 · MCP 连接、工具发现与 Tool Search">
-  <meta name="twitter:description" content="Claude Code X-Ray：MCP 连接、工具发现与 Tool Search。按用户动作、状态转换、停止条件与证据等级拆解，基于 Claude Code 版本化研究。">
+  <meta name="twitter:description" content="这页拆解 Claude Code 的MCP 连接、工具发现与 Tool Search，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -204,7 +204,7 @@
       <div>
         <p class="eyebrow">25 / Extension system</p>
         <h1>工具先可见，连接未必先发生</h1>
-        <p class="lede">Claude Code 先核对 MCP 配置与信任。没有缓存时，它连接 server 并读取能力；远端 HTTP 或 SSE server 命中 discovery cache 时，它会先采用上次的工具列表，直到首次调用才连接。裸工具名或 <code>mcp__*</code> deny 会先删掉候选，剩下的定义再由 Tool Search 按需装入。</p>
+        <p class="lede">Claude Code 先核对 MCP 配置与信任。没有缓存时，它会连接 server 并读取能力。远端 HTTP 或 SSE server 命中 discovery cache 时，Claude Code 会先采用上次的工具列表，直到首次调用才连接。裸工具名或 <code>mcp__*</code> deny 会先删掉候选，剩下的定义再由 Tool Search 按需装入。</p>
         <p class="hero-note">调用阶段还要处理认证与许可。关闭 Tool Search、代理不支持 tool reference，或把 server 标成 alwaysLoad，会改变 schema 进入上下文的时机。</p>
       </div>
       <div class="switchboard" aria-label="MCP 连接交换台示意">
