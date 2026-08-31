@@ -9,4 +9,4 @@ A versioned Chinese mechanism atlas for Claude Code `2.1.247`.
 
 The public bundle intentionally excludes research runs, credentials, databases, caches, screenshots and raw session material.
 
-> License decision required before remote publication. Anthropic and Claude are trademarks of their respective owner; this is an independent research project.
+> Content is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), attributed to © 2026 majiayu000. Anthropic and Claude are trademarks of their respective owner; this is an independent research project.

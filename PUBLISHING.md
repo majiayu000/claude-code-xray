@@ -1,6 +1,13 @@
 # 发布清单
 
-在创建或推送远程仓库前完成以下选择和校验：
+当前发布目标：
+
+- 所有者与仓库：`majiayu000/claude-code-xray`
+- 可见性：公开
+- 站点：<https://majiayu000.github.io/claude-code-xray/>
+- 内容许可：CC BY 4.0，署名 `© 2026 majiayu000`
+
+创建或推送远程仓库前完成以下校验：
 
 1. 确认 GitHub 所有者与仓库名。
 2. 确认仓库是公开还是私有。

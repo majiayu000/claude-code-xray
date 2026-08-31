@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: http://127.0.0.1:5580/sitemap.xml
+Sitemap: https://majiayu000.github.io/claude-code-xray/sitemap.xml
