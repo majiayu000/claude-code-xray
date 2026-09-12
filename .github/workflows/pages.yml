@@ -29,13 +29,15 @@ jobs:
       - name: Enforce publication gate
         shell: python
         run: |
+          import hashlib
           import ipaddress
           import json
           from pathlib import Path
           from urllib.parse import urlparse
 
           root = Path.cwd()
-          manifest = json.loads((root / "site" / "site-manifest.json").read_text(encoding="utf-8"))
+          site_root = root / "site"
+          manifest = json.loads((site_root / "site-manifest.json").read_text(encoding="utf-8"))
           parsed = urlparse(str(manifest.get("base_url", "")))
           host = parsed.hostname or ""
           try:
@@ -52,6 +54,60 @@ jobs:
           license_path = root / "LICENSE"
           if not license_path.is_file() or license_path.is_symlink():
               failures.append("a regular LICENSE file is required")
+
+          files = manifest.get("files")
+          if not isinstance(files, list):
+              failures.append("site manifest files[] must be a list")
+              files = []
+
+          manifest_paths = set()
+          for entry in files:
+              if not isinstance(entry, dict):
+                  failures.append("site manifest files[] entry must be an object")
+                  continue
+              rel = entry.get("path")
+              expected = entry.get("sha256")
+              if not isinstance(rel, str) or not rel:
+                  failures.append("site manifest files[] entry missing path")
+                  continue
+              if not isinstance(expected, str) or not expected:
+                  failures.append(f"{rel}: missing sha256 digest")
+                  continue
+              if rel in manifest_paths:
+                  failures.append(f"{rel}: duplicate path in site manifest")
+                  continue
+              manifest_paths.add(rel)
+
+              target = site_root / rel
+              if target.is_symlink():
+                  failures.append(f"{rel}: must be a regular file, not a symlink")
+                  continue
+              if not target.is_file():
+                  failures.append(f"{rel}: missing or not a regular file")
+                  continue
+
+              digest = hashlib.sha256(target.read_bytes()).hexdigest()
+              if digest != expected.lower():
+                  failures.append(
+                      f"{rel}: sha256 mismatch (expected {expected}, got {digest})"
+                  )
+
+          on_disk = {
+              path.relative_to(site_root).as_posix()
+              for path in site_root.rglob("explainer.html")
+              if path.is_file() and not path.is_symlink()
+          }
+          missing_on_disk = sorted(manifest_paths - on_disk)
+          extra_on_disk = sorted(on_disk - manifest_paths)
+          if missing_on_disk:
+              failures.append(
+                  "manifest paths missing on disk: " + ", ".join(missing_on_disk)
+              )
+          if extra_on_disk:
+              failures.append(
+                  "explainer.html files missing from manifest: " + ", ".join(extra_on_disk)
+              )
+
           if failures:
               raise SystemExit("Publication blocked: " + "; ".join(failures))
       - uses: actions/configure-pages@v5
