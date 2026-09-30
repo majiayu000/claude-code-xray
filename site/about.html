@@ -1,14 +1,29 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>研究方法 · Claude Code X-Ray</title>
-<meta name="description" content="Claude Code X-Ray 的研究方法、验收标准、证据等级与公开边界。">
 <meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
-<link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/about.html"><link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
 :root{--ink:#13282d;--paper:#f3f0e6;--panel:#fbf9f1;--line:#aeb8b2;--orange:#d64e2b;--green:#177357;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
 *{box-sizing:border-box}body{margin:0;color:var(--ink);background:linear-gradient(rgba(19,40,45,.045) 1px,transparent 1px),var(--paper);background-size:100% 28px;font:17px/1.75 "Avenir Next","PingFang SC",sans-serif}
 nav{position:sticky;top:0;z-index:2;padding:.8rem max(1rem,calc((100vw - 900px)/2));background:#13282d;color:#f3f0e6}nav a{color:#8bd9bc}main{max-width:900px;margin:auto;padding:clamp(2rem,6vw,5rem) 1.2rem}h1{font:800 clamp(2.7rem,8vw,6rem)/.95 Georgia,"Songti SC",serif;letter-spacing:-.04em;margin:.2em 0}h2{margin-top:3rem;border-top:2px solid var(--ink);padding-top:1rem}.lede{font-size:1.25rem;max-width:46rem}.criteria{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}.card,table{background:var(--panel);border:1px solid var(--line)}.card{padding:1.2rem}table{width:100%;border-collapse:collapse}th,td{padding:.8rem;text-align:left;border-bottom:1px solid var(--line)}code{font-family:var(--mono);color:var(--orange)}.callout{border-left:5px solid var(--orange);padding:1rem 1.2rem;background:#fff8e8}@media(max-width:680px){.criteria{grid-template-columns:1fr}table{display:block;overflow:auto}}
-</style></head><body><nav><a href="index.html">← 返回 Claude Code X-Ray 总索引</a></nav><main>
+</style>
+<meta name="description" content="Claude Code X-Ray 的研究方法、验收标准、证据等级与公开边界。">
+<link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/about.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Claude Code X-Ray">
+<meta property="og:title" content="研究方法 · Claude Code X-Ray">
+<meta property="og:description" content="Claude Code X-Ray 的研究方法、验收标准、证据等级与公开边界。">
+<meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/about.html">
+<meta property="og:image" content="https://majiayu000.github.io/claude-code-xray/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Claude Code X-Ray · 公开机制索引首页预览">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="研究方法 · Claude Code X-Ray">
+<meta name="twitter:description" content="Claude Code X-Ray 的研究方法、验收标准、证据等级与公开边界。">
+<meta name="twitter:image" content="https://majiayu000.github.io/claude-code-xray/social-card.png">
+</head><body><nav><a href="index.html">← 返回 Claude Code X-Ray 总索引</a></nav><main>
 <p><code>METHOD / BASELINE 2.1.247</code></p><h1>不是把文档抄一遍。<br>是把因果链闭合。</h1>
 <p class="lede">用户在 Claude Code 里做出一个动作以后，屏幕背后发生了什么？每一页从这个问题出发，先讲角色、动作和结果，再进入状态、权限、文件、进程、网络和版本差异。</p>
 <h2>一页怎样算完成</h2><div class="criteria">

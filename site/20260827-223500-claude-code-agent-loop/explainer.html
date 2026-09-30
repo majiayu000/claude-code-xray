@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CORE-01 解释 Claude Code 怎样让模型、harness、工具结果和停止原因组成一次 Agent 循环。">
   <meta name="xray:feature-id" content="CORE-01">
   <meta name="xray:status" content="documented">
   <meta name="xray:claude-code-version" content="2.1.247">
@@ -329,16 +328,6 @@
       .source-list a { transform: none !important; }
     }
   </style>
-  <meta name="description" content="这页拆解 Claude Code 的核心 Agent 循环，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
-  <link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-223500-claude-code-agent-loop/explainer.html">
-  <meta property="og:type" content="article">
-  <meta property="og:site_name" content="Claude Code X-Ray">
-  <meta property="og:title" content="CORE-01 · 核心 Agent 循环">
-  <meta property="og:description" content="这页拆解 Claude Code 的核心 Agent 循环，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
-  <meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-223500-claude-code-agent-loop/explainer.html">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="CORE-01 · 核心 Agent 循环">
-  <meta name="twitter:description" content="这页拆解 Claude Code 的核心 Agent 循环，从用户操作讲到程序处理和停止位置，并标明每条结论的证据来源。">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
@@ -352,6 +341,21 @@
     .xry-evidence-note{cursor:help;text-decoration:underline dotted;text-underline-offset:.25em}
     @media(max-width:640px){.xry-public-nav{padding:.6rem .8rem}.xry-public-nav .xry-public-status{display:none}}
   </style>
+<meta name="description" content="CORE-01 解释 Claude Code 怎样让模型、harness、工具结果和停止原因组成一次 Agent 循环。">
+<link rel="canonical" href="https://majiayu000.github.io/claude-code-xray/20260827-223500-claude-code-agent-loop/explainer.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Claude Code X-Ray">
+<meta property="og:title" content="一项任务怎样转成一轮行动 | CORE-01">
+<meta property="og:description" content="CORE-01 解释 Claude Code 怎样让模型、harness、工具结果和停止原因组成一次 Agent 循环。">
+<meta property="og:url" content="https://majiayu000.github.io/claude-code-xray/20260827-223500-claude-code-agent-loop/explainer.html">
+<meta property="og:image" content="https://majiayu000.github.io/claude-code-xray/social-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Claude Code X-Ray · 公开机制索引首页预览">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="一项任务怎样转成一轮行动 | CORE-01">
+<meta name="twitter:description" content="CORE-01 解释 Claude Code 怎样让模型、harness、工具结果和停止原因组成一次 Agent 循环。">
+<meta name="twitter:image" content="https://majiayu000.github.io/claude-code-xray/social-card.png">
 </head>
 <body>
 <nav class="xry-public-nav" aria-label="Claude Code X-Ray 全站导航"><a href="../index.html">← XRY 总索引</a><span>CORE-01</span><span class="xry-public-spacer"></span><span class="xry-public-status">DOCUMENTED</span></nav>
