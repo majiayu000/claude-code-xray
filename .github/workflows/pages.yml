@@ -26,17 +26,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Enforce publication gate
         shell: python
         run: |
           import hashlib
           import ipaddress
           import json
+          import os
+          import stat
           from pathlib import Path
           from urllib.parse import urlparse
 
           root = Path.cwd()
           site_root = root / "site"
+          if not stat.S_ISDIR(site_root.lstat().st_mode):
+              raise SystemExit("Publication blocked: site must be a regular directory")
+          site_root = site_root.resolve()
+
+          def walk_error(error):
+              raise error
+
+          for directory, directories, filenames in os.walk(site_root, onerror=walk_error):
+              for name in directories + filenames:
+                  path = Path(directory) / name
+                  mode = path.lstat().st_mode
+                  if not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+                      rel = path.relative_to(site_root).as_posix()
+                      raise SystemExit(
+                          f"Publication blocked: {rel}: must be a regular file or directory "
+                          "(no symlinks or special files)"
+                      )
+
           manifest = json.loads((site_root / "site-manifest.json").read_text(encoding="utf-8"))
           parsed = urlparse(str(manifest.get("base_url", "")))
           host = (parsed.hostname or "").lower()
@@ -85,6 +107,15 @@ jobs:
               if not isinstance(rel, str) or not rel:
                   failures.append("site manifest files[] entry missing path")
                   continue
+              rel_path = Path(rel)
+              target = site_root / rel_path
+              if (
+                  rel_path.is_absolute()
+                  or ".." in rel_path.parts
+                  or not target.resolve().is_relative_to(site_root)
+              ):
+                  failures.append(f"{rel}: path must stay inside site/")
+                  continue
               if not isinstance(expected, str) or not expected:
                   failures.append(f"{rel}: missing sha256 digest")
                   continue
@@ -93,10 +124,6 @@ jobs:
                   continue
               manifest_paths.add(rel)
 
-              target = site_root / rel
-              if target.is_symlink():
-                  failures.append(f"{rel}: must be a regular file, not a symlink")
-                  continue
               if not target.is_file():
                   failures.append(f"{rel}: missing or not a regular file")
                   continue
@@ -110,7 +137,7 @@ jobs:
           on_disk = {
               path.relative_to(site_root).as_posix()
               for path in site_root.rglob("explainer.html")
-              if path.is_file() and not path.is_symlink()
+              if path.is_file()
           }
           missing_on_disk = sorted(manifest_paths - on_disk)
           extra_on_disk = sorted(on_disk - manifest_paths)
