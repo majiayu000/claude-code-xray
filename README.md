@@ -2,6 +2,8 @@
 
 Claude Code XRY 是一组按独立机制拆开的中文研究页面。每一页围绕一个主要用户动作、一个关键状态转换和一组停止条件，用官方契约与可复现实验互相核对。
 
+[在线机制索引](https://majiayu000.github.io/claude-code-xray/) · [研究方法与证据边界](https://majiayu000.github.io/claude-code-xray/about.html)
+
 当前公开站点包含：
 
 - 50 个已独立验收的核心机制页面
