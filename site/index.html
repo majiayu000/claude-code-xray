@@ -219,6 +219,17 @@
       </aside>
     </header>
 
+    <section aria-labelledby="start-here-title">
+      <h2 id="start-here-title">从你遇到的问题开始</h2>
+      <div class="summary-strip">
+        <div class="summary-cell"><b>为什么还在请求审批？</b><span>先读<a href="20260827-safe-01-permissions-approval/explainer.html">权限规则与模式</a>，再区分<a href="20260827-safe-02-sandbox-network-filesystem/explainer.html">Bash 沙箱与网络边界</a>。审批与系统隔离是两个需要分别核对的入口。</span></div>
+        <div class="summary-cell"><b>上下文满了，压缩与恢复怎样读？</b><span>从<a href="20260827-ctx-01-context-compaction-cache/explainer.html">上下文、自动压缩与缓存</a>进入，再看<a href="20260827-223501-claude-code-sessions-checkpointing/explainer.html">会话恢复与分叉</a>；需要回退文件时另读<a href="20260827-ctx-08-checkpoints-rewind/explainer.html">检查点与 rewind</a>。</span></div>
+        <div class="summary-cell"><b>安装了扩展，却找不到工具？</b><span>按对象选择<a href="20260827-ext-01-skills/explainer.html">Skills 加载</a>、<a href="20260827-ext-04-mcp-tool-search/explainer.html">MCP 工具发现</a>或<a href="20260827-ext-05-plugin-lifecycle/explainer.html">Plugin 装配</a>，再核对<a href="20260827-adm-01-settings-scopes/explainer.html">配置作用域</a>。</span></div>
+        <div class="summary-cell"><b>登录或连接失败，从哪里排查？</b><span>先辨认<a href="20260827-adm-02-auth-source-selection/explainer.html">认证来源</a>，再看<a href="20260827-adm-03-enterprise-network/explainer.html">代理、证书与网络链</a>及<a href="20260827-adm-08-doctor-diagnostics/explainer.html">Doctor 诊断</a>；不把错误一律归为权限问题。</span></div>
+      </div>
+      <p>这些阅读路线沿用本站 2.1.247 / 2026-08-30 的研究边界。使用新版本前请核对<a href="https://code.claude.com/docs/zh-CN/permissions">官方权限文档</a>与<a href="https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md">官方变更记录</a>。具体证据等级见<a href="about.html">研究方法</a>，页面错误可在<a href="https://github.com/majiayu000/claude-code-xray/issues">项目 Issues</a>反馈。</p>
+    </section>
+
     <section class="toolbar" aria-label="索引筛选">
       <label class="search-wrap"><span class="hidden">搜索功能名称或 ID</span><input id="search" type="search" autocomplete="off" placeholder="搜索功能名称或 ID，例如 Hooks、PAR-05"></label>
       <div class="filters" role="group" aria-label="按状态筛选">
