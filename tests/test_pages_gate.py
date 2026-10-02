@@ -36,6 +36,13 @@ class PagesGateTests(unittest.TestCase):
 
     def write_manifest(self):
         (self.site / "site-manifest.json").write_text(json.dumps(self.manifest))
+        lines = [
+            hashlib.sha256(path.read_bytes()).hexdigest()
+            + "  " + path.relative_to(self.site).as_posix() + "\n"
+            for path in sorted(self.site.rglob("*"))
+            if path.is_file() and not path.is_symlink()
+        ]
+        (self.root / "site.sha256").write_text("".join(lines))
 
     def run_gate(self, root=None):
         previous = Path.cwd()
@@ -119,12 +126,19 @@ class PagesGateTests(unittest.TestCase):
         self.assert_blocked("pipe")
 
     def test_escaping_manifest_paths_are_blocked_before_read(self):
+        read_bytes = Path.read_bytes
+
+        def read_inside_site(path):
+            self.assertTrue(path.resolve().is_relative_to(self.site.resolve()),
+                            "unsafe read outside site")
+            return read_bytes(path)
+
         for rel in [str(self.external_file), "../outside/explainer.html",
                     "page/../../outside/explainer.html"]:
             with self.subTest(path=rel):
                 self.manifest["files"] = [{"path": rel, "sha256": "fixture"}]
                 self.write_manifest()
-                with patch.object(Path, "read_bytes", side_effect=AssertionError("unsafe read")):
+                with patch.object(Path, "read_bytes", read_inside_site):
                     self.assert_blocked("path must stay inside site/")
 
     def test_walk_errors_propagate(self):

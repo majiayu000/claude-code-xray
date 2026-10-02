@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "site.sha256"
       - "LICENSE"
       - ".github/workflows/pages.yml"
 
@@ -32,12 +33,10 @@ jobs:
         shell: python
         run: |
           import hashlib
-          import ipaddress
           import json
           import os
           import stat
           from pathlib import Path
-          from urllib.parse import urlparse
 
           root = Path.cwd()
           site_root = root / "site"
@@ -60,37 +59,48 @@ jobs:
                       )
 
           manifest = json.loads((site_root / "site-manifest.json").read_text(encoding="utf-8"))
-          parsed = urlparse(str(manifest.get("base_url", "")))
-          host = (parsed.hostname or "").lower()
-          allowed_hosts = {"majiayu000.github.io"}
-
-          def host_is_blocked(hostname: str) -> bool:
-              if not hostname or hostname == "localhost":
-                  return True
-              try:
-                  addr = ipaddress.ip_address(hostname)
-              except ValueError:
-                  return hostname not in allowed_hosts
-              return (
-                  addr.is_loopback
-                  or addr.is_private
-                  or addr.is_link_local
-                  or addr.is_unspecified
-                  or addr.is_multicast
-                  or hostname not in allowed_hosts
-              )
 
           failures = []
           if manifest.get("publish_ready") is not True:
               failures.append("site manifest is not marked publish_ready")
-          if parsed.scheme != "https" or host_is_blocked(host):
+          if manifest.get("base_url") != "https://majiayu000.github.io/claude-code-xray/":
               failures.append(
                   "base_url must be an HTTPS URL on majiayu000.github.io "
-                  "(not loopback, private, link-local, unspecified, or multicast)"
+                  "with the exact URL https://majiayu000.github.io/claude-code-xray/"
               )
           license_path = root / "LICENSE"
           if not license_path.is_file() or license_path.is_symlink():
               failures.append("a regular LICENSE file is required")
+
+          on_disk = {
+              path.relative_to(site_root).as_posix()
+              for path in site_root.rglob("*")
+              if path.is_file() and not path.is_symlink()
+          }
+          digests = {
+              rel: hashlib.sha256((site_root / rel).read_bytes()).hexdigest()
+              for rel in on_disk
+          }
+          checksums = {}
+          for line in (root / "site.sha256").read_text(encoding="utf-8").splitlines():
+              expected, rel = line.split("  ", 1)
+              if rel in checksums:
+                  failures.append(f"{rel}: duplicate path in site.sha256")
+                  continue
+              checksums[rel] = expected
+              if rel in digests and digests[rel] != expected.lower():
+                  failures.append(f"{rel}: sha256 mismatch in site.sha256")
+
+          missing_on_disk = sorted(checksums.keys() - on_disk)
+          extra_on_disk = sorted(on_disk - checksums.keys())
+          if missing_on_disk:
+              failures.append(
+                  "site.sha256 paths missing on disk: " + ", ".join(missing_on_disk)
+              )
+          if extra_on_disk:
+              failures.append(
+                  "files missing from site.sha256: " + ", ".join(extra_on_disk)
+              )
 
           files = manifest.get("files")
           if not isinstance(files, list):
@@ -128,19 +138,17 @@ jobs:
                   failures.append(f"{rel}: missing or not a regular file")
                   continue
 
-              digest = hashlib.sha256(target.read_bytes()).hexdigest()
+              digest = digests.get(rel)
               if digest != expected.lower():
                   failures.append(
                       f"{rel}: sha256 mismatch (expected {expected}, got {digest})"
                   )
 
-          on_disk = {
-              path.relative_to(site_root).as_posix()
-              for path in site_root.rglob("explainer.html")
-              if path.is_file()
-          }
           missing_on_disk = sorted(manifest_paths - on_disk)
-          extra_on_disk = sorted(on_disk - manifest_paths)
+          extra_on_disk = sorted(
+              rel for rel in on_disk - manifest_paths
+              if Path(rel).name == "explainer.html"
+          )
           if missing_on_disk:
               failures.append(
                   "manifest paths missing on disk: " + ", ".join(missing_on_disk)
